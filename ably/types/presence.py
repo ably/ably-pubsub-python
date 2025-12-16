@@ -7,16 +7,18 @@ from ably.types.typedbuffer import TypedBuffer
 from ably.util.crypto import CipherData
 from ably.util.encoding import encode_data
 
+# The Unix epoch as a naive datetime. Presence timestamps are naive and interpreted as
+# UTC, both the ones decoded off the wire and the ones callers pass in.
+_EPOCH = datetime(1970, 1, 1)
+
 
 def _ms_since_epoch(dt):
-    epoch = datetime.utcfromtimestamp(0)
-    delta = dt - epoch
+    delta = dt - _EPOCH
     return int(delta.total_seconds() * 1000)
 
 
 def _dt_from_ms_epoch(ms):
-    epoch = datetime.utcfromtimestamp(0)
-    return epoch + timedelta(milliseconds=ms)
+    return _EPOCH + timedelta(milliseconds=ms)
 
 
 class PresenceAction:
