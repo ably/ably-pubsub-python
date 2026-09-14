@@ -1,5 +1,5 @@
 ![Ably Pub/Sub Python Header](images/pythonSDK-github.png)
-[![PyPI version](https://badge.fury.io/py/ably.svg)](https://pypi.org/project/ably/)
+[![PyPI version](https://badge.fury.io/py/ably-pubsub-server.svg)](https://pypi.org/project/ably-pubsub-server/)
 [![License](https://img.shields.io/github/license/ably/ably-pubsub-python)](https://github.com/ably/ably-pubsub-python/blob/main/LICENSE)
 
 
@@ -48,8 +48,25 @@ The following platforms are supported:
 To get started with your project, install the package:
 
 ```sh
-pip install ably
+pip install ably-pubsub-server
 ```
+
+The package installs into `ably.pubsub`, and the whole public API is reached
+through `ably.pubsub.server`:
+
+```python
+from ably.pubsub.server import AblyRealtime, AblyRest
+```
+
+The synchronous, HTTP-only flavour lives alongside it:
+
+```python
+from ably.pubsub.server.sync import AblyRestSync
+```
+
+Both `ably` and `ably.pubsub` are [namespace packages](https://peps.python.org/pep-0420/)
+shared with the other `ably-*` distributions, so neither exports anything
+itself — always import from `ably.pubsub.server`.
 
 > [!NOTE]
 Install [Python](https://www.python.org/downloads/) version 3.8 or greater.
@@ -59,6 +76,8 @@ Install [Python](https://www.python.org/downloads/) version 3.8 or greater.
 The following code connects to Ably's realtime messaging service, subscribes to a channel to receive messages, and publishes a test message to that same channel.
 
 ```python
+from ably.pubsub.server import AblyRealtime
+
 # Initialize Ably Realtime client
 async with AblyRealtime('your-ably-api-key', client_id='me') as realtime_client:
     # Wait for connection to be established

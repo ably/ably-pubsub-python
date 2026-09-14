@@ -1,7 +1,7 @@
 [project]
-name = "ably"
+name = "ably-pubsub-server"
 version = "3.1.3"
-description = "Python REST and Realtime client library SDK for Ably realtime messaging service"
+description = "Python REST and Realtime server client library SDK for Ably Pub/Sub"
 readme = "LONG_DESCRIPTION.rst"
 requires-python = ">=3.7"
 license = { text = "Apache-2.0" }
@@ -59,7 +59,7 @@ dev = [
 ]
 
 [project.scripts]
-unasync = "ably.scripts.unasync:run"
+unasync = "ably.pubsub.scripts.unasync:run"
 
 [project.urls]
 Homepage = "https://ably.com"
@@ -88,7 +88,9 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 ignore-vcs = true
-packages = ["ably"]
+# `ably` is a PEP 420 namespace package shared with the other ably-* distributions,
+# so it must not be shipped with an __init__.py of its own.
+only-include = ["ably/pubsub"]
 
 [tool.pytest.ini_options]
 timeout = 30
@@ -102,7 +104,7 @@ explicit = true
 [tool.ruff]
 line-length = 115
 extend-exclude = [
-  "ably/sync",
+  "ably/pubsub/sync",
   "test/ably/sync",
 ]
 

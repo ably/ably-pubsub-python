@@ -2,9 +2,9 @@ import httpx
 import pytest
 import respx
 
-from ably import AblyRest
-from ably.http.paginatedresult import HttpPaginatedResponse
-from ably.transport.defaults import Defaults
+from ably.pubsub.http.paginatedresult import HttpPaginatedResponse
+from ably.pubsub.server import AblyRest
+from ably.pubsub.transport.defaults import Defaults
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
 

@@ -1,4 +1,4 @@
-from ably import AblyRest
+from ably.pubsub.server import AblyRest
 
 
 def test_http_get_rest_hosts_works_when_fallback_realtime_host_is_set():

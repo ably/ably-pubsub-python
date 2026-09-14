@@ -1,5 +1,56 @@
 # Upgrade / Migration Guide
 
+## Version 3.x to 4.0.0
+
+The package is now published to PyPI as `ably-pubsub-server` rather than `ably`, and
+it installs into `ably.pubsub` rather than `ably`. Both `ably` and `ably.pubsub` are
+[namespace packages](https://peps.python.org/pep-0420/) shared with the other
+`ably-*` distributions, so neither exports anything of its own — the whole public
+API is reached through `ably.pubsub.server`.
+
+### Installation
+
+Example 3.x:
+```sh
+pip install ably
+```
+
+Example 4.0.0:
+```sh
+pip install ably-pubsub-server
+```
+
+### Imports
+
+Example 3.x code:
+```python
+from ably import AblyRealtime, AblyRest
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import AblyRealtime, AblyRest
+```
+
+The synchronous, HTTP-only flavour moves the same way:
+
+Example 3.x code:
+```python
+from ably.sync import AblyRestSync
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server.sync import AblyRestSync
+```
+
+Anything imported from a submodule gains the same `pubsub` segment — for
+instance `ably.types.message` becomes `ably.pubsub.types.message`, and
+`ably.sync.types.message` becomes `ably.pubsub.sync.types.message`.
+
+`api_version` and `lib_version` are still re-exported from
+`ably.pubsub.server`, and now also live in `ably.pubsub.version`.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

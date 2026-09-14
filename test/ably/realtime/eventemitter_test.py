@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 

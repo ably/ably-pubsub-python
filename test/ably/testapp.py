@@ -2,12 +2,12 @@ import json
 import logging
 import os
 
-from ably.realtime.realtime import AblyRealtime
-from ably.rest.rest import AblyRest
-from ably.transport.defaults import Defaults
-from ably.types.capability import Capability
-from ably.types.options import Options
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.realtime import AblyRealtime
+from ably.pubsub.rest.rest import AblyRest
+from ably.pubsub.transport.defaults import Defaults
+from ably.pubsub.types.capability import Capability
+from ably.pubsub.types.options import Options
+from ably.pubsub.util.exceptions import AblyException
 
 log = logging.getLogger(__name__)
 
