@@ -15,11 +15,11 @@ import base64
 
 import pytest
 
-from ably.rest.annotations import construct_validate_annotation, serial_from_msg_or_serial
-from ably.types.annotation import Annotation, AnnotationAction
-from ably.types.message import Message
-from ably.util.crypto import generate_random_key, get_cipher
-from ably.util.exceptions import AblyException
+from ably.pubsub.rest.annotations import construct_validate_annotation, serial_from_msg_or_serial
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.message import Message
+from ably.pubsub.util.crypto import generate_random_key, get_cipher
+from ably.pubsub.util.exceptions import AblyException
 
 # --- RSAN1a3: type validation ---
 

@@ -19,13 +19,13 @@ import uuid
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.realtime.presence import RealtimePresence
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.types.flags import Flag
-from ably.types.presence import PresenceAction
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.realtime.presence import RealtimePresence
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.flags import Flag
+from ably.pubsub.types.presence import PresenceAction
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     connected_client,

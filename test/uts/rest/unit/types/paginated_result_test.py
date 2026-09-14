@@ -5,9 +5,9 @@ Spec points: TG1, TG2, TG3, TG4
 
 import pytest
 
-from ably.types.message import Message
-from ably.types.presence import PresenceMessage
-from ably.util.exceptions import AblyException
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.presence import PresenceMessage
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

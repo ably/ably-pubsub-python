@@ -8,10 +8,10 @@ import time
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client, rest_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.deviations import deviation

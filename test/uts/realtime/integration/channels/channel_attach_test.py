@@ -18,9 +18,9 @@ spells out for the same wait.
 
 import pytest
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionState
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client
 from test.uts.helpers.sandbox import random_id
 

@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import pytest
 
-from ably import AblyException, AblyRest, Capability
-from ably.types.tokendetails import TokenDetails
-from ably.types.tokenrequest import TokenRequest
+from ably.pubsub.server import AblyException, AblyRest, Capability
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.types.tokenrequest import TokenRequest
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
 
@@ -120,8 +120,8 @@ class TestRestToken(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     async def test_token_generation_with_local_time(self):
         timestamp = self.ably.auth._timestamp
-        with patch('ably.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time,\
-                patch('ably.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
+        with patch('ably.pubsub.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time,\
+                patch('ably.pubsub.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
             await self.ably.auth.request_token()
             assert local_time.called
             assert not server_time.called
@@ -129,8 +129,8 @@ class TestRestToken(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
     # RSA10k
     async def test_token_generation_with_server_time(self):
         timestamp = self.ably.auth._timestamp
-        with patch('ably.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time,\
-                patch('ably.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
+        with patch('ably.pubsub.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time,\
+                patch('ably.pubsub.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
             await self.ably.auth.request_token(query_time=True)
             assert local_time.call_count == 1
             assert server_time.call_count == 1
@@ -182,8 +182,8 @@ class TestCreateTokenRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
     @dont_vary_protocol
     async def test_with_local_time(self):
         timestamp = self.ably.auth._timestamp
-        with patch('ably.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time,\
-                patch('ably.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
+        with patch('ably.pubsub.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time,\
+                patch('ably.pubsub.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
             await self.ably.auth.create_token_request(
                 key_name=self.key_name, key_secret=self.key_secret, query_time=False)
             assert local_time.called
@@ -193,8 +193,8 @@ class TestCreateTokenRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
     @dont_vary_protocol
     async def test_with_server_time(self):
         timestamp = self.ably.auth._timestamp
-        with patch('ably.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time,\
-                patch('ably.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
+        with patch('ably.pubsub.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time,\
+                patch('ably.pubsub.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
             await self.ably.auth.create_token_request(
                 key_name=self.key_name, key_secret=self.key_secret, query_time=True)
             assert local_time.call_count == 1
@@ -329,7 +329,7 @@ class TestCreateTokenRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
     # AO2g
     @dont_vary_protocol
     async def test_query_server_time(self):
-        with patch('ably.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time:
+        with patch('ably.pubsub.rest.rest.AblyRest.time', wraps=self.ably.time) as server_time:
             await self.ably.auth.create_token_request(
                 key_name=self.key_name, key_secret=self.key_secret, query_time=True)
             assert server_time.call_count == 1

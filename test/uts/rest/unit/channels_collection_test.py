@@ -8,7 +8,7 @@ installed so that nothing in these tests can touch the network.
 
 import uuid
 
-from ably.rest.channel import Channel, Channels
+from ably.pubsub.rest.channel import Channel, Channels
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

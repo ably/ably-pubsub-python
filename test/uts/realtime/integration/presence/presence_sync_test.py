@@ -17,8 +17,8 @@ recorded in [deviations.md](../../../deviations.md), so the client entering memb
 behalf of others is built with `client_id='*'`.
 """
 
-from ably.realtime.connection import ConnectionState
-from ably.types.presence import PresenceAction
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.presence import PresenceAction
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client
 from test.uts.helpers.sandbox import random_id
 

@@ -80,7 +80,7 @@ def fixture_cipher_params():
     key and the IV base64-encoded, which is not what `CipherParams` wants: it
     takes them as raw bytes and derives the key length from the key.
     """
-    from ably.util.crypto import CipherParams
+    from ably.pubsub.util.crypto import CipherParams
 
     return CipherParams(
         algorithm=CIPHER_FIXTURE['algorithm'],

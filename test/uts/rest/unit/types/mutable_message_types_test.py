@@ -4,9 +4,9 @@ Spec points: TM2j, TM2r, TM2s, TM2s1, TM2s2, TM2s3, TM2s4, TM2s5, TM2u, TM5, TM8
 MOP2a, MOP2b, MOP2c, UDR1, UDR2, UDR2a, TAN1, TAN2, TAN2a-TAN2l
 """
 
-from ably.types.annotation import Annotation, AnnotationAction
-from ably.types.message import Message, MessageAction, MessageAnnotations, MessageVersion
-from ably.types.operations import MessageOperation, UpdateDeleteResult
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.message import Message, MessageAction, MessageAnnotations, MessageVersion
+from ably.pubsub.types.operations import MessageOperation, UpdateDeleteResult
 
 # `fromJson` is spelled `from_encoded` for wire payloads and `from_dict` for plain records,
 # and `toJson` is spelled `as_dict`.

@@ -8,11 +8,11 @@ import time
 
 import pytest
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionEvent, ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionEvent, ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,

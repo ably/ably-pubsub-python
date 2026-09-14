@@ -5,10 +5,10 @@ Spec points: RTN2e, RTN27b, RSA4, RSA4c, RSA4c1, RSA4c2, RSA4c3, RSA4d, RSA8d, R
 
 import time
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import MockWebSocket, connected_message

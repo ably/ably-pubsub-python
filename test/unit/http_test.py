@@ -1,9 +1,9 @@
 import httpx
 import pytest
 
-from ably import AblyRest
-from ably.types.testoptions import TestOptions
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import AblyRest
+from ably.pubsub.types.testoptions import TestOptions
+from ably.pubsub.util.exceptions import AblyException
 
 
 def test_http_get_rest_hosts_works_when_fallback_realtime_host_is_set():

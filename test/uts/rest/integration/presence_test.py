@@ -5,10 +5,10 @@ Spec points: RSP1, RSP3, RSP3a, RSP4, RSP4b, RSP5
 
 import pytest
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.realtime.connection import ConnectionState
-from ably.types.presence import Presence, PresenceAction, PresenceMessage
-from ably.util.exceptions import AblyException
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.presence import Presence, PresenceAction, PresenceMessage
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_connection_state,
     sandbox_realtime_client,
@@ -65,7 +65,7 @@ async def test_rsp1_access_presence_from_channel(sandbox, use_binary_protocol):
 
     assert presence is not None
     # NOTE: the spec asserts `presence IS RestPresence`. The class behind
-    # `channel.presence` in ably-python is `ably.types.presence.Presence`.
+    # `channel.presence` in ably-python is `ably.pubsub.types.presence.Presence`.
     assert isinstance(presence, Presence)
 
 

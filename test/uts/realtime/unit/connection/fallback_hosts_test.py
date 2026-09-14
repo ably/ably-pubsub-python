@@ -24,9 +24,9 @@ from types import SimpleNamespace
 
 import httpx
 
-from ably.realtime import connectionmanager
-from ably.realtime.connection import ConnectionState
-from ably.transport.defaults import Defaults
+from ably.pubsub.realtime import connectionmanager
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.defaults import Defaults
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client
 from test.uts.helpers.mock_http import MockHttpClient
 from test.uts.helpers.mock_websocket import MockWebSocket, connected_message

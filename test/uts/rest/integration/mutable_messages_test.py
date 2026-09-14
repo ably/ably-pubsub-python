@@ -3,11 +3,11 @@
 Spec points: RSL1n, RSL11, RSL14, RSL15, RSAN1, RSAN2, RSAN3
 """
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.annotation import Annotation, AnnotationAction
-from ably.types.message import Message, MessageAction
-from ably.types.operations import MessageOperation, PublishResult, UpdateDeleteResult
-from ably.util.exceptions import AblyException
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.message import Message, MessageAction
+from ably.pubsub.types.operations import MessageOperation, PublishResult, UpdateDeleteResult
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 

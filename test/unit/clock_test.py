@@ -1,10 +1,10 @@
 import httpx
 import pytest
 
-from ably import AblyRest
-from ably.types.testoptions import TestOptions
-from ably.util.clock import Clock
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import AblyRest
+from ably.pubsub.types.testoptions import TestOptions
+from ably.pubsub.util.clock import Clock
+from ably.pubsub.util.exceptions import AblyException
 
 # A plausible wall-clock reading for a fake to start from, so that a time taken
 # against it looks like a real one.

@@ -10,8 +10,8 @@ REST suite: the endpoint the call reaches and the paginated versions it returns.
 
 import uuid
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.message import Message, MessageAction
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.types.message import Message, MessageAction
 from test.uts.helpers.client import realtime_client
 from test.uts.helpers.mock_http import MockHttpClient
 

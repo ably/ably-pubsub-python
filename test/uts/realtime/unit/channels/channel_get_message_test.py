@@ -10,7 +10,7 @@ REST suite: the endpoint the call reaches and the `Message` it returns.
 
 import uuid
 
-from ably.types.message import Message
+from ably.pubsub.types.message import Message
 from test.uts.helpers.client import realtime_client
 from test.uts.helpers.mock_http import MockHttpClient
 

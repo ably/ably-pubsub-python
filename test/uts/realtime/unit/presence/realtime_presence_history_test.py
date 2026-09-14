@@ -14,10 +14,10 @@ test/uts/deviations.md.
 
 import uuid
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.presence import PresenceAction, PresenceMessage
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient

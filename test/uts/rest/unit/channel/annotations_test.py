@@ -15,10 +15,10 @@ import uuid
 import msgpack
 import pytest
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.rest.annotations import RestAnnotations
-from ably.types.annotation import Annotation, AnnotationAction
-from ably.util.exceptions import AblyException
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.rest.annotations import RestAnnotations
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

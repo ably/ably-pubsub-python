@@ -8,9 +8,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest_asyncio
 
-from ably import AblyRest
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.stats import Stats
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.server import AblyRest
+from ably.pubsub.types.stats import Stats
 from test.uts.helpers.client import sandbox_rest_client
 from test.uts.helpers.sandbox import SANDBOX_ENDPOINT
 

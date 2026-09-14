@@ -5,8 +5,8 @@ Spec points: RSL1n, RSL1n1, PBR1, PBR2a
 
 import uuid
 
-from ably.types.message import Message
-from ably.types.operations import PublishResult
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.operations import PublishResult
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

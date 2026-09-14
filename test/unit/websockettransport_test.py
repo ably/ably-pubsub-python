@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-from ably.transport.websockettransport import WebSocketTransport
-from ably.types.options import Options
+from ably.pubsub.transport.websockettransport import WebSocketTransport
+from ably.pubsub.types.options import Options
 
 
 def _connect_url(host='example.com', **option_kwargs):
@@ -9,7 +9,7 @@ def _connect_url(host='example.com', **option_kwargs):
     connection_manager.options = Options(auth_token='foo', **option_kwargs)
     transport = WebSocketTransport(connection_manager, host, {'format': 'json'})
     with patch.object(transport, 'ws_connect', MagicMock()) as mock_ws_connect:
-        with patch('ably.transport.websockettransport.asyncio.create_task') as mock_create_task:
+        with patch('ably.pubsub.transport.websockettransport.asyncio.create_task') as mock_create_task:
             mock_create_task.return_value = MagicMock()
             transport.connect()
     return mock_ws_connect.call_args[0][0]

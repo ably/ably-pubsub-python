@@ -10,10 +10,10 @@ serials is exercised even though the object that should carry them is missing.
 
 import asyncio
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.types.flags import Flag
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.flags import Flag
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,

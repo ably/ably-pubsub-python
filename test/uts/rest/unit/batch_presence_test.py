@@ -20,8 +20,8 @@ carries rather than by `isinstance`, since neither class exists to name.
 
 import pytest
 
-from ably.types.presence import PresenceAction
-from ably.util.exceptions import AblyException
+from ably.pubsub.types.presence import PresenceAction
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient

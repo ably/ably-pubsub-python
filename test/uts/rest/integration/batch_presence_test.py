@@ -26,7 +26,7 @@ See [deviations.md](../../deviations.md): the gating under *Failing Tests* ->
 *Auth*.
 """
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import (
     await_connection_state,
     sandbox_realtime_client,

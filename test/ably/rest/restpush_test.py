@@ -5,8 +5,8 @@ import time
 
 import pytest
 
-from ably import AblyAuthException, AblyException, DeviceDetails, PushChannelSubscription
-from ably.http.paginatedresult import PaginatedResult
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.server import AblyAuthException, AblyException, DeviceDetails, PushChannelSubscription
 from test.ably.testapp import TestApp
 from test.ably.utils import (
     BaseAsyncTestCase,

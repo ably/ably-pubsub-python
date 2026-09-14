@@ -10,9 +10,9 @@ from urllib.parse import urlsplit
 import msgpack
 import pytest
 
-from ably.types.message import Message
-from ably.types.operations import MessageOperation, UpdateDeleteResult
-from ably.util.exceptions import AblyException
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.operations import MessageOperation, UpdateDeleteResult
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

@@ -14,11 +14,11 @@ import uuid
 
 import pytest
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.util.exceptions import AblyException
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient

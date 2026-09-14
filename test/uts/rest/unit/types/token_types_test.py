@@ -10,8 +10,8 @@ therefore drive them through `auth.create_token_request`, the surface that consu
 
 import json
 
-from ably.types.tokendetails import TokenDetails
-from ably.types.tokenrequest import TokenRequest
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.types.tokenrequest import TokenRequest
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

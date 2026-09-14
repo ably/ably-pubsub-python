@@ -9,10 +9,10 @@ import time
 
 import pytest
 
-from ably import api_version
-from ably.types.tokendetails import TokenDetails
-from ably.types.tokenrequest import TokenRequest
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import api_version
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.types.tokenrequest import TokenRequest
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

@@ -39,8 +39,8 @@ the first client is a step of the scenario rather than tidying up.
 import asyncio
 import json
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import sandbox_realtime_client, sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt, random_id

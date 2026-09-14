@@ -5,7 +5,7 @@ Spec points: TP1, TP2, TP3, TP3a, TP3b, TP3c, TP3d, TP3e, TP3f, TP3g, TP3h, TP3i
 
 from datetime import datetime, timedelta
 
-from ably.types.presence import PresenceAction, PresenceMessage
+from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 from test.uts.helpers.deviations import deviation, spec_error
 
 

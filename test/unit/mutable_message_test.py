@@ -1,5 +1,5 @@
-from ably import MessageAction, MessageOperation, MessageVersion, UpdateDeleteResult
-from ably.types.message import Message
+from ably.pubsub.server import MessageAction, MessageOperation, MessageVersion, UpdateDeleteResult
+from ably.pubsub.types.message import Message
 
 
 def test_message_version_none_values_filtered():
@@ -137,7 +137,7 @@ def test_message_extras_none_excluded_from_as_dict():
 # RSL15b, RTL32b, TM2u
 def test_message_annotations_preserved_in_as_dict():
     """Test that annotations are included when a Message with annotations is serialized."""
-    from ably.types.message import MessageAnnotations
+    from ably.pubsub.types.message import MessageAnnotations
     annotations = MessageAnnotations(summary={'reaction:distinct.v1': {'thumbsup': 5}})
     message = Message(
         name='test',

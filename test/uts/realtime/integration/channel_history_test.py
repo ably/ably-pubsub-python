@@ -19,7 +19,7 @@ so returning the page directly would be satisfied by the first empty one.
 specification writes raises `ValueError`.
 """
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 

@@ -9,7 +9,7 @@ type, carrying `code`, `status_code`, `message` and `cause`, and
 
 import pytest
 
-from ably.util.exceptions import AblyException
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.deviations import deviation
 
 

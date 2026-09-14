@@ -9,11 +9,11 @@ import pytest
 import respx
 from httpx import Response
 
-from ably import AblyRest
-from ably.http.httputils import HttpUtils
-from ably.transport.defaults import Defaults
-from ably.types.options import Options
-from ably.util.exceptions import AblyException
+from ably.pubsub.http.httputils import HttpUtils
+from ably.pubsub.server import AblyRest
+from ably.pubsub.transport.defaults import Defaults
+from ably.pubsub.types.options import Options
+from ably.pubsub.util.exceptions import AblyException
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 

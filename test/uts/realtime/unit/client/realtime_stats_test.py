@@ -3,7 +3,7 @@
 Spec points: RTC5, RTC5a, RTC5b
 """
 
-from ably.http.paginatedresult import PaginatedResult
+from ably.pubsub.http.paginatedresult import PaginatedResult
 from test.uts.helpers.client import realtime_client
 from test.uts.helpers.mock_http import MockHttpClient
 

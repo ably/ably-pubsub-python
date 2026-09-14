@@ -8,8 +8,8 @@ from urllib.parse import parse_qsl
 
 import pytest
 
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException, IncompatibleClientIdException
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException, IncompatibleClientIdException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient

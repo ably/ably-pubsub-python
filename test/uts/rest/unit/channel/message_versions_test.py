@@ -5,8 +5,8 @@ Spec points: RSL14, RSL14a, RSL14a1, RSL14b, RSL14c
 
 import uuid
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.message import Message, MessageAction
+from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.types.message import Message, MessageAction
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

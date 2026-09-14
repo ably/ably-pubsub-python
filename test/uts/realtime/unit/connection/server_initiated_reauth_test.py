@@ -5,9 +5,9 @@ Spec points: RTN22, RTN22a
 
 import time
 
-from ably.realtime.connection import ConnectionEvent, ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.tokendetails import TokenDetails
+from ably.pubsub.realtime.connection import ConnectionEvent, ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.tokendetails import TokenDetails
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import settle
 from test.uts.helpers.mock_websocket import MockWebSocket, connected_message

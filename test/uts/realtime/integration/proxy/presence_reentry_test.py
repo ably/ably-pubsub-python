@@ -26,8 +26,8 @@ goes through a genuine ATTACHING and passes.
 
 from datetime import datetime
 
-from ably.realtime.connection import ConnectionState
-from ably.types.channelstate import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.channelstate import ChannelState
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,

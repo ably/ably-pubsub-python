@@ -1,4 +1,4 @@
-import ably.types.message
+import ably.pubsub.types.message
 
 
 # TM2a, TM2c, TM2f
@@ -14,7 +14,7 @@ def test_update_inner_message_fields_tm2():
             }
         ]
     }
-    ably.types.message.Message.update_inner_message_fields(proto_msg)
+    ably.pubsub.types.message.Message.update_inner_message_fields(proto_msg)
     messages: list[dict] = proto_msg.get('messages')
     msg_index = 0
     for msg in messages:
@@ -37,7 +37,7 @@ def test_update_inner_message_fields_for_presence_msg_tm2():
             }
         ]
     }
-    ably.types.message.Message.update_inner_message_fields(proto_msg)
+    ably.pubsub.types.message.Message.update_inner_message_fields(proto_msg)
     presence_messages: list[dict] = proto_msg.get('presence')
     msg_index = 0
     for presence_msg in presence_messages:
@@ -49,7 +49,7 @@ def test_update_inner_message_fields_for_presence_msg_tm2():
 
 # RSL6b
 def test_invalid_base64_data_is_delivered_with_remaining_encoding():
-    message = ably.types.message.Message.from_encoded({
+    message = ably.pubsub.types.message.Message.from_encoded({
         'name': 'event',
         'data': 'encrypted-data-here',
         'encoding': 'custom-encryption/base64',

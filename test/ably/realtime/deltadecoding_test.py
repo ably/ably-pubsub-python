@@ -9,12 +9,12 @@ import base64
 
 import pytest
 
-from ably import AblyRealtime
-from ably.types.channelstate import ChannelState
-from ably.types.message import Message
-from ably.types.mixins import DecodingContext
-from ably.types.options import VCDiffDecoder
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import AblyRealtime
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.mixins import DecodingContext
+from ably.pubsub.types.options import VCDiffDecoder
+from ably.pubsub.util.exceptions import AblyException
 from test.ably.utils import BaseAsyncTestCase
 
 

@@ -8,13 +8,13 @@ import json
 
 import pytest
 
-from ably.realtime.channel import Channels, RealtimeChannel
-from ably.realtime.connection import Connection, ConnectionState
-from ably.rest.auth import Auth
-from ably.rest.push import Push, PushAdmin
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.util.exceptions import AblyException
-from ably.util.helper import get_random_id
+from ably.pubsub.realtime.channel import Channels, RealtimeChannel
+from ably.pubsub.realtime.connection import Connection, ConnectionState
+from ably.pubsub.rest.auth import Auth
+from ably.pubsub.rest.push import Push, PushAdmin
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.util.exceptions import AblyException
+from ably.pubsub.util.helper import get_random_id
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import settle
 from test.uts.helpers.deviations import deviation

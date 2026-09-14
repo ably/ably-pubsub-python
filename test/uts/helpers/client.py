@@ -4,8 +4,8 @@ import asyncio
 import inspect
 import logging
 
-from ably import AblyRealtime, AblyRest
-from ably.types.testoptions import TestOptions
+from ably.pubsub.server import AblyRealtime, AblyRest
+from ably.pubsub.types.testoptions import TestOptions
 from test.uts.helpers.clock import settle
 from test.uts.helpers.sandbox import SANDBOX_ENDPOINT
 
@@ -274,7 +274,7 @@ async def connected_client(mock_websocket, **kwargs):
     Most channel specifications open this way, since a channel cannot attach
     until the connection carrying it is up.
     """
-    from ably.realtime.connection import ConnectionState
+    from ably.pubsub.realtime.connection import ConnectionState
     from test.uts.helpers.mock_websocket import CONNECTED_MESSAGE
 
     if mock_websocket.on_connection_attempt is None:
@@ -293,7 +293,7 @@ async def drop_transport(client, mock_websocket):
     specification expects to find it rather than reconnecting behind the
     assertions. Returns the connection states recorded along the way.
     """
-    from ably.realtime.connection import ConnectionState
+    from ably.pubsub.realtime.connection import ConnectionState
 
     states = []
 
@@ -316,7 +316,7 @@ async def reconnect_transport(client, mock_websocket, connected_message=None):
     Waiting on the connection state alone would be satisfied by the CONNECTED
     the client already holds, so this counts a fresh arrival.
     """
-    from ably.realtime.connection import ConnectionState
+    from ably.pubsub.realtime.connection import ConnectionState
     from test.uts.helpers.mock_websocket import CONNECTED_MESSAGE
 
     message = CONNECTED_MESSAGE if connected_message is None else connected_message

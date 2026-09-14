@@ -5,11 +5,11 @@ Spec points: TO1, TO2, TO3, AO1, AO2
 
 import pytest
 
-from ably import AblyRest
-from ably.types.authoptions import AuthOptions
-from ably.types.options import Options
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import AblyRest
+from ably.pubsub.types.authoptions import AuthOptions
+from ably.pubsub.types.options import Options
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient

@@ -25,10 +25,10 @@ proxy tier requires in any case.
 
 import pytest
 
-from ably import AblyRest
-from ably.realtime.connection import ConnectionState
-from ably.types.channelstate import ChannelState
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.server import AblyRest
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,

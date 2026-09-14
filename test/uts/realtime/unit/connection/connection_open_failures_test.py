@@ -5,8 +5,8 @@ Spec points: RTN14, RTN14a, RTN14b, RTN14c, RTN14d, RTN14e, RTN14f, RTN14g
 
 import time
 
-from ably.realtime.connection import ConnectionState
-from ably.types.tokendetails import TokenDetails
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.tokendetails import TokenDetails
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.mock_http import MockHttpClient

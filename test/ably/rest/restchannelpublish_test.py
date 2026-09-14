@@ -10,11 +10,11 @@ import httpx
 import msgpack
 import pytest
 
-from ably import AblyException, IncompatibleClientIdException, api_version
-from ably.rest.auth import Auth
-from ably.types.message import Message
-from ably.types.tokendetails import TokenDetails
-from ably.util import case
+from ably.pubsub.rest.auth import Auth
+from ably.pubsub.server import AblyException, IncompatibleClientIdException, api_version
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util import case
 from test.ably import utils
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, assert_waiter, dont_vary_protocol
@@ -103,7 +103,7 @@ class TestRestChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
 
         expected_messages = [Message(f"name-{i}", str(i)) for i in range(3)]
 
-        with mock.patch('ably.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.rest.rest.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish(messages=expected_messages)
         assert post_mock.call_count == 1
@@ -184,7 +184,7 @@ class TestRestChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
         channel = self.ably.channels[
             self.get_channel_name('persisted:null_name_and_data_keys_arent_sent_channel')]
 
-        with mock.patch('ably.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.rest.rest.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish(name=None, data=None)
 
@@ -244,7 +244,7 @@ class TestRestChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
         channel = self.ably_with_client_id.channels[
             self.get_channel_name('persisted:no_client_id_identified_client')]
 
-        with mock.patch('ably.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.rest.rest.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish(name='publish', data='test')
 
