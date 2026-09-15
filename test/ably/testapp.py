@@ -23,10 +23,13 @@ endpoint = os.environ.get('ABLY_ENDPOINT', 'nonprod:sandbox')
 port = 80
 tls_port = 443
 
-ably = create_http_client(token='not_a_real_token',
-                          port=port, tls_port=tls_port, tls=tls,
-                          endpoint=endpoint,
-                          use_binary_protocol=False)
+# Not named `ably`: that would shadow the `ably` package imported above, and
+# `ably.pubsub.server.create_realtime_client` below would resolve against this
+# client instead of the module.
+app_setup_client = create_http_client(token='not_a_real_token',
+                                      port=port, tls_port=tls_port, tls=tls,
+                                      endpoint=endpoint,
+                                      use_binary_protocol=False)
 
 
 class TestApp:
@@ -35,7 +38,7 @@ class TestApp:
     @staticmethod
     async def get_test_vars():
         if not TestApp.__test_vars:
-            r = await ably.http.post("/apps", body=app_spec_local, skip_auth=True)
+            r = await app_setup_client.http.post("/apps", body=app_spec_local, skip_auth=True)
             AblyException.raise_for_response(r)
 
             app_spec = r.json()

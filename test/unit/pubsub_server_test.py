@@ -1,3 +1,5 @@
+import typing
+
 import pytest
 
 import ably.pubsub.server as server
@@ -10,11 +12,18 @@ from ably.pubsub.sync.rest.rest import AblyRestSync
 
 
 def protocol_members(protocol):
-    # Protocol records its declared members here; fall back to the class body
-    # on interpreters that do not expose it.
-    return getattr(protocol, '__protocol_attrs__', None) or {
-        name for name in vars(protocol) if not name.startswith('_abc_') and name != '_is_protocol'
-    }
+    """The members `protocol` declares.
+
+    Python 3.12 records these on the class. Earlier versions only have typing's
+    own helper, which is the function that builds that attribute, so the two
+    agree. Reading `vars(protocol)` instead would sweep in `__init__`,
+    `__abstractmethods__`, `__parameters__` and the rest of the Protocol
+    machinery, and report them as members the client fails to implement.
+    """
+    members = getattr(protocol, '__protocol_attrs__', None)
+    if members is None:
+        members = typing._get_protocol_attrs(protocol)
+    return set(members)
 
 
 class TestFactories:

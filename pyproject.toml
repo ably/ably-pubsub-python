@@ -117,3 +117,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # imported but unused
+
+[tool.ruff.lint.isort]
+# `ably.pubsub.sync` and `test.ably.sync` only exist once unasync has generated
+# them, and the lint job does not generate them. Left to resolve imports itself,
+# ruff files those modules as third-party there and first-party here, so the same
+# commit lints clean locally and fails in CI. State it instead of inferring it.
+known-first-party = ["ably", "test"]
