@@ -184,7 +184,7 @@ class TestRestHttp(BaseAsyncTestCase):
 
         # Agent
         assert 'Ably-Agent' in r.request.headers
-        expr = r"^ably-pubsub-python\/\d+.\d+.\d+(-beta\.\d+)? ably-pubsub-server python\/\d.\d+.\d+$"
+        expr = r"^ably-pubsub-python\/\d+.\d+.\d+(-beta\.\d+)? python\/\d.\d+.\d+$"
         assert re.search(expr, r.request.headers['Ably-Agent'])
         await ably.close()
 
