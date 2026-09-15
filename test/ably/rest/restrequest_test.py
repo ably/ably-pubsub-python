@@ -3,7 +3,7 @@ import pytest
 import respx
 
 from ably.pubsub.http.paginatedresult import HttpPaginatedResponse
-from ably.pubsub.server import AblyRest
+from ably.pubsub.server import create_http_client
 from ably.pubsub.transport.defaults import Defaults
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
@@ -94,7 +94,7 @@ class TestRestRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
     async def test_timeout(self):
         # Timeout
         timeout = 0.000001
-        ably = AblyRest(token="foo", http_request_timeout=timeout)
+        ably = create_http_client(token="foo", http_request_timeout=timeout)
         assert ably.http.http_request_timeout == timeout
         with pytest.raises(httpx.ReadTimeout):
             await ably.request('GET', '/time', version=Defaults.protocol_version)
@@ -116,7 +116,7 @@ class TestRestRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
         await ably.close()
 
         # Bad host, no Fallback
-        ably = AblyRest(key=self.test_vars["keys"][0]["key_str"],
+        ably = create_http_client(key=self.test_vars["keys"][0]["key_str"],
                         endpoint='some.other.host',
                         port=self.test_vars["port"],
                         tls_port=self.test_vars["tls_port"],

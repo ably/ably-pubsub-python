@@ -5,13 +5,13 @@ This module provides a production-ready VCDiff decoder using the vcdiff-decoder 
 It implements the VCDiffDecoder interface.
 
 Usage:
-    from ably.pubsub.vcdiff import AblyVCDiffDecoder, AblyRealtime
+    from ably.pubsub.server import AblyVCDiffDecoder, ChannelOptions, create_realtime_client
 
     # Create VCDiff decoder
     vcdiff_decoder = AblyVCDiffDecoder()
 
     # Create client with decoder
-    client = AblyRealtime(key="your-key", vcdiff_decoder=vcdiff_decoder)
+    client = create_realtime_client(key="your-key", vcdiff_decoder=vcdiff_decoder)
 
     # Get channel with delta enabled
     channel = client.channels.get("test", ChannelOptions(params={"delta": "vcdiff"}))

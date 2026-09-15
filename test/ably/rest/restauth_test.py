@@ -1,9 +1,9 @@
 import base64
 import logging
-import sys
 import time
 import uuid
 from unittest import mock
+from unittest.mock import AsyncMock
 from urllib.parse import parse_qs
 
 import pytest
@@ -11,15 +11,10 @@ import respx
 from httpx import AsyncClient, Response
 
 import ably.pubsub.types.tokenrequest
-from ably.pubsub.server import AblyAuthException, AblyRest, Auth
+from ably.pubsub.server import AblyAuthException, Auth, create_http_client
 from ably.pubsub.types.tokendetails import TokenDetails
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
-
-if sys.version_info >= (3, 8):
-    from unittest.mock import AsyncMock
-else:
-    from mock import AsyncMock
 
 log = logging.getLogger(__name__)
 
@@ -31,19 +26,19 @@ class TestAuth(BaseAsyncTestCase):
         self.test_vars = await TestApp.get_test_vars()
 
     def test_auth_init_key_only(self):
-        ably = AblyRest(key=self.test_vars["keys"][0]["key_str"])
+        ably = create_http_client(key=self.test_vars["keys"][0]["key_str"])
         assert Auth.Method.BASIC == ably.auth.auth_mechanism, "Unexpected Auth method mismatch"
         assert ably.auth.auth_options.key_name == self.test_vars["keys"][0]['key_name']
         assert ably.auth.auth_options.key_secret == self.test_vars["keys"][0]['key_secret']
 
     def test_auth_init_token_only(self):
-        ably = AblyRest(token="this_is_not_really_a_token")
+        ably = create_http_client(token="this_is_not_really_a_token")
 
         assert Auth.Method.TOKEN == ably.auth.auth_mechanism, "Unexpected Auth method mismatch"
 
     def test_auth_token_details(self):
         td = TokenDetails()
-        ably = AblyRest(token_details=td)
+        ably = create_http_client(token_details=td)
 
         assert Auth.Method.TOKEN == ably.auth.auth_mechanism
         assert ably.auth.token_details is td
@@ -69,7 +64,7 @@ class TestAuth(BaseAsyncTestCase):
         assert Auth.Method.TOKEN == ably.auth.auth_mechanism, "Unexpected Auth method mismatch"
 
     def test_auth_init_with_key_and_client_id(self):
-        ably = AblyRest(key=self.test_vars["keys"][0]["key_str"], client_id='testClientId')
+        ably = create_http_client(key=self.test_vars["keys"][0]["key_str"], client_id='testClientId')
 
         assert Auth.Method.BASIC == ably.auth.auth_mechanism, "Unexpected Auth method mismatch"
         assert ably.auth.client_id == 'testClientId'
@@ -80,7 +75,7 @@ class TestAuth(BaseAsyncTestCase):
 
     # RSA11
     async def test_request_basic_auth_header(self):
-        ably = AblyRest(key_secret='foo', key_name='bar')
+        ably = create_http_client(key_secret='foo', key_name='bar')
 
         with mock.patch.object(AsyncClient, 'send') as get_mock:
             get_mock.return_value = {"status": 200, "headers": {}}
@@ -94,7 +89,7 @@ class TestAuth(BaseAsyncTestCase):
 
     # RSA7e2
     async def test_request_basic_auth_header_with_client_id(self):
-        ably = AblyRest(key_secret='foo', key_name='bar', client_id='client_id')
+        ably = create_http_client(key_secret='foo', key_name='bar', client_id='client_id')
 
         with mock.patch.object(AsyncClient, 'send') as get_mock:
             get_mock.return_value = {"status": 200, "headers": {}}
@@ -107,7 +102,7 @@ class TestAuth(BaseAsyncTestCase):
         assert client_id == base64.b64encode('client_id'.encode('ascii')).decode('utf-8')
 
     async def test_request_token_auth_header(self):
-        ably = AblyRest(token='not_a_real_token')
+        ably = create_http_client(token='not_a_real_token')
 
         with mock.patch.object(AsyncClient, 'send') as get_mock:
             get_mock.return_value = {"status": 200, "headers": {}}
@@ -122,26 +117,27 @@ class TestAuth(BaseAsyncTestCase):
 
     def test_if_cant_authenticate_via_token(self):
         with pytest.raises(ValueError):
-            AblyRest(use_token_auth=True)
+            create_http_client(use_token_auth=True)
 
     def test_use_auth_token(self):
-        ably = AblyRest(use_token_auth=True, key=self.test_vars["keys"][0]["key_str"])
+        ably = create_http_client(use_token_auth=True, key=self.test_vars["keys"][0]["key_str"])
         assert ably.auth.auth_mechanism == Auth.Method.TOKEN
 
     def test_with_client_id(self):
-        ably = AblyRest(use_token_auth=True, client_id='client_id', key=self.test_vars["keys"][0]["key_str"])
+        ably = create_http_client(use_token_auth=True, client_id='client_id',
+                                  key=self.test_vars["keys"][0]["key_str"])
         assert ably.auth.auth_mechanism == Auth.Method.TOKEN
 
     def test_with_auth_url(self):
-        ably = AblyRest(auth_url='auth_url')
+        ably = create_http_client(auth_url='auth_url')
         assert ably.auth.auth_mechanism == Auth.Method.TOKEN
 
     def test_with_auth_callback(self):
-        ably = AblyRest(auth_callback=lambda x: x)
+        ably = create_http_client(auth_callback=lambda x: x)
         assert ably.auth.auth_mechanism == Auth.Method.TOKEN
 
     def test_with_token(self):
-        ably = AblyRest(token='a token')
+        ably = create_http_client(token='a token')
         assert ably.auth.auth_mechanism == Auth.Method.TOKEN
 
     def test_default_ttl_is_1hour(self):
@@ -149,19 +145,19 @@ class TestAuth(BaseAsyncTestCase):
         assert TokenDetails.DEFAULTS['ttl'] == one_hour_in_ms
 
     def test_with_auth_method(self):
-        ably = AblyRest(token='a token', auth_method='POST')
+        ably = create_http_client(token='a token', auth_method='POST')
         assert ably.auth.auth_options.auth_method == 'POST'
 
     def test_with_auth_headers(self):
-        ably = AblyRest(token='a token', auth_headers={'h1': 'v1'})
+        ably = create_http_client(token='a token', auth_headers={'h1': 'v1'})
         assert ably.auth.auth_options.auth_headers == {'h1': 'v1'}
 
     def test_with_auth_params(self):
-        ably = AblyRest(token='a token', auth_params={'p': 'v'})
+        ably = create_http_client(token='a token', auth_params={'p': 'v'})
         assert ably.auth.auth_options.auth_params == {'p': 'v'}
 
     def test_with_default_token_params(self):
-        ably = AblyRest(key=self.test_vars["keys"][0]["key_str"],
+        ably = create_http_client(key=self.test_vars["keys"][0]["key_str"],
                         default_token_params={'ttl': 12345})
         assert ably.auth.auth_options.default_token_params == {'ttl': 12345}
 

@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from ably.pubsub.server import AblyException, AblyRest, Capability
+from ably.pubsub.server import AblyException, Capability, create_http_client
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.types.tokenrequest import TokenRequest
 from test.ably.testapp import TestApp
@@ -314,7 +314,7 @@ class TestCreateTokenRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
 
     @dont_vary_protocol
     async def test_hmac(self):
-        ably = AblyRest(key_name='a_key_name', key_secret='a_secret')
+        ably = create_http_client(key_name='a_key_name', key_secret='a_secret')
         token_params = {
             'ttl': 1000,
             'nonce': 'abcde100',

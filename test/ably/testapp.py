@@ -2,8 +2,11 @@ import json
 import logging
 import os
 
-from ably.pubsub.realtime.realtime import AblyRealtime
-from ably.pubsub.rest.rest import AblyRest
+# unasync rewrites `from ably.pubsub.server import ...` to the sync package, which
+# is HTTP-only. Reaching the realtime factory through the module keeps the
+# generated sync copy of this helper importable; it has no realtime tests.
+import ably.pubsub.server
+from ably.pubsub.server import create_http_client
 from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.options import Options
@@ -20,10 +23,10 @@ endpoint = os.environ.get('ABLY_ENDPOINT', 'nonprod:sandbox')
 port = 80
 tls_port = 443
 
-ably = AblyRest(token='not_a_real_token',
-                port=port, tls_port=tls_port, tls=tls,
-                endpoint=endpoint,
-                use_binary_protocol=False)
+ably = create_http_client(token='not_a_real_token',
+                          port=port, tls_port=tls_port, tls=tls,
+                          endpoint=endpoint,
+                          use_binary_protocol=False)
 
 
 class TestApp:
@@ -65,13 +68,13 @@ class TestApp:
         test_vars = await TestApp.get_test_vars()
         options = TestApp.get_options(test_vars, **kw)
         options.update(kw)
-        return AblyRest(**options)
+        return create_http_client(**options)
 
     @staticmethod
     async def get_ably_realtime(**kw):
         test_vars = await TestApp.get_test_vars()
         options = TestApp.get_options(test_vars, **kw)
-        return AblyRealtime(**options)
+        return ably.pubsub.server.create_realtime_client(**options)
 
     @staticmethod
     def get_options(test_vars, **kwargs):

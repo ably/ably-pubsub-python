@@ -55,13 +55,17 @@ The package installs into `ably.pubsub`, and the whole public API is reached
 through `ably.pubsub.server`:
 
 ```python
-from ably.pubsub.server import AblyRealtime, AblyRest
+from ably.pubsub.server import create_http_client, create_realtime_client
 ```
+
+Clients are built by these factories rather than by constructing a class, so
+that the package a client comes from names the side your application runs on.
+Annotate against the prototypes they return, `RestClient` and `RealtimeClient`.
 
 The synchronous, HTTP-only flavour lives alongside it:
 
 ```python
-from ably.pubsub.server.sync import AblyRestSync
+from ably.pubsub.server.sync import create_http_client
 ```
 
 Both `ably` and `ably.pubsub` are [namespace packages](https://peps.python.org/pep-0420/)
@@ -76,10 +80,10 @@ Install [Python](https://www.python.org/downloads/) version 3.8 or greater.
 The following code connects to Ably's realtime messaging service, subscribes to a channel to receive messages, and publishes a test message to that same channel.
 
 ```python
-from ably.pubsub.server import AblyRealtime
+from ably.pubsub.server import create_realtime_client
 
 # Initialize Ably Realtime client
-async with AblyRealtime('your-ably-api-key', client_id='me') as realtime_client:
+async with create_realtime_client('your-ably-api-key', client_id='me') as realtime_client:
     # Wait for connection to be established
     await realtime_client.connection.once_async('connected')
     print('Connected to Ably')

@@ -5,6 +5,7 @@ from typing import Optional
 from ably.pubsub.realtime.channel import Channels
 from ably.pubsub.realtime.connection import Connection, ConnectionState
 from ably.pubsub.rest.rest import AblyRest
+from ably.pubsub.util.construction import reject_direct_construction
 
 log = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class AblyRealtime(AblyRest):
         ValueError
             If no authentication key is not provided
         """
+        reject_direct_construction(type(self), 'ably.pubsub.server.create_realtime_client')
 
         if loop is None:
             try:

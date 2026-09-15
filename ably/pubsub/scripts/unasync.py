@@ -252,6 +252,11 @@ def run():
         _CLASS_RENAME[class_name] = f"{class_name}Sync"
 
     _STRING_REPLACE["Auth"] = "AuthSync"
+    # The sync flavour's factory lives in ably.pubsub.server.sync. There is no
+    # sync realtime factory, so create_realtime_client is left pointing at the
+    # asynchronous one, which is the right advice for that case.
+    _STRING_REPLACE['ably.pubsub.server.create_http_client'] = \
+        'ably.pubsub.server.sync.create_http_client'
 
     src_dir_path = os.path.join(os.getcwd(), "ably", "pubsub")
     dest_dir_path = os.path.join(os.getcwd(), "ably", "pubsub", "sync")

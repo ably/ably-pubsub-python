@@ -1,8 +1,8 @@
 import base64
 import json
 import logging
-import sys
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import msgpack
 import pytest
@@ -12,11 +12,6 @@ from ably.pubsub.types.message import Message
 from ably.pubsub.util.crypto import get_cipher
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
-
-if sys.version_info >= (3, 8):
-    from unittest.mock import AsyncMock
-else:
-    from mock import AsyncMock
 
 log = logging.getLogger(__name__)
 
