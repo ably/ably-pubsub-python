@@ -29,7 +29,7 @@ from ably import AblyRealtime, AblyRest
 
 Example 4.0.0 code:
 ```python
-from ably.pubsub.server import AblyRealtime, AblyRest
+from ably.pubsub.server import create_http_client, create_realtime_client
 ```
 
 The synchronous, HTTP-only flavour moves the same way:
@@ -41,7 +41,7 @@ from ably.sync import AblyRestSync
 
 Example 4.0.0 code:
 ```python
-from ably.pubsub.server.sync import AblyRestSync
+from ably.pubsub.server.sync import create_http_client
 ```
 
 Anything imported from a submodule gains the same `pubsub` segment — for
@@ -50,6 +50,30 @@ instance `ably.types.message` becomes `ably.pubsub.types.message`, and
 
 `api_version` and `lib_version` are still re-exported from
 `ably.pubsub.server`, and now also live in `ably.pubsub.version`.
+
+### Clients are built by factories
+
+`AblyRest` and `AblyRealtime` are internal in 4.0.0 and raise `TypeError` if
+constructed directly. Build clients through the factories instead, which take
+the same arguments:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx')
+realtime = AblyRealtime(key='xxx')
+```
+
+Example 4.0.0 code:
+```python
+rest = create_http_client(key='xxx')
+realtime = create_realtime_client(key='xxx')
+```
+
+Where you previously annotated against `AblyRest` or `AblyRealtime`, use the
+prototypes the factories return — `ably.pubsub.server.RestClient` and
+`ably.pubsub.server.RealtimeClient`. These are `typing.Protocol` definitions
+describing the client surface, so `Protocol` support raises the minimum
+supported Python to 3.8 (which the CI matrix and README already assumed).
 
 ## Version 2.x to 3.0.0
 

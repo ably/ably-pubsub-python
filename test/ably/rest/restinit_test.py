@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 from httpx import AsyncClient
 
-from ably.pubsub.server import AblyException, AblyRest
+from ably.pubsub.server import AblyException, create_http_client
 from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.tokendetails import TokenDetails
 from test.ably.testapp import TestApp
@@ -18,7 +18,7 @@ class TestRestInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @dont_vary_protocol
     def test_key_only(self):
-        ably = AblyRest(key=self.test_vars["keys"][0]["key_str"])
+        ably = create_http_client(key=self.test_vars["keys"][0]["key_str"])
         assert ably.options.key_name == self.test_vars["keys"][0]["key_name"], "Key name does not match"
         assert ably.options.key_secret == self.test_vars["keys"][0]["key_secret"], "Key secret does not match"
 
@@ -27,65 +27,65 @@ class TestRestInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @dont_vary_protocol
     def test_with_token(self):
-        ably = AblyRest(token="foo")
+        ably = create_http_client(token="foo")
         assert ably.options.auth_token == "foo", "Token not set at options"
 
     @dont_vary_protocol
     def test_with_token_details(self):
         td = TokenDetails()
-        ably = AblyRest(token_details=td)
+        ably = create_http_client(token_details=td)
         assert ably.options.token_details is td
 
     @dont_vary_protocol
     def test_with_options_token_callback(self):
         def token_callback(**params):
             return "this_is_not_really_a_token_request"
-        AblyRest(auth_callback=token_callback)
+        create_http_client(auth_callback=token_callback)
 
     @dont_vary_protocol
     def test_ambiguous_key_raises_value_error(self):
         with pytest.raises(ValueError, match="mutually exclusive"):
-            AblyRest(key=self.test_vars["keys"][0]["key_str"], key_name='x')
+            create_http_client(key=self.test_vars["keys"][0]["key_str"], key_name='x')
         with pytest.raises(ValueError, match="mutually exclusive"):
-            AblyRest(key=self.test_vars["keys"][0]["key_str"], key_secret='x')
+            create_http_client(key=self.test_vars["keys"][0]["key_str"], key_secret='x')
 
     @dont_vary_protocol
     def test_with_key_name_or_secret_only(self):
         with pytest.raises(ValueError, match="key is missing"):
-            AblyRest(key_name='x')
+            create_http_client(key_name='x')
         with pytest.raises(ValueError, match="key is missing"):
-            AblyRest(key_secret='x')
+            create_http_client(key_secret='x')
 
     @dont_vary_protocol
     def test_with_key_name_and_secret(self):
-        ably = AblyRest(key_name="foo", key_secret="bar")
+        ably = create_http_client(key_name="foo", key_secret="bar")
         assert ably.options.key_name == "foo", "Key name does not match"
         assert ably.options.key_secret == "bar", "Key secret does not match"
 
     @dont_vary_protocol
     def test_with_options_auth_url(self):
-        AblyRest(auth_url='not_really_an_url')
+        create_http_client(auth_url='not_really_an_url')
 
     # RSC11
     @dont_vary_protocol
     def test_rest_host_and_environment(self):
         # endpoint host
-        ably = AblyRest(token='foo', endpoint="some.other.host")
+        ably = create_http_client(token='foo', endpoint="some.other.host")
         assert "some.other.host" == ably.options.get_host(), "Unexpected host mismatch"
 
         # endpoint: main
-        ably = AblyRest(token='foo', endpoint="main")
+        ably = create_http_client(token='foo', endpoint="main")
         host = ably.options.get_host()
         assert "main.realtime.ably.net" == host, f"Unexpected host mismatch {host}"
 
         # endpoint: other
-        ably = AblyRest(token='foo', endpoint="nonprod:sandbox")
+        ably = create_http_client(token='foo', endpoint="nonprod:sandbox")
         host = ably.options.get_host()
         assert "sandbox.realtime.ably-nonprod.net" == host, f"Unexpected host mismatch {host}"
 
         # both, as per #TO3k2
         with pytest.raises(AblyException):
-            ably = AblyRest(token='foo', rest_host="some.other.host",
+            ably = create_http_client(token='foo', rest_host="some.other.host",
                             endpoint="some.other.environment")
 
     # RSC15
@@ -99,68 +99,68 @@ class TestRestInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
         # Fallback hosts specified (RSC15g1)
         for aux in fallback_hosts:
-            ably = AblyRest(token='foo', fallback_hosts=aux)
+            ably = create_http_client(token='foo', fallback_hosts=aux)
             assert sorted(aux) == sorted(ably.options.get_fallback_hosts())
 
         # Specify endpoint (RSC15g2)
-        ably = AblyRest(token='foo', endpoint='nonprod:sandbox', http_max_retry_count=10)
+        ably = create_http_client(token='foo', endpoint='nonprod:sandbox', http_max_retry_count=10)
         assert sorted(Defaults.get_fallback_hosts('nonprod:sandbox')) == sorted(
             ably.options.get_fallback_hosts())
 
         # Fallback hosts and endpoint not specified (RSC15g3)
-        ably = AblyRest(token='foo', http_max_retry_count=10)
+        ably = create_http_client(token='foo', http_max_retry_count=10)
         assert sorted(Defaults.get_fallback_hosts()) == sorted(ably.options.get_fallback_hosts())
 
         # RSC15f
-        ably = AblyRest(token='foo')
+        ably = create_http_client(token='foo')
         assert 600000 == ably.options.fallback_retry_timeout
-        ably = AblyRest(token='foo', fallback_retry_timeout=1000)
+        ably = create_http_client(token='foo', fallback_retry_timeout=1000)
         assert 1000 == ably.options.fallback_retry_timeout
 
     @dont_vary_protocol
     def test_specified_host(self):
-        ably = AblyRest(token='foo', endpoint="some.other.host")
+        ably = create_http_client(token='foo', endpoint="some.other.host")
         assert "some.other.host" == ably.options.get_host(), "Unexpected host mismatch"
 
     @dont_vary_protocol
     def test_specified_port(self):
-        ably = AblyRest(token='foo', port=9998, tls_port=9999)
+        ably = create_http_client(token='foo', port=9998, tls_port=9999)
         assert 9999 == Defaults.get_port(ably.options),\
                f"Unexpected port mismatch. Expected: 9999. Actual: {ably.options.tls_port}"
 
     @dont_vary_protocol
     def test_specified_non_tls_port(self):
-        ably = AblyRest(token='foo', port=9998, tls=False)
+        ably = create_http_client(token='foo', port=9998, tls=False)
         assert 9998 == Defaults.get_port(ably.options),\
                f"Unexpected port mismatch. Expected: 9999. Actual: {ably.options.tls_port}"
 
     @dont_vary_protocol
     def test_specified_tls_port(self):
-        ably = AblyRest(token='foo', tls_port=9999, tls=True)
+        ably = create_http_client(token='foo', tls_port=9999, tls=True)
         assert 9999 == Defaults.get_port(ably.options),\
                f"Unexpected port mismatch. Expected: 9999. Actual: {ably.options.tls_port}"
 
     @dont_vary_protocol
     def test_tls_defaults_to_true(self):
-        ably = AblyRest(token='foo')
+        ably = create_http_client(token='foo')
         assert ably.options.tls, "Expected encryption to default to true"
         assert Defaults.tls_port == Defaults.get_port(ably.options), "Unexpected port mismatch"
 
     @dont_vary_protocol
     def test_tls_can_be_disabled(self):
-        ably = AblyRest(token='foo', tls=False)
+        ably = create_http_client(token='foo', tls=False)
         assert not ably.options.tls, "Expected encryption to be False"
         assert Defaults.port == Defaults.get_port(ably.options), "Unexpected port mismatch"
 
     @dont_vary_protocol
     def test_with_no_params(self):
         with pytest.raises(ValueError):
-            AblyRest()
+            create_http_client()
 
     @dont_vary_protocol
     def test_with_no_auth_params(self):
         with pytest.raises(ValueError):
-            AblyRest(port=111)
+            create_http_client(port=111)
 
     # RSA10k
     async def test_query_time_param(self):
@@ -181,19 +181,19 @@ class TestRestInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @dont_vary_protocol
     def test_requests_over_https_production(self):
-        ably = AblyRest(token='token')
+        ably = create_http_client(token='token')
         assert 'https://main.realtime.ably.net' == f'{ably.http.preferred_scheme}://{ably.http.preferred_host}'
         assert ably.http.preferred_port == 443
 
     @dont_vary_protocol
     def test_requests_over_http_production(self):
-        ably = AblyRest(token='token', tls=False)
+        ably = create_http_client(token='token', tls=False)
         assert 'http://main.realtime.ably.net' == f'{ably.http.preferred_scheme}://{ ably.http.preferred_host}'
         assert ably.http.preferred_port == 80
 
     @dont_vary_protocol
     async def test_request_basic_auth_over_http_fails(self):
-        ably = AblyRest(key_secret='foo', key_name='bar', tls=False)
+        ably = create_http_client(key_secret='foo', key_name='bar', tls=False)
 
         with pytest.raises(AblyException) as excinfo:
             await ably.http.get('/time', skip_auth=False)
@@ -204,7 +204,7 @@ class TestRestInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @dont_vary_protocol
     async def test_environment(self):
-        ably = AblyRest(token='token', endpoint='custom')
+        ably = create_http_client(token='token', endpoint='custom')
         with patch.object(AsyncClient, 'send', wraps=ably.http._Http__client.send) as get_mock:
             try:
                 await ably.time()
@@ -217,7 +217,7 @@ class TestRestInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @dont_vary_protocol
     def test_accepts_custom_http_timeouts(self):
-        ably = AblyRest(
+        ably = create_http_client(
             token="foo", http_request_timeout=30, http_open_timeout=8,
             http_max_retry_count=6, http_max_retry_duration=20)
 

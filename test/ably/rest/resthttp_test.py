@@ -10,7 +10,7 @@ import respx
 from httpx import Response
 
 from ably.pubsub.http.httputils import HttpUtils
-from ably.pubsub.server import AblyRest
+from ably.pubsub.server import create_http_client
 from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.options import Options
 from ably.pubsub.util.exceptions import AblyException
@@ -29,7 +29,7 @@ class TestRestHttp(BaseAsyncTestCase):
         assert HttpUtils.host_for_url('[::1]') == '[::1]'
 
     async def test_max_retry_attempts_and_timeouts_defaults(self):
-        ably = AblyRest(token="foo")
+        ably = create_http_client(token="foo")
         assert 'http_open_timeout' in ably.http.CONNECTION_RETRY_DEFAULTS
         assert 'http_request_timeout' in ably.http.CONNECTION_RETRY_DEFAULTS
 
@@ -42,7 +42,7 @@ class TestRestHttp(BaseAsyncTestCase):
         await ably.close()
 
     async def test_cumulative_timeout(self):
-        ably = AblyRest(token="foo")
+        ably = create_http_client(token="foo")
         assert 'http_max_retry_duration' in ably.http.CONNECTION_RETRY_DEFAULTS
 
         ably.options.http_max_retry_duration = 0.5
@@ -59,7 +59,7 @@ class TestRestHttp(BaseAsyncTestCase):
         await ably.close()
 
     async def test_host_fallback(self):
-        ably = AblyRest(token="foo")
+        ably = create_http_client(token="foo")
 
         def make_url(host):
             base_url = f"{ably.http.preferred_scheme}://{host}:{ably.http.preferred_port}"
@@ -89,7 +89,7 @@ class TestRestHttp(BaseAsyncTestCase):
     @respx.mock
     async def test_no_host_fallback_nor_retries_if_custom_host(self):
         custom_host = 'example.org'
-        ably = AblyRest(token="foo", endpoint=custom_host)
+        ably = create_http_client(token="foo", endpoint=custom_host)
 
         mock_route = respx.get("https://example.org").mock(side_effect=httpx.RequestError(''))
 
@@ -139,7 +139,7 @@ class TestRestHttp(BaseAsyncTestCase):
     @respx.mock
     async def test_no_retry_if_not_500_to_599_http_code(self):
         default_host = Options().get_host()
-        ably = AblyRest(token="foo")
+        ably = create_http_client(token="foo")
 
         default_url = f"{ably.http.preferred_scheme}://{default_host}:{ably.http.preferred_port}/"
 
@@ -162,7 +162,7 @@ class TestRestHttp(BaseAsyncTestCase):
         https://github.com/ably/ably-python/issues/160
         """
 
-        ably = AblyRest(token="foo")
+        ably = create_http_client(token="foo")
 
         mock_request = respx.route().mock(return_value=httpx.Response(500, text="Internal Server Error"))
 
@@ -174,7 +174,7 @@ class TestRestHttp(BaseAsyncTestCase):
         await ably.close()
 
     def test_custom_http_timeouts(self):
-        ably = AblyRest(
+        ably = create_http_client(
             token="foo", http_request_timeout=30, http_open_timeout=8,
             http_max_retry_count=6, http_max_retry_duration=20)
 

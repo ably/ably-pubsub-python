@@ -10,6 +10,7 @@ from ably.pubsub.rest.push import Push
 from ably.pubsub.types.options import Options
 from ably.pubsub.types.stats import stats_response_processor
 from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.construction import reject_direct_construction
 from ably.pubsub.util.exceptions import AblyException, catch_all
 
 log = logging.getLogger(__name__)
@@ -47,8 +48,9 @@ class AblyRest:
           - `auth_token`: Undocumented
           - `auth_callback`: Undocumented
           - `auth_url`: Undocumented
-          - `keep_alive`: use persistent connections. Defaults to True
         """
+        reject_direct_construction(type(self), 'ably.pubsub.server.create_http_client')
+
         if key is not None and ('key_name' in kwargs or 'key_secret' in kwargs):
             raise ValueError("key and key_name or key_secret are mutually exclusive. "
                              "Provider either a key or key_name & key_secret")

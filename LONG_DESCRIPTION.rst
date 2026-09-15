@@ -16,7 +16,7 @@ The package installs into ``ably.pubsub``. Both ``ably`` and ``ably.pubsub``
 are namespace packages shared with the other ``ably-*`` distributions, so the
 whole public API is reached through ``ably.pubsub.server``::
 
-    from ably.pubsub.server import AblyRealtime, AblyRest
+    from ably.pubsub.server import create_http_client, create_realtime_client
 
 
 Using Ably for Python

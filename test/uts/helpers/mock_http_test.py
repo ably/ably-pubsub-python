@@ -6,7 +6,7 @@ import time
 import msgpack
 import pytest
 
-from ably.pubsub.server import AblyRest
+from ably.pubsub.server import create_http_client
 from ably.pubsub.types.testoptions import TestOptions
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.mock_http import MockHttpClient
@@ -20,7 +20,7 @@ JSON_CONTENT_TYPE = 'application/json'
 
 def rest_client(mock, **kwargs):
     """A REST client whose HTTP calls are served by `mock`."""
-    return AblyRest(key=KEY, _test_options=TestOptions(http_transport=mock.as_transport()), **kwargs)
+    return create_http_client(key=KEY, _test_options=TestOptions(http_transport=mock.as_transport()), **kwargs)
 
 
 async def raw_get(ably, path='/time'):
@@ -175,7 +175,8 @@ async def test_a_pending_connection_describes_a_non_tls_target():
 
     mock = MockHttpClient(on_connection_attempt=connect,
                           on_request=lambda request: request.respond_with(200, [SERVER_TIME]))
-    ably = AblyRest(token='foo', tls=False, _test_options=TestOptions(http_transport=mock.as_transport()))
+    ably = create_http_client(token='foo', tls=False,
+                              _test_options=TestOptions(http_transport=mock.as_transport()))
 
     await ably.time()
 

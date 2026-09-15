@@ -5,7 +5,7 @@ Spec points: TO1, TO2, TO3, AO1, AO2
 
 import pytest
 
-from ably.pubsub.server import AblyRest
+from ably.pubsub.server import create_http_client
 from ably.pubsub.types.authoptions import AuthOptions
 from ably.pubsub.types.options import Options
 from ably.pubsub.types.tokendetails import TokenDetails
@@ -191,5 +191,5 @@ async def test_to_conflicting_options_validation():
     # The missing-credentials check is a constructor argument check, so it raises ValueError
     # rather than an AblyException
     with pytest.raises(ValueError) as value_error:
-        AblyRest()
+        create_http_client()
     assert 'key' in str(value_error.value)

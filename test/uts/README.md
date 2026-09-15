@@ -40,7 +40,7 @@ mock_http = MockHttpClient(
     on_connection_attempt=lambda conn: conn.respond_with_success(),
     on_request=lambda req: req.respond_with(200, {'result': 'ok'}),
 )
-ably = AblyRest(key=key, _test_options=TestOptions(http_transport=mock_http.as_transport()))
+ably = create_http_client(key=key, _test_options=TestOptions(http_transport=mock_http.as_transport()))
 ```
 
 A realtime client takes its websocket mock the same way, through
@@ -51,9 +51,9 @@ A realtime client takes its websocket mock the same way, through
 mock_ws = MockWebSocket(
     on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE),
 )
-ably = AblyRealtime(key=key, auto_connect=False,
-                    _test_options=TestOptions(websocket_connect=mock_ws.as_connect(),
-                                              clock=FakeClock()))
+ably = create_realtime_client(key=key, auto_connect=False,
+                              _test_options=TestOptions(websocket_connect=mock_ws.as_connect(),
+                                                        clock=FakeClock()))
 ```
 
 `rest_client(mock_http, ...)` and `realtime_client(mock_ws, ...)` in

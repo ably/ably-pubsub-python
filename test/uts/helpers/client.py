@@ -4,7 +4,7 @@ import asyncio
 import inspect
 import logging
 
-from ably.pubsub.server import AblyRealtime, AblyRest
+from ably.pubsub.server import create_http_client, create_realtime_client
 from ably.pubsub.types.testoptions import TestOptions
 from test.uts.helpers.clock import settle
 from test.uts.helpers.sandbox import SANDBOX_ENDPOINT
@@ -41,7 +41,7 @@ def rest_client(mock_http, clock=None, **kwargs):
     if not any(option in kwargs for option in CREDENTIAL_OPTIONS):
         kwargs['key'] = DEFAULT_KEY
     test_options = TestOptions(http_transport=mock_http.as_transport(), clock=clock)
-    client = AblyRest(_test_options=test_options, **kwargs)
+    client = create_http_client(_test_options=test_options, **kwargs)
     __open_clients.append(client)
     return client
 
@@ -63,7 +63,7 @@ def realtime_client(mock_websocket=None, mock_http=None, clock=None, **kwargs):
         kwargs['key'] = DEFAULT_KEY
     kwargs.setdefault('auto_connect', False)
     kwargs.setdefault('fallback_hosts', [])
-    client = AblyRealtime(_test_options=TestOptions(
+    client = create_realtime_client(_test_options=TestOptions(
         http_transport=mock_http.as_transport() if mock_http is not None else None,
         websocket_connect=mock_websocket.as_connect() if mock_websocket is not None else None,
         clock=clock,
@@ -92,7 +92,7 @@ def sandbox_rest_client(key=None, **kwargs):
         kwargs['key'] = key
     kwargs.setdefault('endpoint', SANDBOX_ENDPOINT)
     kwargs.setdefault('use_binary_protocol', False)
-    client = AblyRest(**kwargs)
+    client = create_http_client(**kwargs)
     __open_clients.append(client)
     return client
 
@@ -112,7 +112,7 @@ def sandbox_realtime_client(key=None, **kwargs):
         kwargs['key'] = key
     kwargs.setdefault('endpoint', SANDBOX_ENDPOINT)
     kwargs.setdefault('use_binary_protocol', False)
-    client = AblyRealtime(**kwargs)
+    client = create_realtime_client(**kwargs)
     __open_clients.append(client)
     return client
 
