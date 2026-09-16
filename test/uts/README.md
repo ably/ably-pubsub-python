@@ -6,8 +6,10 @@ They are mechanical translations: each one names the spec point it covers and
 carries a `# UTS: <id>` comment identifying the specification it came from.
 
 Read `uts/docs/writing-derived-tests.md` in the specification repository before
-adding or changing tests here. Record anything that departs from a specification
-in [deviations.md](deviations.md).
+adding or changing tests here, alongside `.claude/skills/uts-to-python/SKILL.md`,
+which covers what is particular to this SDK. Record anything that departs from a
+specification in [deviations.md](deviations.md); [decisions.md](decisions.md)
+covers how the specifications are adopted here and why.
 
 ## Layout
 
