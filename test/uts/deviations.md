@@ -7,7 +7,7 @@ this file records behaviour.
 Entries are grouped by root cause rather than by test, so one entry covers every
 test it affects. Headings are fixed and appear even when they hold nothing.
 
-Of 581 derived tests, 454 pass, 109 are gated behind `RUN_DEVIATIONS` and 18 cannot
+Of 581 derived tests, 457 pass, 117 are gated behind `RUN_DEVIATIONS` and 7 cannot
 be run at all. Every gated test has been confirmed to fail when enabled, so none of
 them passes under both behaviours.
 
@@ -197,6 +197,9 @@ the mark is the only change needed once the SDK behaviour lands.
 | RSA16c | No local expiry detection without a server time offset, which an authCallback client never obtains. See the RSA4b1 spec error above; here the specification asserts renewal *does* happen, so there is no green reading |
 | RSA16d | A failed renewal leaves the invalidated token in place — `_ensure_valid_auth_credentials` assigns only on success |
 | RSA16d | `authorize()` cannot switch a client back to basic auth: `_ensure_valid_auth_credentials` sets `Method.TOKEN` unconditionally, and `AuthOptions.replace` drops `use_token_auth`, which is stored outside the options dict |
+| RSA8c, RSA4, RSA12b, RSA4b | A JSON `auth_url` response is taken to be a `TokenDetails` only when it carries `issued`. `ably/rest/auth.py:203` tests `'issued' in token_request`, so the `{"token": ..., "expires": ...}` every one of these specs returns falls through to `TokenRequest.from_json`, which rejects it as 40170. TD2 makes `token` the only required attribute, and RSA8c admits "a `TokenRequest` or `TokenDetails` object" — discriminating on `keyName`/`mac`, as ably-js does, is the fix. Seven tests |
+| RSA8c1a, RSA12b | `TokenParams` reach the `auth_url` under the SDK's internal snake_case names: `Auth._ensure_valid_auth_credentials` sets `token_params['client_id']` and `token_request_from_auth_url` passes the dict straight to the query string, so an auth server sees `client_id`, not `clientId` |
+| RSA4e | An `auth_url` error response is parsed as though it were an Ably error object. `AblyException.raise_for_response` subscripts `error['message']`, so a third-party body such as `{"error": "Internal server error"}` raises `TypeError` instead of an `AblyException` |
 
 ### Requests
 
@@ -233,36 +236,15 @@ comment above. These run, so they guard against regression.
 
 ## Mock Infrastructure Limitations
 
-Tests that cannot be implemented as written. The first two are caused by the SDK,
-not by the mock, but they land here because the effect is the same: no test can
-observe the behaviour.
-
-### `auth_url` requests bypass the injected transport — 10 tests
-
-`Auth.token_request_from_auth_url` builds its own `httpx.AsyncClient` rather than
-going through `Http`, so an `auth_url` fetch never reaches
-`TestOptions(http_transport=...)`. The affected tests are skipped outright rather
-than gated, because enabling them would make real network calls.
-
-This is not only a testing problem: those requests also bypass the SDK's own
-timeout, retry and host-fallback configuration. Routing them through the client's
-HTTP layer would unblock all ten tests unchanged.
-
-Affected: `RSA4/authurl-triggers-token`, `RSA12b/clientid-sent-to-authurl`,
-`RSA4b/renewal-via-authurl-2`, `RSA8c` (six tests), `RSA10i/authorize-preserves-key`.
+Tests that cannot be implemented as written. The first is caused by the SDK, not by
+the mock, but it lands here because the effect is the same: no test can observe the
+behaviour.
 
 ### The connectivity check bypasses the injected transport — 3 tests
 
 `ConnectionManager.check_connection` is internal, synchronous, and calls
 `httpx.get` directly. `REC3a`, `REC3b` and `REC3` are skipped. These specs drive a
 Realtime client and belong under `realtime/unit` in any case.
-
-### ably-common predates the msgpack interop fixtures — 2 tests
-
-`msgpack_interop.md` reads `test-resources/msgpack_test_fixtures.json`. The
-`submodules` gitlink is pinned at a commit that predates the file, so both tests are
-gated on its presence. They were confirmed to pass against the fixture as it stands
-in ably-common today, so bumping the pin is the whole fix.
 
 ### `fallbackHostsUseDefault` is not implemented — 3 tests
 

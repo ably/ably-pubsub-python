@@ -14,6 +14,7 @@ from ably.types.tokendetails import TokenDetails
 from ably.types.tokenrequest import TokenRequest
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
+from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 CHANNEL_BODY = {'channelId': 'test'}
@@ -22,7 +23,7 @@ JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test-jwt-payload'
 
 REQUEST_TOKEN_PATH = re.compile(r'^/keys/.*/requestToken$')
 
-AUTH_URL_SKIP_REASON = 'auth_url requests bypass the injected HTTP transport; see the note in each test.'
+AUTH_HOST = 'auth.example.com'
 
 
 def now():
@@ -157,41 +158,127 @@ async def test_rsa8d_callback_receives_token_params():
     assert received_params['capability'] == {'channel1': ['publish']}
 
 
+def auth_url_mock(captured_requests, token_body=None, token_headers=None):
+    """A mock that answers the auth_url with a token and everything else with a channel."""
+    body = token_body if token_body is not None else {
+        'token': 'authurl-token',
+        'expires': now() + 3600000,
+    }
+
+    def on_request(request):
+        captured_requests.append(request)
+        if request.url.host == AUTH_HOST:
+            request.respond_with(200, body, token_headers)
+        else:
+            request.respond_with(200, CHANNEL_BODY)
+
+    return MockHttpClient(
+        on_connection_attempt=lambda conn: conn.respond_with_success(),
+        on_request=on_request,
+    )
+
+
 # UTS: rest/unit/RSA8c/authurl-invoked-for-auth-0
-@pytest.mark.skip(reason=AUTH_URL_SKIP_REASON)
+# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
+# TokenDetails object". ably-python recognises TokenDetails only when the payload
+# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
+# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
+# rejects it as 40170.
+@deviation
 async def test_rsa8c_authurl_invoked_for_auth():
-    # `Auth.token_request_from_auth_url` builds its own `httpx.AsyncClient` rather than going
-    # through `Http`, so the auth_url call never reaches the mock. Enabling the test would send a
-    # real request to auth.example.com, so it is skipped outright rather than gated.
-    pass
+    captured_requests = []
+    client = rest_client(auth_url_mock(captured_requests),
+                         auth_url=f'https://{AUTH_HOST}/token')
+
+    await client.request('GET', '/channels/test', version=api_version)
+
+    auth_request = captured_requests[0]
+    assert auth_request.url.host == AUTH_HOST
+    assert auth_request.url.path == '/token'
+    assert auth_request.method == 'GET'
+
+    api_request = captured_requests[1]
+    assert api_request.headers['Authorization'] == bearer('authurl-token')
 
 
 # UTS: rest/unit/RSA8c/authurl-post-method-1
-@pytest.mark.skip(reason=AUTH_URL_SKIP_REASON)
+# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
+# TokenDetails object". ably-python recognises TokenDetails only when the payload
+# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
+# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
+# rejects it as 40170.
+@deviation
 async def test_rsa8c_authurl_post_method():
-    # See the note on test_rsa8c_authurl_invoked_for_auth.
-    pass
+    captured_requests = []
+    client = rest_client(auth_url_mock(captured_requests),
+                         auth_url=f'https://{AUTH_HOST}/token',
+                         auth_method='POST')
+
+    await client.request('GET', '/channels/test', version=api_version)
+
+    auth_request = captured_requests[0]
+    assert auth_request.method == 'POST'
 
 
 # UTS: rest/unit/RSA8c/authurl-custom-headers-2
-@pytest.mark.skip(reason=AUTH_URL_SKIP_REASON)
+# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
+# TokenDetails object". ably-python recognises TokenDetails only when the payload
+# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
+# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
+# rejects it as 40170.
+@deviation
 async def test_rsa8c_authurl_custom_headers():
-    # See the note on test_rsa8c_authurl_invoked_for_auth.
-    pass
+    captured_requests = []
+    client = rest_client(auth_url_mock(captured_requests),
+                         auth_url=f'https://{AUTH_HOST}/token',
+                         auth_headers={
+                             'X-Custom-Header': 'custom-value',
+                             'X-API-Key': 'my-api-key',
+                         })
+
+    await client.request('GET', '/channels/test', version=api_version)
+
+    auth_request = captured_requests[0]
+    assert auth_request.headers['X-Custom-Header'] == 'custom-value'
+    assert auth_request.headers['X-API-Key'] == 'my-api-key'
 
 
 # UTS: rest/unit/RSA8c/authurl-query-params-3
-@pytest.mark.skip(reason=AUTH_URL_SKIP_REASON)
+# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
+# TokenDetails object". ably-python recognises TokenDetails only when the payload
+# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
+# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
+# rejects it as 40170.
+@deviation
 async def test_rsa8c_authurl_query_params():
-    # See the note on test_rsa8c_authurl_invoked_for_auth.
-    pass
+    captured_requests = []
+    client = rest_client(auth_url_mock(captured_requests),
+                         auth_url=f'https://{AUTH_HOST}/token',
+                         auth_params={
+                             'client_id': 'my-client',
+                             'scope': 'publish:*',
+                         })
+
+    await client.request('GET', '/channels/test', version=api_version)
+
+    auth_request = captured_requests[0]
+    assert auth_request.url.query_params['client_id'] == 'my-client'
+    assert auth_request.url.query_params['scope'] == 'publish:*'
 
 
 # UTS: rest/unit/RSA8c/authurl-returns-jwt-4
-@pytest.mark.skip(reason=AUTH_URL_SKIP_REASON)
 async def test_rsa8c_authurl_returns_jwt():
-    # See the note on test_rsa8c_authurl_invoked_for_auth.
-    pass
+    captured_requests = []
+    jwt = 'eyJhbGciOiJIUzI1NiJ9.jwt-body.signature'
+    client = rest_client(
+        auth_url_mock(captured_requests, token_body=jwt,
+                      token_headers={'Content-Type': 'text/plain'}),
+        auth_url=f'https://{AUTH_HOST}/jwt')
+
+    await client.request('GET', '/channels/test', version=api_version)
+
+    api_request = captured_requests[1]
+    assert api_request.headers['Authorization'] == bearer(jwt)
 
 
 # UTS: rest/unit/RSA8d/callback-error-propagated-4
@@ -222,7 +309,31 @@ async def test_rsa8d_callback_error_propagated():
 
 
 # UTS: rest/unit/RSA8c/authurl-error-propagated-5
-@pytest.mark.skip(reason=AUTH_URL_SKIP_REASON)
+# DEVIATION: RSA4e asks for an error to reach the caller. ably-python parses the
+# auth_url's response body as an Ably error object, and the specification's
+# `{"error": "Internal server error"}` has a string where AblyException.raise_for_response
+# (ably/util/exceptions.py) subscripts `error['message']`, so a bare TypeError escapes.
+@deviation
 async def test_rsa8c_authurl_error_propagated():
-    # See the note on test_rsa8c_authurl_invoked_for_auth.
-    pass
+    captured_requests = []
+
+    def on_request(request):
+        captured_requests.append(request)
+        if request.url.host == AUTH_HOST:
+            request.respond_with(500, {'error': 'Internal server error'})
+        else:
+            request.respond_with(200, CHANNEL_BODY)
+
+    mock_http = MockHttpClient(
+        on_connection_attempt=lambda conn: conn.respond_with_success(),
+        on_request=on_request,
+    )
+    client = rest_client(mock_http, auth_url=f'https://{AUTH_HOST}/token')
+
+    with pytest.raises(AblyException) as excinfo:
+        await client.request('GET', '/channels/test', version=api_version)
+
+    assert excinfo.value.status_code == 500
+
+    assert len(captured_requests) == 1
+    assert captured_requests[0].url.host == AUTH_HOST

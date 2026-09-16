@@ -186,17 +186,14 @@ async def test_rsa10h_authorize_replaces_auth_options():
 
 
 # UTS: rest/unit/RSA10i/authorize-preserves-key-0
-@pytest.mark.skip(reason='auth_url requests bypass the injected HTTP transport; see the note below.')
+@pytest.mark.skip(reason='The specification carries no assertions, and its premise contradicts RSA8e.')
 async def test_rsa10i_authorize_preserves_key():
-    # `Auth.token_request_from_auth_url` builds its own `httpx.AsyncClient`
-    # rather than going through `Http`, so the authorize() this specification
-    # drives would leave the mock and reach the real network.
-    #
-    # UTS SPEC ERROR: RSA10i - the features spec does not require the key to survive
-    # an authOptions argument: RSA8e and RSA10j both have provided AuthOptions used
-    # "instead of the stored values (even when null)". ably-python discards the key,
-    # which is what those points call for; test_rsa10k_authorize_query_time is the
-    # runnable reproduction of the consequence.
+    # UTS SPEC ERROR: RSA10i - the assertions block is empty, so there is nothing to
+    # derive. Its premise is wrong in any case: the features spec does not require the
+    # key to survive an authOptions argument, since RSA8e and RSA10j both have provided
+    # AuthOptions used "instead of the stored values (even when null)". ably-python
+    # discards the key, which is what those points call for;
+    # test_rsa10k_authorize_query_time is the runnable reproduction of the consequence.
     pass
 
 

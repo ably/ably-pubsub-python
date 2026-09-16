@@ -11,6 +11,7 @@ import pytest
 from ably import api_version
 from ably.types.tokendetails import TokenDetails
 from test.uts.helpers.client import rest_client
+from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 CHANNEL_BODY = {'channelId': 'test'}
@@ -157,13 +158,32 @@ async def test_rsa4_auth_callback_triggers_token():
 
 
 # UTS: rest/unit/RSA4/authurl-triggers-token-3
-@pytest.mark.skip(reason='auth_url requests bypass the injected HTTP transport; see the note below.')
+# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
+# TokenDetails object". ably-python recognises TokenDetails only when the payload
+# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
+# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
+# rejects it as 40170. The auth_url request itself now reaches the mock.
+@deviation
 async def test_rsa4_authurl_triggers_token():
-    # `Auth.token_request_from_auth_url` builds its own `httpx.AsyncClient`
-    # rather than going through `Http`, so the auth_url call never reaches the
-    # mock and would hit the real network. The spec's `captured_requests[1]`
-    # cannot be observed until the auth_url fetch runs on the client's transport.
-    pass
+    captured_requests = []
+
+    def on_request(request):
+        captured_requests.append(request)
+        if request.url.host == 'auth.example.com':
+            request.respond_with(200, {'token': 'authurl-token', 'expires': now() + 3600000})
+        else:
+            request.respond_with(200, CHANNEL_BODY)
+
+    mock_http = MockHttpClient(
+        on_connection_attempt=lambda conn: conn.respond_with_success(),
+        on_request=on_request,
+    )
+    client = rest_client(mock_http, auth_url='https://auth.example.com/token')
+
+    await client.request('GET', '/channels/test', version=api_version)
+
+    api_request = captured_requests[1]
+    assert api_request.headers['Authorization'] == bearer('authurl-token')
 
 
 # UTS: rest/unit/RSC1b/no-auth-method-error-0

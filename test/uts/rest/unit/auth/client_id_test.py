@@ -4,6 +4,7 @@ Spec points: RSA7, RSA7a, RSA7b, RSA7c, RSA12, RSA12a, RSA12b, RSA15, RSA15a, RS
 """
 
 import time
+from urllib.parse import parse_qsl
 
 import pytest
 
@@ -124,13 +125,44 @@ async def test_rsa12a_clientid_passed_to_callback():
 
 
 # UTS: rest/unit/RSA12b/clientid-sent-to-authurl-0
-@pytest.mark.skip(reason='auth_url requests bypass the injected HTTP transport; see the note below.')
+# DEVIATION: two departures, either of which alone fails this test.
+#  - RSA8c takes a JSON auth_url response to be "a TokenRequest or TokenDetails
+#    object". ably-python recognises TokenDetails only when the payload carries
+#    `issued` (ably/rest/auth.py, Auth.request_token), so `{"token": ..., "expires": ...}`
+#    is read as a TokenRequest and rejected as 40170 before `status()` returns.
+#  - RSA8c1a sends the TokenParams as query params under their wire names.
+#    ably-python passes its internal snake_case dict straight through
+#    (`token_params['client_id']` in Auth._ensure_valid_auth_credentials), so the
+#    auth_url receives `client_id`, not `clientId`.
+@deviation
 async def test_rsa12b_clientid_sent_to_authurl():
-    # `Auth.token_request_from_auth_url` builds its own `httpx.AsyncClient`
-    # rather than going through `Http`, so the auth_url call never reaches the
-    # mock and would hit the real network. The auth request the spec asserts on
-    # cannot be captured until the auth_url fetch runs on the client's transport.
-    pass
+    captured_requests = []
+
+    def on_request(request):
+        captured_requests.append(request)
+        if request.url.host == 'auth.example.com':
+            request.respond_with(200, {'token': 'url-token', 'expires': now() + 3600000},
+                                 {'Content-Type': 'application/json'})
+        else:
+            request.respond_with(200, CHANNEL_DETAILS_BODY)
+
+    mock_http = MockHttpClient(
+        on_connection_attempt=lambda conn: conn.respond_with_success(),
+        on_request=on_request,
+    )
+    client = rest_client(mock_http, auth_url='https://auth.example.com/token',
+                         client_id='url-client-id')
+
+    await client.channels.get('test').status()
+
+    auth_request = captured_requests[0]
+    assert auth_request.url.host == 'auth.example.com'
+
+    if auth_request.method == 'GET':
+        assert auth_request.url.query_params['clientId'] == 'url-client-id'
+    else:
+        body_params = dict(parse_qsl(auth_request.body.decode('utf-8')))
+        assert body_params['clientId'] == 'url-client-id'
 
 
 # UTS: rest/unit/RSA7/clientid-updated-after-authorize-0

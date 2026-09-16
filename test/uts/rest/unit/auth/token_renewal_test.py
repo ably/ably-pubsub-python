@@ -12,6 +12,7 @@ import pytest
 from ably.types.tokendetails import TokenDetails
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
+from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 CHANNEL_DETAILS_BODY = {
@@ -180,12 +181,47 @@ async def test_rsa4a2_no_renewal_without_callback():
 
 
 # UTS: rest/unit/RSA4b/renewal-via-authurl-2
-@pytest.mark.skip(reason='auth_url requests bypass the injected HTTP transport; see the note below.')
+# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
+# TokenDetails object". ably-python recognises TokenDetails only when the payload
+# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
+# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
+# rejects it as 40170 on the very first fetch. The auth_url requests themselves now
+# reach the mock.
+@deviation
 async def test_rsa4b_renewal_via_authurl():
-    # `Auth.token_request_from_auth_url` builds its own `httpx.AsyncClient` rather than going
-    # through `Http`, so the auth_url calls this test counts never reach the mock. Enabling the
-    # test would send real requests to example.com, so it is skipped outright rather than gated.
-    pass
+    captured_requests = []
+    request_count = 0
+
+    def on_request(request):
+        nonlocal request_count
+        captured_requests.append(request)
+        request_count += 1
+
+        if request.url.host == 'example.com':
+            if request_count == 1:
+                request.respond_with(200, {'token': 'first-token', 'expires': now() + 3600000})
+            else:
+                request.respond_with(200, {'token': 'second-token', 'expires': now() + 3600000})
+        elif request_count == 2:
+            request.respond_with(401, token_error_body(40142, 'Token expired'))
+        else:
+            request.respond_with(200, [])
+
+    mock_http = MockHttpClient(
+        on_connection_attempt=lambda conn: conn.respond_with_success(),
+        on_request=on_request,
+    )
+    client = rest_client(mock_http, auth_url='https://example.com/auth')
+
+    await client.channels.get('test').history()
+
+    auth_requests = [r for r in captured_requests if r.url.host == 'example.com']
+    assert len(auth_requests) == 2
+
+    api_requests = [r for r in captured_requests if r.url.host != 'example.com']
+    assert len(api_requests) == 2
+
+    assert api_requests[1].headers['Authorization'] == bearer('second-token')
 
 
 # UTS: rest/unit/RSA4b/renewal-limit-no-loop-3

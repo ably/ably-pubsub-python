@@ -7,8 +7,6 @@ import uuid
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-import httpx
-
 from ably.types.options import Options
 
 if TYPE_CHECKING:
@@ -412,9 +410,9 @@ class Auth:
         url = clean_url
 
         from ably.http.http import Response
-        async with httpx.AsyncClient(http2=True) as client:
-            resp = await client.request(method=method, url=url, headers=headers, params=params, data=body)
-            response = Response(resp)
+        resp = await self.ably.http.request_external(
+            method=method, url=url, headers=headers, params=params, body=body)
+        response = Response(resp)
 
         AblyException.raise_for_response(response)
 
