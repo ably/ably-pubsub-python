@@ -13,7 +13,6 @@ import json
 from ably.types.tokendetails import TokenDetails
 from ably.types.tokenrequest import TokenRequest
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 TIMESTAMP_MS = 1234567890000
@@ -65,7 +64,6 @@ def test_td1_token_details_attributes():
 
 
 # UTS: rest/unit/TD/token-details-from-json-0
-@deviation
 def test_td_token_details_from_json():
     json_data = {
         'token': 'deserialized-token',

@@ -71,15 +71,7 @@ class TokenDetails:
         if isinstance(data, str):
             data = json.loads(data)
 
-        mapping = {
-            'clientId': 'client_id',
-        }
-        for name in data:
-            py_name = mapping.get(name)
-            if py_name:
-                data[py_name] = data.pop(name)
-
-        return TokenDetails(**data)
+        return TokenDetails.from_dict(data)
 
     def __eq__(self, other):
         if isinstance(other, TokenDetails):

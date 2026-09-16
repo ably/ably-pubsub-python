@@ -541,7 +541,6 @@ async def test_rsc19f_path_leading_slash_handling(path, expected_path):
 
 
 # UTS: rest/unit/RSC19d/empty-response-handling-8
-@deviation
 async def test_rsc19d_empty_response_handling():
     mock_http = MockHttpClient(on_connection_attempt=succeed)
     mock_http.queue_response(204, None, {})

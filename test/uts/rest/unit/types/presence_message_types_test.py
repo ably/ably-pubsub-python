@@ -137,7 +137,6 @@ def test_tp3g_timestamp_from_protocol_message():
 
 
 # UTS: rest/unit/TP3/presence-from-json-0
-@deviation
 def test_tp3_presence_from_json():
     json_data = {
         'id': 'pm-123',
@@ -165,7 +164,6 @@ def test_tp3_presence_from_json():
 
 
 # UTS: rest/unit/TP3/presence-encoded-data-from-json-1
-@deviation
 def test_tp3_presence_encoded_data_from_json():
     test_cases = [
         (None, 'plain text', 'plain text'),

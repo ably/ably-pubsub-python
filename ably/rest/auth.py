@@ -200,7 +200,7 @@ class Auth:
             raise AblyAuthException(msg, 403, 40171)
         if isinstance(token_request, TokenDetails):
             return token_request
-        elif isinstance(token_request, dict) and 'issued' in token_request:
+        elif isinstance(token_request, dict) and ('issued' in token_request or 'token' in token_request):
             return TokenDetails.from_dict(token_request)
         elif isinstance(token_request, dict):
             try:

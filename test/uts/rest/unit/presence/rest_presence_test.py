@@ -102,7 +102,6 @@ async def test_rsp3a_get_request_endpoint():
 
 
 # UTS: rest/unit/RSP3b/get-returns-presence-messages-0
-@deviation
 async def test_rsp3b_get_returns_presence_messages():
     channel_name = f'test-RSP3b-{random_id()}'
     captured_requests = []
@@ -118,9 +117,6 @@ async def test_rsp3b_get_returns_presence_messages():
     ])
     client = rest_client(mock_http)
 
-    # DEVIATION: the spec's body carries "encoding": null. PresenceMessage.from_encoded reads
-    # it with obj.get('encoding', ''), so an explicit null reaches decode() and raises
-    # AttributeError. See the report; reproduce with RUN_DEVIATIONS=1.
     result = await client.channels.get(channel_name).presence.get()
 
     assert len(result.items) == 1

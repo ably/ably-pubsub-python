@@ -11,7 +11,6 @@ import pytest
 
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 SERVER_TIME_MS = 1234567890000
@@ -492,10 +491,6 @@ async def test_rec1b2_endpoint_localhost():
     assert mock_http.captured_requests[0].url.host == 'localhost'
 
 
-# DEVIATION: ably-python builds the request URL as "<scheme>://<host>:<port>" without
-# bracketing an IPv6 literal, so httpx rejects it before any request is made.
-# See Http.make_request in ably/http/http.py.
-@deviation
 # UTS: rest/unit/REC1b2/endpoint-ipv6-address-2
 async def test_rec1b2_endpoint_ipv6_address():
     mock_http = new_mock()

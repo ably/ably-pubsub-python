@@ -7,9 +7,11 @@ this file records behaviour.
 Entries are grouped by root cause rather than by test, so one entry covers every
 test it affects. Headings are fixed and appear even when they hold nothing.
 
-Of 581 derived tests, 457 pass, 117 are gated behind `RUN_DEVIATIONS` and 7 cannot
+Of 581 derived tests, 474 pass, 100 are gated behind `RUN_DEVIATIONS` and 7 cannot
 be run at all. Every gated test has been confirmed to fail when enabled, so none of
 them passes under both behaviours.
+
+Entries closed by a fix are removed rather than kept as history; `git log` holds that.
 
 Run the gated tests with:
 
@@ -166,22 +168,11 @@ the mark is the only change needed once the SDK behaviour lands.
 | RSH7, RSH7a–e, RSH6, RSH8 | `PushChannel`: `channel.push`, `client.device`, `LocalDevice`. The push *admin* surface (RSH1) does exist | 10 |
 | RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
 | RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` takes only `limit`, while `Presence.history` does take its documented params | 3 |
-| TO3l8, TM6, TP5 | `maxMessageSize` as a client option, and `size` on `Message` / `PresenceMessage`. `ably/realtime/channel.py:422` reads the option via `getattr(..., 65536)`, so the default can never be configured nor overridden by `connectionDetails` (CD2c) | 3 |
+| TP5 | `size` on `PresenceMessage`. The related `maxMessageSize` gap is adapted rather than gated, below; `features.md` TM6 has no UTS test | 1 |
 | RSL1i | REST publish never calls `validate_message_size`. The helper exists and is correct, but only `ably/realtime/channel.py:423` calls it, so an oversized REST publish goes out | 1 |
 | RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_handler` as a client option, and any use of `log_level` — it is stored on `Options` and read by nothing | 4 |
-| TI4, TI1/TI5 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors | 3 |
-| CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | 2 |
+| TI4, TI1/TI5 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors | 2 |
 | TP3a, TP3d, TP3g | Presence attributes defaulted from the encapsulating ProtocolMessage. There is no ProtocolMessage type; `ably/realtime/channel.py:751-761` passes the presence array through without context. Matters for synthesized-leave detection and `memberKey` | 3 |
-
-### Crashes
-
-| Spec points | Behaviour |
-|---|---|
-| TM3, TAN2, TP3, TP4, RSP3b | An explicit `"encoding": null` on the wire raises `AttributeError: 'NoneType' object has no attribute 'strip'`. `obj.get('encoding', '')` returns `None` when the key is present and null, and `EncodeDataMixin.decode` calls `.strip('/')` on it. Present in `ably/types/message.py:296`, `ably/types/presence.py` and `ably/types/annotation.py` — so ordinary channel messages are affected, not just presence. One fix, three sites: `obj.get('encoding') or ''` |
-| TD7 | `TokenDetails.from_json` raises `RuntimeError: dictionary keys changed during iteration` for any payload containing `clientId`, because it mutates the dict it is iterating, and `TypeError` on wire fields the constructor does not take. `from_dict` handles the same payload; `TokenRequest.from_json` iterates `.items()` and is fine |
-| RSL14a, RSAN3b | A stringified `limit` raises `TypeError: '>' not supported between instances of 'str' and 'int'`. `format_params` in `ably/http/paginatedresult.py:34` compares `limit > 1000` without coercing, while RSL14a types params as `Dict<string, stringifiable>`. Reached from message versions, annotations and `channel.history()` |
-| RSC19d, HP4, HP5 | A 204 with no body raises `KeyError('Content-Type')` from `PaginatedResult.paginated_query_with_request`, which subscripts the header unguarded. `Response.to_native()` already handles the empty body correctly |
-| REC1b2 | An IPv6 `endpoint` produces `https://::1:443` because `Http.make_request` builds `base_url` without bracketing the literal, and httpx raises `InvalidURL` |
 
 ### Auth
 
@@ -197,16 +188,13 @@ the mark is the only change needed once the SDK behaviour lands.
 | RSA16c | No local expiry detection without a server time offset, which an authCallback client never obtains. See the RSA4b1 spec error above; here the specification asserts renewal *does* happen, so there is no green reading |
 | RSA16d | A failed renewal leaves the invalidated token in place — `_ensure_valid_auth_credentials` assigns only on success |
 | RSA16d | `authorize()` cannot switch a client back to basic auth: `_ensure_valid_auth_credentials` sets `Method.TOKEN` unconditionally, and `AuthOptions.replace` drops `use_token_auth`, which is stored outside the options dict |
-| RSA8c, RSA4, RSA12b, RSA4b | A JSON `auth_url` response is taken to be a `TokenDetails` only when it carries `issued`. `ably/rest/auth.py:203` tests `'issued' in token_request`, so the `{"token": ..., "expires": ...}` every one of these specs returns falls through to `TokenRequest.from_json`, which rejects it as 40170. TD2 makes `token` the only required attribute, and RSA8c admits "a `TokenRequest` or `TokenDetails` object" — discriminating on `keyName`/`mac`, as ably-js does, is the fix. Seven tests |
 | RSA8c1a, RSA12b | `TokenParams` reach the `auth_url` under the SDK's internal snake_case names: `Auth._ensure_valid_auth_credentials` sets `token_params['client_id']` and `token_request_from_auth_url` passes the dict straight to the query string, so an auth server sees `client_id`, not `clientId` |
-| RSA4e | An `auth_url` error response is parsed as though it were an Ably error object. `AblyException.raise_for_response` subscripts `error['message']`, so a third-party body such as `{"error": "Internal server error"}` raises `TypeError` instead of an `AblyException` |
 
 ### Requests
 
 | Spec points | Behaviour |
 |---|---|
 | RSC19b | Caller-supplied headers override the configured `Authorization`, because `Http.make_request` applies `headers` after `auth_headers`. RSC19b says requests "unconditionally" use the configured mechanism |
-| RSC8e2 | An unsupported `Content-Type` on a 2xx surfaces as 50000/500, via a bare `ValueError` from `Response.to_native` wrapped by `@catch_all`. The spec asks for 40013 with the original status |
 | RSH1b1 | Device ids are interpolated raw into push paths (`ably/rest/push.py` lines 82, 106, 118), so an id containing `/` addresses a different resource and `:` is unescaped. `ably/rest/channel.py` does quote channel names, so the SDK is inconsistent with itself |
 
 ## Adapted Tests
@@ -225,14 +213,17 @@ comment above. These run, so they guard against regression.
 | RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000 | Cosmetic; worth aligning cross-SDK |
 | RSH1a | Empty `recipient` or `data` rejected with code 40000 | `TypeError` / `ValueError`, not an `AblyException`. The "no HTTP request" half is satisfied | Open bug, minor |
 | HP6 | `errorCode` is a number | The raw header string, `'40101'` | Open bug, trivial |
-| HP8 | `headers` is a map | A list of `(name, value)` pairs, so the lookup the spec describes is impossible without converting, and case-insensitivity is lost | Open bug |
+| HP8 | `headers` is a map | A list of `(name, value)` pairs, so the lookup the spec describes is impossible without converting, and case-insensitivity is lost | Open bug; changing the return type is breaking |
 | RSC19e | An error indicated idiomatically | `httpx.ConnectError` / `ReadTimeout` reach the caller unwrapped, because `AblyRest.request` carries no `@catch_all` unlike `time()` and `stats()`. The messages do name the failure | Borderline; defensible under RSC19e |
 | RSC15a | Six hosts tried | Three. `Options.__get_hosts` truncates to `http_max_retry_count`, which TO3l5 sanctions | Intentional |
-| TI | `ErrorInfo` equality by attributes | No `__eq__`, so errors compare by identity. Python exceptions conventionally do, and the requirement appears nowhere in `features.md` | Intentional |
-| TD5, RSA16a | `capability` is stringified JSON | A `Capability` object, a deliberate public convenience type used throughout `auth` | Intentional |
+| TI | `ErrorInfo` equality by attributes | No `__eq__`, so errors compare by identity. Python exceptions conventionally do, and the requirement appears nowhere in `features.md`. Adding `__eq__` without `__hash__` would make `AblyException` unhashable and break any caller that puts one in a set | Intentional |
+| TD5, RSA16a | `capability` is stringified JSON | A `Capability` object, a public convenience type used throughout `auth`. Narrowing the return type to `str` would break every caller that indexes or mutates it, so it is reserved for a future major | Intentional; a breaking change to align |
 | RSA6b, RSA6d | The capability literal as passed | Canonicalised by `Capability.c14n`, which RSA9f requires | Compliant; rendering only |
 | RSA8d | `error.message` contains the callback's text | Wrapped as 40170 with the original in `cause`; `__str__` renders both | Rendering |
 | CHM2 | Missing metrics default to 0 | `ChannelMetrics.from_dict` uses a bare `obj.get(name)`, so any omitted metric parses as `None` | Open bug, broader than CHM2g/h |
+| CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
+| TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:422` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
+| TO3l1, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's values are milliseconds, while ably-python's `http_request_timeout` is seconds | Intentional |
 
 ## Mock Infrastructure Limitations
 

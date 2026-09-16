@@ -157,11 +157,6 @@ def test_udr2a_update_delete_result_fields():
 
 # UTS: rest/unit/TAN2/annotation-attributes-and-action-0
 def test_tan2_annotation_attributes_and_action():
-    # DEVIATION: the spec's payload carries "encoding": null, which Annotation.from_encoded
-    # cannot accept - it reads obj.get('encoding', '') so the default only applies to a missing
-    # key, and decode() then calls strip() on None. Same root cause as Message.from_encoded,
-    # where message_types_test.py holds the env-gated spec-correct assertion. The key is
-    # omitted here so the field assertions this test exists for still run.
     ann = Annotation.from_encoded({
         'id': 'ann-id-1',
         'action': 0,
@@ -169,6 +164,7 @@ def test_tan2_annotation_attributes_and_action():
         'name': 'like',
         'count': 5,
         'data': 'thumbs-up',
+        'encoding': None,
         'timestamp': 1700000000000,
         'serial': 'ann-serial-1',
         'messageSerial': 'msg-serial-1',

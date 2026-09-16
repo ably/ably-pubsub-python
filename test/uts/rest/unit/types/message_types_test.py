@@ -6,16 +6,12 @@ Spec points: TM1, TM2, TM3, TM4, TM2a, TM2b, TM2c, TM2d, TM2e, TM2f, TM2g, TM2h,
 import pytest
 
 from ably.types.message import Message
-from test.uts.helpers.deviations import deviation
 
 # `fromEncoded` is spelled `from_encoded` here, and "no encoding" is rendered as the empty
 # string rather than null, since EncodeDataMixin joins an empty list of transforms.
 
 ENCODING_CASES = [
-    # DEVIATION: an `encoding` key present with a null value raises AttributeError, because
-    # Message.from_encoded reads it as obj.get('encoding', '') and the default only applies to
-    # a missing key. See the report; every other SDK treats a null encoding as no encoding.
-    pytest.param(None, 'plain text', 'plain text', id='null', marks=deviation),
+    pytest.param(None, 'plain text', 'plain text', id='null'),
     pytest.param('json', '{"key":"value"}', {'key': 'value'}, id='json'),
     pytest.param('base64', 'SGVsbG8=', b'Hello', id='base64'),
     pytest.param('json/base64', 'eyJrIjoidiJ9', {'k': 'v'}, id='json-base64'),
@@ -70,13 +66,11 @@ def test_tm2a_message_attributes():
 
 # UTS: rest/unit/TM3/from-encoded-deserialization-0
 def test_tm3_from_encoded_deserialization():
-    # DEVIATION: the spec's payload carries "encoding": null, which from_encoded cannot accept
-    # (see ENCODING_CASES above, where the spec-correct assertion is env-gated). The key is
-    # omitted here so that the field assertions this test exists for still run.
     json_data = {
         'id': 'msg-123',
         'name': 'test-event',
         'data': 'hello world',
+        'encoding': None,
         'clientId': 'sender-client',
         'connectionId': 'conn-456',
         'timestamp': 1234567890000,

@@ -20,7 +20,6 @@ from ably.rest.annotations import RestAnnotations
 from ably.types.annotation import Annotation, AnnotationAction
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 
@@ -315,12 +314,6 @@ async def test_rsan3c_get_returns_paginated_annotations():
 
 # NOTE: this section of the specification carries no Test ID; the one below is inferred.
 # UTS: rest/unit/RSAN3b/get-params-querystring-1
-# DEVIATION: see the report accompanying this suite. RSAN3b requires any params to reach
-# the querystring; `RestAnnotations.get` hands them to `format_params`, which compares
-# `limit` against 1000 without coercing it, so the spec's stringified {"limit": "50"}
-# raises TypeError: '>' not supported between instances of 'str' and 'int'. An integer
-# limit, and string values for every other param, reach the querystring correctly.
-@deviation
 async def test_rsan3b_get_params_querystring():
     channel_name = f'test-RSAN3b-params-{random_id()}'
     captured_requests = []

@@ -14,7 +14,6 @@ from ably.types.tokendetails import TokenDetails
 from ably.types.tokenrequest import TokenRequest
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 CHANNEL_BODY = {'channelId': 'test'}
@@ -179,12 +178,6 @@ def auth_url_mock(captured_requests, token_body=None, token_headers=None):
 
 
 # UTS: rest/unit/RSA8c/authurl-invoked-for-auth-0
-# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
-# TokenDetails object". ably-python recognises TokenDetails only when the payload
-# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
-# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
-# rejects it as 40170.
-@deviation
 async def test_rsa8c_authurl_invoked_for_auth():
     captured_requests = []
     client = rest_client(auth_url_mock(captured_requests),
@@ -202,12 +195,6 @@ async def test_rsa8c_authurl_invoked_for_auth():
 
 
 # UTS: rest/unit/RSA8c/authurl-post-method-1
-# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
-# TokenDetails object". ably-python recognises TokenDetails only when the payload
-# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
-# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
-# rejects it as 40170.
-@deviation
 async def test_rsa8c_authurl_post_method():
     captured_requests = []
     client = rest_client(auth_url_mock(captured_requests),
@@ -221,12 +208,6 @@ async def test_rsa8c_authurl_post_method():
 
 
 # UTS: rest/unit/RSA8c/authurl-custom-headers-2
-# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
-# TokenDetails object". ably-python recognises TokenDetails only when the payload
-# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
-# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
-# rejects it as 40170.
-@deviation
 async def test_rsa8c_authurl_custom_headers():
     captured_requests = []
     client = rest_client(auth_url_mock(captured_requests),
@@ -244,12 +225,6 @@ async def test_rsa8c_authurl_custom_headers():
 
 
 # UTS: rest/unit/RSA8c/authurl-query-params-3
-# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
-# TokenDetails object". ably-python recognises TokenDetails only when the payload
-# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
-# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
-# rejects it as 40170.
-@deviation
 async def test_rsa8c_authurl_query_params():
     captured_requests = []
     client = rest_client(auth_url_mock(captured_requests),
@@ -309,11 +284,6 @@ async def test_rsa8d_callback_error_propagated():
 
 
 # UTS: rest/unit/RSA8c/authurl-error-propagated-5
-# DEVIATION: RSA4e asks for an error to reach the caller. ably-python parses the
-# auth_url's response body as an Ably error object, and the specification's
-# `{"error": "Internal server error"}` has a string where AblyException.raise_for_response
-# (ably/util/exceptions.py) subscripts `error['message']`, so a bare TypeError escapes.
-@deviation
 async def test_rsa8c_authurl_error_propagated():
     captured_requests = []
 

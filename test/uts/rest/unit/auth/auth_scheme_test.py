@@ -11,7 +11,6 @@ import pytest
 from ably import api_version
 from ably.types.tokendetails import TokenDetails
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 CHANNEL_BODY = {'channelId': 'test'}
@@ -158,12 +157,6 @@ async def test_rsa4_auth_callback_triggers_token():
 
 
 # UTS: rest/unit/RSA4/authurl-triggers-token-3
-# DEVIATION: RSA8c takes a JSON auth_url response to be "a TokenRequest or
-# TokenDetails object". ably-python recognises TokenDetails only when the payload
-# carries `issued` (ably/rest/auth.py, Auth.request_token), so the specification's
-# `{"token": ..., "expires": ...}` is read as a TokenRequest, and TokenRequest.from_json
-# rejects it as 40170. The auth_url request itself now reaches the mock.
-@deviation
 async def test_rsa4_authurl_triggers_token():
     captured_requests = []
 

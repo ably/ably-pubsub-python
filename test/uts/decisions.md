@@ -88,3 +88,18 @@ specification advances time, the derived test shortens the interval through a
 client option instead, which is what the specifications themselves do for
 `fallback_retry_timeout`. Adding a clock seam is left until the realtime specs,
 which need one for reconnection timing.
+
+## A TokenDetails payload is recognised by its `token`, not only by `issued`
+
+RSA8c admits "a `TokenRequest` or `TokenDetails` object" from an `authUrl` without
+saying how to tell them apart. ably-python discriminated on `issued`, as ably-js
+still does, so the `{"token": ..., "expires": ...}` that seven specifications
+return was read as a `TokenRequest` and rejected as 40170.
+
+`token` is now accepted as a second discriminator. A `TokenRequest` never carries
+one — TE2 makes `keyName`, `nonce` and `mac` its required fields — so this only
+widens what is accepted, and the existing `issued` branch is untouched.
+
+It is a deliberate divergence from ably-js, whose derived suite avoids the
+question by returning a `text/plain` token string in place of the specification's
+JSON body.

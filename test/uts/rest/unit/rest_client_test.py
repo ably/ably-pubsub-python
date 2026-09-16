@@ -11,7 +11,6 @@ import pytest
 from ably.rest.auth import Auth
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 SERVER_TIME_MS = 1234567890000
@@ -179,10 +178,7 @@ async def test_rsc8e_unsupported_content_type_error_status():
 
 
 # UTS: rest/unit/RSC8e/unsupported-content-type-0
-@deviation
 async def test_rsc8e_unsupported_content_type_success_status():
-    # DEVIATION: a 2xx carrying an undecodable content type surfaces as 500/50000
-    # ("Unexpected exception: ValueError: Unsupported content type") rather than 400/40013.
     mock_http = MockHttpClient(on_connection_attempt=connect_successfully)
     mock_http.queue_response(200, '<html>OK</html>', {'Content-Type': 'text/html'})
     client = rest_client(mock_http)

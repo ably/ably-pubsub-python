@@ -8,7 +8,6 @@ import uuid
 from ably.http.paginatedresult import PaginatedResult
 from ably.types.message import Message, MessageAction
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 
@@ -109,7 +108,6 @@ async def test_rsl14c_returns_paginated_result():
 
 
 # UTS: rest/unit/RSL14a/params-as-querystring-0
-@deviation
 async def test_rsl14a_params_as_querystring():
     channel_name = f'test-RSL14a-params-{random_id()}'
     captured_requests = []
