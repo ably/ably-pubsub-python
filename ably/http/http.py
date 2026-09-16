@@ -129,7 +129,14 @@ class Http:
         # Cached fallback host (RSC15f)
         self.__host = None
         self.__host_expires = None
-        self.__client = httpx.AsyncClient(http2=True)
+        self.__client = self.__create_client(options)
+
+    @staticmethod
+    def __create_client(options):
+        test_options = getattr(options, 'test_options', None)
+        if test_options is not None and test_options.http_transport is not None:
+            return httpx.AsyncClient(transport=test_options.http_transport)
+        return httpx.AsyncClient(http2=True)
 
     async def close(self):
         await self.__client.aclose()
