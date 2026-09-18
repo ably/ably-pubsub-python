@@ -6,6 +6,13 @@ so that the package a client comes from names the side the application runs on.
 These protocols are what those factories are declared to return, and what
 application code should annotate against.
 
+The clients name their prototype as a base class rather than satisfying it
+structurally, so the relationship is stated where the client is defined and a
+type checker verifies it. One consequence to know about: an unimplemented
+member resolves to the stub below and returns None instead of raising, so
+``test/unit/pubsub_server_test.py`` checks that each client defines every
+member itself, and with the signature declared here.
+
 They are named "prototypes" rather than "protocols" because this codebase
 already uses "protocol" for the Ably wire protocol.
 """

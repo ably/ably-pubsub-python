@@ -3,6 +3,7 @@ import logging
 from typing import Optional
 
 from ably.pubsub.http.http import AblyHttp
+from ably.pubsub.prototypes import PubSubRealtimeClient
 from ably.pubsub.realtime.channel import Channels
 from ably.pubsub.realtime.connection import Connection, ConnectionState
 from ably.pubsub.util.construction import reject_direct_construction
@@ -10,7 +11,7 @@ from ably.pubsub.util.construction import reject_direct_construction
 log = logging.getLogger(__name__)
 
 
-class AblyRealtime(AblyHttp):
+class AblyRealtime(AblyHttp, PubSubRealtimeClient):
     """
     Ably Realtime Client
 
