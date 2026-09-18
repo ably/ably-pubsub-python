@@ -1,4 +1,5 @@
 import base64
+import binascii
 import json
 import logging
 
@@ -67,8 +68,14 @@ class EncodeDataMixin:
                     continue
                 data = json.loads(data)
             elif encoding == 'base64':
-                data = bytearray(base64.b64decode(data)) if isinstance(data, bytes) \
-                    else bytearray(base64.b64decode(data.encode('utf-8')))
+                try:
+                    data = bytearray(base64.b64decode(data)) if isinstance(data, bytes) \
+                        else bytearray(base64.b64decode(data.encode('utf-8')))
+                except (binascii.Error, UnicodeEncodeError) as e:
+                    log.error('Message cannot be decoded. '
+                              f'Invalid base64 payload: {e}')
+                    encoding_list.append(encoding)
+                    break
                 if not encoding_list:
                     last_payload = data
             elif encoding == ENC_VCDIFF:
