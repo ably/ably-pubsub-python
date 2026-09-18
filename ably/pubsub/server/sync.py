@@ -8,9 +8,11 @@ instead.
 """
 
 from ably.pubsub.sync.http.auth import AuthSync
-from ably.pubsub.sync.http.http import AblyHttpSync as _AblyHttpSync
+from ably.pubsub.sync.http.channel import ChannelsSync as HttpChannelsSync
+from ably.pubsub.sync.http.http import DefaultPubSubHttpClientSync as _DefaultPubSubHttpClientSync
 from ably.pubsub.sync.http.push import PushSync
 from ably.pubsub.sync.prototypes import PubSubHttpClient
+from ably.pubsub.sync.request.paginatedresult import HttpPaginatedResponseSync, PaginatedResultSync
 from ably.pubsub.sync.types.annotation import Annotation, AnnotationAction
 from ably.pubsub.sync.types.capability import Capability
 from ably.pubsub.sync.types.channelmode import ChannelMode
@@ -49,7 +51,7 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         `environment`, `rest_host` or `realtime_host`.
     """
     with factory_construction():
-        return _AblyHttpSync(**kwargs)
+        return _DefaultPubSubHttpClientSync(**kwargs)
 
 
 __all__ = [
@@ -64,11 +66,14 @@ __all__ = [
     'ChannelOptions',
     'CipherParams',
     'DeviceDetails',
+    'HttpChannelsSync',
+    'HttpPaginatedResponseSync',
     'IncompatibleClientIdException',
     'MessageAction',
     'MessageOperation',
     'MessageVersion',
     'Options',
+    'PaginatedResultSync',
     'PubSubHttpClient',
     'PublishResult',
     'PushChannelSubscription',

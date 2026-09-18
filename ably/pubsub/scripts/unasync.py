@@ -5,7 +5,7 @@ import tokenize as std_tokenize
 import tokenize_rt
 
 rename_classes = [
-    "AblyHttp",
+    "DefaultPubSubHttpClient",
     "Push",
     "PushAdmin",
     "Channel",
@@ -289,7 +289,8 @@ def run():
     _STRING_REPLACE['httpx.AsyncClient.send'] = 'httpx.Client.send'
     _STRING_REPLACE['ably.pubsub.util.exceptions.AblyException.raise_for_response'] = \
         'ably.pubsub.sync.util.exceptions.AblyException.raise_for_response'
-    _STRING_REPLACE['ably.pubsub.http.http.AblyHttp.time'] = 'ably.pubsub.sync.http.http.AblyHttpSync.time'
+    _STRING_REPLACE['ably.pubsub.http.http.DefaultPubSubHttpClient.time'] = \
+        'ably.pubsub.sync.http.http.DefaultPubSubHttpClientSync.time'
     _STRING_REPLACE['ably.pubsub.http.auth.Auth._timestamp'] = 'ably.pubsub.sync.http.auth.AuthSync._timestamp'
 
     # round 1

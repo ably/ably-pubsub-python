@@ -4,7 +4,7 @@ Spec points: RSH7a, RSH7b, RSH7c, RSH7d
 
 DEVIATION: ably-python implements neither the PushChannel interface (RSH7, the `push`
 field on a channel) nor LocalDevice (RSH8). `ably/rest/channel.py` gives a channel no
-`push`, `AblyHttp` no `device`, and `ably/types/device.py` defines only `DeviceDetails`.
+`push`, `DefaultPubSubHttpClient` no `device`, and `ably/types/device.py` defines only `DeviceDetails`.
 Both tests here therefore depart from the specification and are gated behind
 RUN_DEVIATIONS, against the same spelling
 [test/uts/rest/unit/push/push_channels_test.py](../unit/push/push_channels_test.py)

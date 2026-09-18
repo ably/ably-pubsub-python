@@ -4,7 +4,7 @@ Every integration specification opens with the same `BEFORE ALL TESTS` block:
 POST the canonical app setup body to the sandbox, take the keys out of the
 response, and DELETE the app when the tests are done.
 
-Provisioning goes over plain `httpx` rather than through `AblyHttp`. It is
+Provisioning goes over plain `httpx` rather than through `DefaultPubSubHttpClient`. It is
 infrastructure, and a client that cannot form a request would otherwise look
 like a broken fixture rather than a failing test.
 

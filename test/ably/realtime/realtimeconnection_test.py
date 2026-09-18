@@ -67,7 +67,7 @@ class WsProxy:
 
     @property
     def endpoint(self) -> str:
-        """Host to pass to AblyRealtime (combine with tls=False and port=self.port)."""
+        """Host to pass to DefaultPubSubRealtimeClient (combine with tls=False and port=self.port)."""
         return "127.0.0.1"
 
     async def __aenter__(self):

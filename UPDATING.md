@@ -5,7 +5,7 @@
 The package is now published to PyPI as `ably-pubsub-server` rather than `ably`, and
 it installs into `ably.pubsub` rather than `ably`. Both `ably` and `ably.pubsub` are
 [namespace packages](https://peps.python.org/pep-0420/) shared with the other
-`ably-*` distributions, so neither exports anything of its own — the whole public
+`ably-*` distributions, so neither exports anything of its own. The whole public
 API is reached through `ably.pubsub.server`.
 
 ### Installation
@@ -44,19 +44,15 @@ Example 4.0.0 code:
 from ably.pubsub.server.sync import create_http_client
 ```
 
-Anything imported from a submodule gains the same `pubsub` segment — for
-instance `ably.types.message` becomes `ably.pubsub.types.message`, and
-`ably.sync.types.message` becomes `ably.pubsub.sync.types.message`.
-
-`api_version` and `lib_version` are still re-exported from
-`ably.pubsub.server`, and now also live in `ably.pubsub.version`.
+Where 3.x left you reaching into submodules such as `ably.types.message` or
+`ably.http.paginatedresult`, import from `ably.pubsub.server` instead. It is
+the whole public API, and `ably.pubsub.server.sync` is its synchronous
+counterpart. The packages beneath them are internal and free to move.
 
 ### Clients are built by factories
 
 `AblyRest` and `AblyRealtime` are internal in 4.0.0 and raise `TypeError` if
-constructed directly (`AblyRest` is also renamed to `AblyHttp`, to match the
-factory that builds it). Build clients through the factories instead, which
-take the same arguments:
+constructed directly. Build clients through the factories instead, which take the same arguments:
 
 Example 3.x code:
 ```python
@@ -66,15 +62,35 @@ realtime = AblyRealtime(key='xxx')
 
 Example 4.0.0 code:
 ```python
-rest = create_http_client(key='xxx')
-realtime = create_realtime_client(key='xxx')
+pubsub_http_client = create_http_client(key='xxx')
+pubsub_realtime_client = create_realtime_client(key='xxx')
 ```
 
-Where you previously annotated against `AblyRest` or `AblyRealtime`, use the
-prototypes the factories return — `ably.pubsub.server.PubSubHttpClient` and
-`ably.pubsub.server.PubSubRealtimeClient`. These are `typing.Protocol` definitions
-describing the client surface, so `Protocol` support raises the minimum
-supported Python to 3.8 (which the CI matrix and README already assumed).
+### Type annotations
+
+The client classes are internal, so annotate against the prototypes the
+factories are declared to return. Each is exported from the same module as the
+factory that returns it.
+
+Example 3.x code:
+```python
+from ably import AblyRealtime, AblyRest
+from ably.sync import AblyRestSync
+
+async def publish(client: AblyRest, name: str) -> None: ...
+async def subscribe(client: AblyRealtime, name: str) -> None: ...
+def publish_blocking(client: AblyRestSync, name: str) -> None: ...
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import PubSubHttpClient, PubSubRealtimeClient
+from ably.pubsub.server.sync import PubSubHttpClient as PubSubHttpClientSync
+
+async def publish(client: PubSubHttpClient, name: str) -> None: ...
+async def subscribe(client: PubSubRealtimeClient, name: str) -> None: ...
+def publish_blocking(client: PubSubHttpClientSync, name: str) -> None: ...
+```
 
 ## Version 2.x to 3.0.0
 

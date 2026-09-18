@@ -3,7 +3,7 @@
 Spec points: RTL10, RTL10a, RTL10b, RTL10c
 
 RTL10a points at uts/rest/unit/channel/history.md (RSL2) rather than listing steps of
-its own, so its Test ID becomes one test driving an `AblyRealtime` over the HTTP mock
+its own, so its Test ID becomes one test driving an `DefaultPubSubRealtimeClient` over the HTTP mock
 and asserting the core observable of the derived REST suite.
 
 The two RTL10b tests cover `untilAttach`, which ably-python does not implement; see
@@ -59,9 +59,9 @@ def attaching_mock(channel_name, channel_serial=None):
 # UTS: realtime/unit/RTL10a/supports-rest-params-0
 async def test_rtl10a_supports_rest_params():
     # The specification directs uts/rest/unit/channel/history.md (RSL2) at a realtime
-    # channel in place of a REST one. `AblyRealtime` subclasses `AblyHttp`, so the same
-    # HTTP mock serves it, and this mirrors that suite's `RSL2a/returns-paginated-result-0`
-    # and `RSL2b/query-parameters-0`.
+    # channel in place of a REST one. `DefaultPubSubRealtimeClient` subclasses
+    # `DefaultPubSubHttpClient`, so the same HTTP mock serves it, and this mirrors that
+    # suite's `RSL2a/returns-paginated-result-0` and `RSL2b/query-parameters-0`.
     channel_name = f'test-RTL10a-{random_id()}'
     captured_requests = []
 

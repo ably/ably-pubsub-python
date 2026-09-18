@@ -4,7 +4,7 @@ Spec points: RTL31
 
 The specification points at uts/rest/unit/channel/message_versions.md (RSL14) rather
 than listing steps of its own, so its single Test ID becomes one test driving an
-`AblyRealtime` over the HTTP mock and asserting the core observable of the derived
+`DefaultPubSubRealtimeClient` over the HTTP mock and asserting the core observable of the derived
 REST suite: the endpoint the call reaches and the paginated versions it returns.
 """
 

@@ -12,7 +12,7 @@ SERVER_TIME_MS = 1704067200000
 # UTS: realtime/unit/RTC6/time-proxies-rest-0
 async def test_rtc6_time_proxies_rest():
     # The specification directs uts/rest/unit/time.md (RSC16) at a realtime client
-    # in place of a REST one. `AblyRealtime` subclasses `AblyHttp`, so the same
+    # in place of a REST one. `DefaultPubSubRealtimeClient` subclasses `DefaultPubSubHttpClient`, so the same
     # HTTP mock serves it, and this mirrors that suite's `RSC16/returns-server-time-0`.
     captured_requests = []
 
