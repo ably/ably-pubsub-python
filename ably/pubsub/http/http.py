@@ -5,6 +5,7 @@ from urllib.parse import urlencode
 from ably.pubsub.http.auth import Auth
 from ably.pubsub.http.channel import Channels
 from ably.pubsub.http.push import Push
+from ably.pubsub.prototypes import PubSubHttpClient
 from ably.pubsub.request.http import Http
 from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult, format_params
 from ably.pubsub.types.options import Options
@@ -16,7 +17,7 @@ from ably.pubsub.util.exceptions import AblyException, catch_all
 log = logging.getLogger(__name__)
 
 
-class AblyHttp:
+class AblyHttp(PubSubHttpClient):
     """Ably HTTP Client"""
 
     def __init__(self, key: Optional[str] = None, token: Optional[str] = None,
