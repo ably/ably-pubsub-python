@@ -14,8 +14,8 @@ import uuid
 
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
 from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.channelstate import ChannelState
 from ably.pubsub.util.exceptions import AblyException
@@ -59,7 +59,7 @@ def attaching_mock(channel_name, channel_serial=None):
 # UTS: realtime/unit/RTL10a/supports-rest-params-0
 async def test_rtl10a_supports_rest_params():
     # The specification directs uts/rest/unit/channel/history.md (RSL2) at a realtime
-    # channel in place of a REST one. `AblyRealtime` subclasses `AblyRest`, so the same
+    # channel in place of a REST one. `AblyRealtime` subclasses `AblyHttp`, so the same
     # HTTP mock serves it, and this mirrors that suite's `RSL2a/returns-paginated-result-0`
     # and `RSL2b/query-parameters-0`.
     channel_name = f'test-RTL10a-{random_id()}'
@@ -86,7 +86,7 @@ async def test_rtl10a_supports_rest_params():
 
     assert captured_requests[0].url.path == f'/channels/{channel_name}/messages'
 
-    # RTL10a: the parameters `RestChannel#history` takes
+    # RTL10a: the parameters `HttpChannel#history` takes
     await channel.history(direction='forwards', limit=50, start=1000, end=2000)
 
     query_params = captured_requests[1].url.query_params

@@ -2,7 +2,7 @@ import pytest
 import respx
 from httpx import Response
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 

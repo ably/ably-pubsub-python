@@ -3,7 +3,7 @@
 Spec points: RTC5, RTC5a, RTC5b
 """
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from test.uts.helpers.client import realtime_client
 from test.uts.helpers.mock_http import MockHttpClient
 
@@ -30,7 +30,7 @@ STATS_DATA = [
 # UTS: realtime/unit/RTC5/stats-proxies-rest-0
 async def test_rtc5_stats_proxies_rest():
     # The specification directs uts/rest/unit/stats.md (RSC6) at a realtime client
-    # in place of a REST one. `AblyRealtime` subclasses `AblyRest`, so the same HTTP
+    # in place of a REST one. `AblyRealtime` subclasses `AblyHttp`, so the same HTTP
     # mock serves it, and this mirrors that suite's `RSC6a/returns-paginated-stats-0`.
     captured_requests = []
 

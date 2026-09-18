@@ -8,10 +8,10 @@ import json
 
 import pytest
 
+from ably.pubsub.http.auth import Auth
+from ably.pubsub.http.push import Push, PushAdmin
 from ably.pubsub.realtime.channel import Channels, RealtimeChannel
 from ably.pubsub.realtime.connection import Connection, ConnectionState
-from ably.pubsub.rest.auth import Auth
-from ably.pubsub.rest.push import Push, PushAdmin
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.util.exceptions import AblyException
 from ably.pubsub.util.helper import get_random_id

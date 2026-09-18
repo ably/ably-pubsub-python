@@ -11,7 +11,7 @@ from datetime import datetime
 import msgpack
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.presence import Presence, PresenceAction, PresenceMessage
 from ably.pubsub.util.crypto import CipherParams
 from ably.pubsub.util.exceptions import AblyException

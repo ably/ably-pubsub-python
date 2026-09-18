@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from urllib import parse
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.mixins import EncodeDataMixin
 from ably.pubsub.types.typedbuffer import TypedBuffer
 from ably.pubsub.util.crypto import CipherData

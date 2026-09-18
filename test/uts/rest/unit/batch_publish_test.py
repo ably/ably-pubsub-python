@@ -2,7 +2,7 @@
 
 Spec points: RSC22c, RSC22d, BSP2a, BSP2b, BPR2a, BPR2b, BPR2c, BPF2a, BPF2b
 
-NOTE: ably-python has no batch API. `AblyRest` exposes no `batch_publish`, and the package
+NOTE: ably-python has no batch API. `AblyHttp` exposes no `batch_publish`, and the package
 defines neither `BatchPublishSpec` nor `BatchResult`/`BatchPublishSuccessResult`/
 `BatchPublishFailureResult`; the word "batch" appears nowhere under `ably/`. Every test in
 this file therefore departs from the specification and is gated behind `RUN_DEVIATIONS`.

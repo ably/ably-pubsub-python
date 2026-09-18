@@ -2,7 +2,7 @@ import calendar
 import logging
 from urllib.parse import urlencode
 
-from ably.pubsub.http.http import Request
+from ably.pubsub.request.http import Request
 from ably.pubsub.util import case
 
 log = logging.getLogger(__name__)

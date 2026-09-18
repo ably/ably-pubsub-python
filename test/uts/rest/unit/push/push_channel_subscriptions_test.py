@@ -6,7 +6,7 @@ Spec points: RSH1c, RSH1c1, RSH1c2, RSH1c3, RSH1c4, RSH1c5
 import msgpack
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.channelsubscription import PushChannelSubscription
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client

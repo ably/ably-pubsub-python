@@ -14,7 +14,7 @@ friends. Running them raises ImportError/AttributeError until the APIs land.
 import msgpack
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.channelsubscription import PushChannelSubscription
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client

@@ -2,7 +2,7 @@
 
 Spec points: RSC24, BGR2, BGF2
 
-DEVIATION: ably-python has no batch API. `AblyRest` exposes no `batch_presence`, and
+DEVIATION: ably-python has no batch API. `AblyHttp` exposes no `batch_presence`, and
 the package defines neither `BatchResult` nor `BatchPresenceSuccessResult` /
 `BatchPresenceFailureResult`; the word "batch" appears nowhere under `ably/`. Every
 test here therefore departs from the specification and is gated behind

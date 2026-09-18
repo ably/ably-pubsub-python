@@ -2,7 +2,7 @@ import pytest
 import respx
 from httpx import Response
 
-from ably import AblyRest
+from ably.pubsub.server import create_http_client
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -22,7 +22,7 @@ async def test_auth_headers_are_only_sent_to_auth_url(method, binary, override):
     options = {'auth_url': auth_url, 'auth_method': method, 'use_binary_protocol': binary}
     if not override:
         options['auth_headers'] = headers
-    client = AblyRest(**options)
+    client = create_http_client(**options)
     auth_route = respx.request(method, auth_url).mock(return_value=Response(200, json={
         'keyName': 'app.key', 'nonce': 'nonce', 'timestamp': 123456789,
         'mac': 'signed-request', 'capability': '{"*":["*"]}',

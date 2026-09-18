@@ -5,8 +5,8 @@ Spec points: RSP1, RSP3, RSP3a, RSP4, RSP4b, RSP5
 
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
 from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.presence import Presence, PresenceAction, PresenceMessage
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (

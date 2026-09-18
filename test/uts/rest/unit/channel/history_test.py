@@ -5,7 +5,7 @@ Spec points: RSL2, RSL2a, RSL2b, RSL2b1, RSL2b2, RSL2b3
 
 import uuid
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.message import Message
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient

@@ -11,7 +11,7 @@ import msgpack
 import respx
 from httpx import Response
 
-from ably.pubsub.http.http import Http
+from ably.pubsub.request.http import Http
 
 
 class BaseTestCase:

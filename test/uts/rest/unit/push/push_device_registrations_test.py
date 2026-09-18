@@ -8,7 +8,7 @@ from urllib.parse import quote
 import msgpack
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.device import DeviceDetails
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client

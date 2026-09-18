@@ -15,7 +15,7 @@ words not to acknowledge a message, it is left unacknowledged and the publish is
 as a task.
 
 `RealtimeChannel.publish()` takes its arguments positionally; the keyword form the
-specifications write, which `RestChannel.publish()` does accept, raises `ValueError` here.
+specifications write, which `HttpChannel.publish()` does accept, raises `ValueError` here.
 """
 
 import asyncio

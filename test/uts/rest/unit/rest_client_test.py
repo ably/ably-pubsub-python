@@ -8,7 +8,7 @@ import re
 import msgpack
 import pytest
 
-from ably.pubsub.rest.auth import Auth
+from ably.pubsub.http.auth import Auth
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient

@@ -14,8 +14,8 @@ test/uts/deviations.md.
 
 import uuid
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
 from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 from test.uts.helpers.client import await_connection_state, realtime_client

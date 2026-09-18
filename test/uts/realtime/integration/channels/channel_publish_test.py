@@ -6,7 +6,7 @@ The specification carries a `## Protocol Variants` section, so every test here r
 per protocol and passes `use_binary_protocol` to both clients it builds.
 
 `RealtimeChannel.publish()` takes its arguments positionally; the keyword form the
-specification writes, which `RestChannel.publish()` does accept, raises `ValueError`.
+specification writes, which `HttpChannel.publish()` does accept, raises `ValueError`.
 
 A binary payload arrives as a `bytearray` rather than `bytes` under either protocol, so
 the type assertion reads both. `bytearray` compares equal to the `bytes` that was

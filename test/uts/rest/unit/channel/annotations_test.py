@@ -15,8 +15,8 @@ import uuid
 import msgpack
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
-from ably.pubsub.rest.annotations import RestAnnotations
+from ably.pubsub.http.annotations import HttpAnnotations
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.annotation import Annotation, AnnotationAction
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
@@ -53,7 +53,7 @@ async def test_rsl10_annotations_attribute_type():
     client = rest_client(mock_http)
     channel = client.channels.get('test-RSL10')
 
-    assert isinstance(channel.annotations, RestAnnotations)
+    assert isinstance(channel.annotations, HttpAnnotations)
 
 
 # UTS: rest/unit/RSAN1c6/publish-post-annotation-create-0

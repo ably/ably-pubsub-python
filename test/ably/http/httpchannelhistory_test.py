@@ -3,7 +3,7 @@ import logging
 import pytest
 import respx
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.server import AblyException
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
@@ -11,7 +11,7 @@ from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, don
 log = logging.getLogger(__name__)
 
 
-class TestRestChannelHistory(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
+class TestHttpChannelHistory(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @pytest.fixture(autouse=True)
     async def setup(self):

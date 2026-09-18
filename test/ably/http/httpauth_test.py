@@ -194,7 +194,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
 
     async def test_authorize_create_new_token_if_expired(self):
         token = await self.ably.auth.authorize()
-        with mock.patch('ably.pubsub.rest.auth.Auth.token_details_has_expired',
+        with mock.patch('ably.pubsub.http.auth.Auth.token_details_has_expired',
                         return_value=True):
             new_token = await self.ably.auth.authorize()
 
@@ -208,7 +208,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
     async def test_authorize_adheres_to_request_token(self):
         token_params = {'ttl': 10, 'client_id': 'client_id'}
         auth_params = {'auth_url': 'somewhere.com', 'query_time': True}
-        with mock.patch('ably.pubsub.rest.auth.Auth.request_token', new_callable=AsyncMock) as request_mock:
+        with mock.patch('ably.pubsub.http.auth.Auth.request_token', new_callable=AsyncMock) as request_mock:
             await self.ably.auth.authorize(token_params, auth_params)
 
         token_called, auth_called = request_mock.call_args
@@ -247,7 +247,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
         auth_options = dict(self.ably.auth.auth_options.auth_options)
         auth_options['auth_headers'] = {'a_headers': 'a_value'}
         await self.ably.auth.authorize({'ttl': 555}, auth_options)
-        with mock.patch('ably.pubsub.rest.auth.Auth.request_token',
+        with mock.patch('ably.pubsub.http.auth.Auth.request_token',
                         wraps=self.ably.auth.request_token) as request_mock:
             await self.ably.auth.authorize()
 
@@ -259,7 +259,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
         auth_options = dict(self.ably.auth.auth_options.auth_options)
         auth_options['auth_headers'] = None
         await self.ably.auth.authorize({}, auth_options)
-        with mock.patch('ably.pubsub.rest.auth.Auth.request_token',
+        with mock.patch('ably.pubsub.http.auth.Auth.request_token',
                         wraps=self.ably.auth.request_token) as request_mock:
             await self.ably.auth.authorize()
 
@@ -279,7 +279,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
 
         # call authorize again with timestamp set
         timestamp = await self.ably.time()
-        with mock.patch('ably.pubsub.rest.auth.TokenRequest',
+        with mock.patch('ably.pubsub.http.auth.TokenRequest',
                         wraps=ably.pubsub.types.tokenrequest.TokenRequest) as tr_mock:
             auth_options = dict(self.ably.auth.auth_options.auth_options)
             auth_options['auth_headers'] = {'a_headers': 'a_value'}
@@ -291,7 +291,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
         assert tr_mock.call_args[1]['timestamp'] == timestamp
 
         # call authorize again with no params
-        with mock.patch('ably.pubsub.rest.auth.TokenRequest',
+        with mock.patch('ably.pubsub.http.auth.TokenRequest',
                         wraps=ably.pubsub.types.tokenrequest.TokenRequest) as tr_mock:
             token_4 = await self.ably.auth.authorize()
         assert isinstance(token_4, TokenDetails)

@@ -6,7 +6,7 @@ There is no `## Protocol Variants` section, so these run against JSON only and t
 `use_binary_protocol`; `sandbox_realtime_client` already defaults to it.
 
 `RealtimeChannel.publish()` takes its arguments positionally. The keyword form the
-specification writes, which `RestChannel.publish()` does accept, raises
+specification writes, which `HttpChannel.publish()` does accept, raises
 `ValueError: publish() expects either (name, data) or a message object or array of
 messages` before anything reaches the server.
 

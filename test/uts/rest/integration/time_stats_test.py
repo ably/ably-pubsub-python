@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest_asyncio
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.server import create_http_client
 from ably.pubsub.types.stats import Stats
 from test.uts.helpers.client import sandbox_rest_client

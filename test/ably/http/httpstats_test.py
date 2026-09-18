@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.stats import Stats
 from ably.pubsub.util.exceptions import AblyException
 from test.ably.testapp import TestApp
@@ -12,7 +12,7 @@ from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, don
 log = logging.getLogger(__name__)
 
 
-class TestRestAppStatsSetup:
+class TestHttpAppStatsSetup:
     __stats_added = False
 
     def get_params(self):
@@ -68,9 +68,9 @@ class TestRestAppStatsSetup:
                 }
             )
         # asynctest does not support setUpClass method
-        if not TestRestAppStatsSetup.__stats_added:
+        if not TestHttpAppStatsSetup.__stats_added:
             await self.ably.http.post('/stats', body=stats + previous_stats)
-            TestRestAppStatsSetup.__stats_added = True
+            TestHttpAppStatsSetup.__stats_added = True
         yield
         await self.ably.close()
         await self.ably_text.close()
@@ -79,7 +79,7 @@ class TestRestAppStatsSetup:
         self.ably.options.use_binary_protocol = use_binary_protocol
 
 
-class TestDirectionForwards(TestRestAppStatsSetup, BaseAsyncTestCase,
+class TestDirectionForwards(TestHttpAppStatsSetup, BaseAsyncTestCase,
                             metaclass=VaryByProtocolTestsMetaclass):
 
     def get_params(self):
@@ -105,7 +105,7 @@ class TestDirectionForwards(TestRestAppStatsSetup, BaseAsyncTestCase,
         assert page3.items[0].entries["messages.inbound.realtime.all.count"] == 70
 
 
-class TestDirectionBackwards(TestRestAppStatsSetup, BaseAsyncTestCase,
+class TestDirectionBackwards(TestHttpAppStatsSetup, BaseAsyncTestCase,
                              metaclass=VaryByProtocolTestsMetaclass):
 
     def get_params(self):
@@ -131,7 +131,7 @@ class TestDirectionBackwards(TestRestAppStatsSetup, BaseAsyncTestCase,
         assert page3.items[0].entries["messages.inbound.realtime.all.count"] == 50
 
 
-class TestOnlyLastYear(TestRestAppStatsSetup, BaseAsyncTestCase,
+class TestOnlyLastYear(TestHttpAppStatsSetup, BaseAsyncTestCase,
                        metaclass=VaryByProtocolTestsMetaclass):
 
     def get_params(self):
@@ -148,7 +148,7 @@ class TestOnlyLastYear(TestRestAppStatsSetup, BaseAsyncTestCase,
         assert stats[-1].entries["messages.inbound.realtime.messages.count"] == 50
 
 
-class TestPreviousYear(TestRestAppStatsSetup, BaseAsyncTestCase,
+class TestPreviousYear(TestHttpAppStatsSetup, BaseAsyncTestCase,
                        metaclass=VaryByProtocolTestsMetaclass):
 
     def get_params(self):
@@ -165,7 +165,7 @@ class TestPreviousYear(TestRestAppStatsSetup, BaseAsyncTestCase,
         assert len(next_page.items) == 20
 
 
-class TestRestAppStats(TestRestAppStatsSetup, BaseAsyncTestCase,
+class TestHttpAppStats(TestHttpAppStatsSetup, BaseAsyncTestCase,
                        metaclass=VaryByProtocolTestsMetaclass):
 
     @dont_vary_protocol

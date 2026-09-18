@@ -6,7 +6,7 @@ RSH1c3, RSH1c4, RSH1c5
 
 import pytest
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.server import AblyException, DeviceDetails, PushChannelSubscription
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id

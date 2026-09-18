@@ -3,7 +3,7 @@
 Spec points: RSL1n, RSL11, RSL14, RSL15, RSAN1, RSAN2, RSAN3
 """
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.annotation import Annotation, AnnotationAction
 from ably.pubsub.types.message import Message, MessageAction
 from ably.pubsub.types.operations import MessageOperation, PublishResult, UpdateDeleteResult

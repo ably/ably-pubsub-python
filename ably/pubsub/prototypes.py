@@ -15,17 +15,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from ably.pubsub.http.http import Http
-    from ably.pubsub.http.paginatedresult import HttpPaginatedResponse, PaginatedResult
+    from ably.pubsub.http.auth import Auth
+    from ably.pubsub.http.channel import Channels as HttpChannels
+    from ably.pubsub.http.push import Push
     from ably.pubsub.realtime.channel import Channels as RealtimeChannels
     from ably.pubsub.realtime.connection import Connection
-    from ably.pubsub.rest.auth import Auth
-    from ably.pubsub.rest.channel import Channels as RestChannels
-    from ably.pubsub.rest.push import Push
+    from ably.pubsub.request.http import Http
+    from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult
     from ably.pubsub.types.options import Options
 
 
-class RestClient(Protocol):
+class PubSubHttpClient(Protocol):
     """A Pub/Sub client that operates entirely over HTTP.
 
     Build one with ``create_http_client``, from :mod:`ably.pubsub.server` for the
@@ -38,7 +38,7 @@ class RestClient(Protocol):
         ...
 
     @property
-    def channels(self) -> RestChannels:
+    def channels(self) -> HttpChannels:
         """The channels container object."""
         ...
 
@@ -80,17 +80,17 @@ class RestClient(Protocol):
         """Release the resources this client holds."""
         ...
 
-    async def __aenter__(self) -> RestClient:
+    async def __aenter__(self) -> PubSubHttpClient:
         ...
 
     async def __aexit__(self, *excinfo) -> None:
         ...
 
 
-class RealtimeClient(RestClient, Protocol):
+class PubSubRealtimeClient(PubSubHttpClient, Protocol):
     """A Pub/Sub client with a persistent realtime connection.
 
-    Everything :class:`RestClient` does, plus subscribing to channels and
+    Everything :class:`PubSubHttpClient` does, plus subscribing to channels and
     entering presence. Build one with
     :func:`ably.pubsub.server.create_realtime_client`.
     """
@@ -116,5 +116,5 @@ class RealtimeClient(RestClient, Protocol):
         """Close the realtime connection and release the client's resources."""
         ...
 
-    async def __aenter__(self) -> RealtimeClient:
+    async def __aenter__(self) -> PubSubRealtimeClient:
         ...

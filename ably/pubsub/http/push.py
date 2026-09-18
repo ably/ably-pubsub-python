@@ -1,6 +1,6 @@
 from typing import Optional
 
-from ably.pubsub.http.paginatedresult import PaginatedResult, format_params
+from ably.pubsub.request.paginatedresult import PaginatedResult, format_params
 from ably.pubsub.types.channelsubscription import (
     PushChannelSubscription,
     channel_subscriptions_response_processor,

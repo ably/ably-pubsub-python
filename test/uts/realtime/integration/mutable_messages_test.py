@@ -18,8 +18,8 @@ implementation, so they read the message store over HTTP and see it only once it
 consistent; the two polls below are the specification's `poll_until_success` around them.
 """
 
-from ably.pubsub.http.paginatedresult import PaginatedResult
 from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.types.annotation import Annotation, AnnotationAction
 from ably.pubsub.types.channelmode import ChannelMode
 from ably.pubsub.types.channeloptions import ChannelOptions

@@ -2,7 +2,7 @@ import httpx
 import pytest
 import respx
 
-from ably.pubsub.http.paginatedresult import HttpPaginatedResponse
+from ably.pubsub.request.paginatedresult import HttpPaginatedResponse
 from ably.pubsub.server import create_http_client
 from ably.pubsub.transport.defaults import Defaults
 from test.ably.testapp import TestApp
@@ -10,7 +10,7 @@ from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, don
 
 
 # RSC19
-class TestRestRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
+class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @pytest.fixture(autouse=True)
     async def setup(self):

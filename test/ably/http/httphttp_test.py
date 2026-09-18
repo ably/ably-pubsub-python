@@ -9,7 +9,7 @@ import pytest
 import respx
 from httpx import Response
 
-from ably.pubsub.http.httputils import HttpUtils
+from ably.pubsub.request.httputils import HttpUtils
 from ably.pubsub.server import create_http_client
 from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.options import Options
@@ -18,7 +18,7 @@ from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 
 
-class TestRestHttp(BaseAsyncTestCase):
+class TestHttpHttp(BaseAsyncTestCase):
     async def test_host_for_url_brackets_only_ipv6_literals(self):
         assert HttpUtils.host_for_url('::1') == '[::1]'
         assert HttpUtils.host_for_url('2001:db8::1') == '[2001:db8::1]'

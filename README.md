@@ -60,7 +60,8 @@ from ably.pubsub.server import create_http_client, create_realtime_client
 
 Clients are built by these factories rather than by constructing a class, so
 that the package a client comes from names the side your application runs on.
-Annotate against the prototypes they return, `RestClient` and `RealtimeClient`.
+Annotate against the prototypes they return, `PubSubHttpClient` and
+`PubSubRealtimeClient`.
 
 The synchronous, HTTP-only flavour lives alongside it:
 
