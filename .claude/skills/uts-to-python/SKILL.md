@@ -121,6 +121,31 @@ control the encoding yourself, alongside an explicit `Content-Type`.
   `PaginatedResult` reads the header unguarded. Set `Content-Type` on any body passed as
   `bytes` or `str` that the client is meant to decode.
 
+## Traps found while deriving the REST unit specs
+
+- **`/time` returns an array.** Several specs stub it as `{"time": N}`; the endpoint
+  and `time.md` both use `[N]`, and `AblyRest.time()` indexes it. Stub `[N]`.
+- **A single queued response is consumed by the first host.** A 5xx or CloudFront
+  response sends the client to the next fallback, so queue one response per host
+  (`queue_responses(3, ...)`) or answer from a handler.
+- **`"encoding": null` crashes decoding** in `Message`, `PresenceMessage` and
+  `Annotation` — `obj.get('encoding', '')` returns `None` when the key is present
+  and null. Expect `AttributeError: 'NoneType' object has no attribute 'strip'`.
+- **`msgpack.packb(..., use_bin_type=True)`** is required for a payload that must
+  arrive as msgpack `bin` rather than `str`. The mock's automatic encoding uses
+  `use_bin_type=False`, so encode such a body yourself with an explicit
+  `Content-Type`.
+- **`auth_url` requests bypass the injected transport.** `Auth.token_request_from_auth_url`
+  builds its own `httpx.AsyncClient`, so a spec driving `auth_url` cannot be observed
+  through the mock and its test has to be skipped outright.
+- **`PaginatedResult` reads `Content-Type` unguarded**, so anything it paginates over
+  needs one. A native dict or list body gets one automatically.
+- **The mock enforces the client's read timeout**, so `respond_with_delay` beyond
+  `http_request_timeout` raises rather than arriving late.
+- **Several client options are missing entirely** — `max_message_size` and
+  `log_handler` among them — and raise `TypeError` rather than being ignored. Check
+  `ably/types/options.py` first.
+
 ## Timers
 
 There is no clock seam. `ably/http/http.py` calls `time.time()` directly. Where a spec calls
