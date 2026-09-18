@@ -3,7 +3,6 @@
 Spec points: RSL1, RSL1a, RSL1b, RSL1c, RSL1d, RSL1e, RSL1h, RSL1i, RSL1j, RSL1l, RSL1m
 """
 
-import json
 import uuid
 
 import msgpack
@@ -12,7 +11,7 @@ import pytest
 from ably.types.message import Message
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
+from test.uts.helpers.deviations import deviation, spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 
@@ -67,6 +66,9 @@ async def test_rsl1a_publish_name_and_data():
 
 
 # UTS: rest/unit/RSL1a/publish-message-array-1
+# RSL1c asserts that an object payload travels unstringified, which RSL4c3 and RSL4d3
+# rule out; see spec-inconsistencies.md.
+@spec_error
 async def test_rsl1a_publish_message_array():
     channel_name = f'test-RSL1c-{random_id()}'
     captured_requests = []
@@ -102,12 +104,7 @@ async def test_rsl1a_publish_message_array():
     assert body[0]['name'] == 'event1'
     assert body[0]['data'] == 'data1'
     assert body[1]['name'] == 'event2'
-    # UTS SPEC ERROR: the spec asserts body[1]["data"] == {"key": "value"}, but RSL4c3
-    # (MessagePack) and RSL4d3 (JSON) both require an object payload to be stringified on
-    # the wire with encoding set to "json". Asserting the wire form the features spec
-    # mandates; see the report accompanying this suite.
-    assert body[1]['encoding'] == 'json'
-    assert json.loads(body[1]['data']) == {'key': 'value'}
+    assert body[1]['data'] == {'key': 'value'}
     # Note: binary data encoding tested separately in encoding tests
 
 

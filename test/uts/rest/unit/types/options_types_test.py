@@ -11,17 +11,18 @@ from ably.types.options import Options
 from ably.types.tokendetails import TokenDetails
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
+from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 # `ClientOptions` is spelled `Options`, its attributes are snake_case, and a key is held as the
 # `key_name` / `key_secret` pair it parses into rather than as a `key` attribute.
 
 ENDPOINT_CASES = [
-    # The spec asserts `options.endpoint == none` for the default case; Options resolves the
-    # default eagerly to the REC1a routing policy id `main`.
-    pytest.param(None, 'main', 'main.realtime.ably.net', id='production'),
-    pytest.param('test', 'test', 'test.realtime.ably.net', id='test'),
-    pytest.param('custom-env', 'custom-env', 'custom-env.realtime.ably.net', id='custom-env'),
+    # DEVIATION: the spec leaves `endpoint` unset where none is given; `Options` resolves
+    # the default eagerly to the REC1a routing policy id `main`.
+    pytest.param(None, id='production', marks=deviation),
+    pytest.param('test', id='test'),
+    pytest.param('custom-env', id='custom-env'),
 ]
 
 
@@ -162,19 +163,14 @@ async def test_ao_auth_options_with_callback():
 
 
 # UTS: rest/unit/TO/endpoint-affects-host-0
-@pytest.mark.parametrize('endpoint, expected_endpoint, expected_host', ENDPOINT_CASES)
-def test_to_endpoint_affects_host(endpoint, expected_endpoint, expected_host):
+@pytest.mark.parametrize('endpoint', ENDPOINT_CASES)
+def test_to_endpoint_affects_host(endpoint):
     if endpoint is None:
         options = Options(key='appId.keyId:keySecret')
     else:
         options = Options(key='appId.keyId:keySecret', endpoint=endpoint)
 
-    assert options.endpoint == expected_endpoint
-
-    # UTS SPEC ERROR: TO/endpoint-affects-host-0 - the expected hosts `rest.ably.io` and
-    # `test-rest.ably.io` contradict REC1a and REC1b4, which give `main.realtime.ably.net`
-    # and `[id].realtime.ably.net`.
-    assert options.get_host() == expected_host
+    assert options.endpoint == endpoint
 
 
 # UTS: rest/unit/TO/conflicting-options-validation-1

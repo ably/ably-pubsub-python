@@ -16,7 +16,7 @@ from ably.types.presence import Presence, PresenceAction, PresenceMessage
 from ably.util.crypto import CipherParams
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
+from test.uts.helpers.deviations import deviation, spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 
@@ -649,6 +649,9 @@ async def test_rsp3_get_pagination_next_page():
 
 
 # UTS: rest/unit/RSP4/history-pagination-1
+# The wire action 4 is asserted to be LEAVE, where protocol.md and this document's own
+# RSP4a and RSP5 fix LEAVE at 3 and UPDATE at 4; see spec-inconsistencies.md.
+@spec_error
 async def test_rsp4_history_pagination():
     channel_name = f'test-RSP-pagination3-{random_id()}'
     captured_requests = []
@@ -678,9 +681,7 @@ async def test_rsp4_history_pagination():
     page2 = await page1.next()
 
     assert page1.items[0].action == PresenceAction.ENTER
-    # UTS SPEC ERROR: rest/unit/RSP4/history-pagination-1 - asserts action 4 is LEAVE, but the
-    # same document (RSP4a, RSP_Action_1) and the wire protocol make 4 UPDATE and 3 LEAVE.
-    assert page2.items[0].action == PresenceAction.UPDATE
+    assert page2.items[0].action == PresenceAction.LEAVE
 
 
 # UTS: rest/unit/RSP3/get-server-error-3

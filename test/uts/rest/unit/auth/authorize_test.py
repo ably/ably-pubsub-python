@@ -4,6 +4,7 @@ Spec points: RSA10, RSA10a, RSA10b, RSA10e, RSA10g, RSA10h, RSA10i, RSA10j, RSA1
 """
 
 import base64
+import re
 import time
 
 import pytest
@@ -12,7 +13,7 @@ from ably.types.authoptions import AuthOptions
 from ably.types.tokendetails import TokenDetails
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
+from test.uts.helpers.deviations import deviation, spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 KEY = 'appId.keyId:keySecret'
@@ -186,15 +187,40 @@ async def test_rsa10h_authorize_replaces_auth_options():
 
 
 # UTS: rest/unit/RSA10i/authorize-preserves-key-0
-@pytest.mark.skip(reason='The specification carries no assertions, and its premise contradicts RSA8e.')
+# The assertions block is empty, and the premise that a key survives a provided AuthOptions
+# is one RSA8e and RSA10j contradict; see spec-inconsistencies.md.
+@spec_error
 async def test_rsa10i_authorize_preserves_key():
-    # UTS SPEC ERROR: RSA10i - the assertions block is empty, so there is nothing to
-    # derive. Its premise is wrong in any case: the features spec does not require the
-    # key to survive an authOptions argument, since RSA8e and RSA10j both have provided
-    # AuthOptions used "instead of the stored values (even when null)". ably-python
-    # discards the key, which is what those points call for;
-    # test_rsa10k_authorize_query_time is the runnable reproduction of the consequence.
-    pass
+    captured_requests = []
+
+    def on_request(request):
+        captured_requests.append(request)
+        if re.fullmatch(r'/keys/.*/requestToken', request.url.path):
+            # Initial token request using key
+            request.respond_with(200, {
+                'token': 'token-via-key',
+                'expires': now() + 3600000,
+                'keyName': 'appId.keyId',
+            })
+        else:
+            request.respond_with(200, {'channelId': 'test'})
+
+    mock_http = MockHttpClient(
+        on_connection_attempt=lambda conn: conn.respond_with_success(),
+        on_request=on_request,
+    )
+    client = rest_client(mock_http, key=KEY)
+
+    # Call authorize with new authUrl but no key. The key should still be available for
+    # signing, so the implementation can still use it for requestToken.
+    await client.auth.authorize(auth_options=AuthOptions(auth_url='https://new-auth.example.com/token'))
+
+    # Key from constructor should be preserved (not cleared). The specification leaves the
+    # exact assertion open - "verify by checking that key-based operations still work" - so
+    # the stored key and the signed token request stand in for it.
+    assert client.auth.auth_options.key_name == 'appId.keyId'
+    assert client.auth.auth_options.key_secret == 'keySecret'
+    assert any(r.url.path == '/keys/appId.keyId/requestToken' for r in captured_requests)
 
 
 # UTS: rest/unit/RSA10j/authorize-replaces-existing-token-0

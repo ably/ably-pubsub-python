@@ -10,7 +10,9 @@ import pytest
 
 from ably import api_version
 from ably.types.tokendetails import TokenDetails
+from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
+from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 CHANNEL_BODY = {'channelId': 'test'}
@@ -199,6 +201,10 @@ async def test_rsc1b_no_auth_method_error():
 
 
 # UTS: rest/unit/RSA4a2/expired-token-no-renewal-0
+# The spec demands local expiry detection, which features.md RSA4a2 leaves to the server
+# and RSA4b1 makes optional and conditional on a persisted clock offset; see
+# spec-inconsistencies.md.
+@spec_error
 async def test_rsa4a2_expired_token_no_renewal():
     captured_requests = []
     mock_http = MockHttpClient(
@@ -210,16 +216,14 @@ async def test_rsa4a2_expired_token_no_renewal():
         expires=now() - 1000,
     ))
 
-    # SPEC ERROR RSA4a2: the spec expects error 40171 and zero HTTP requests.
-    # RSA4a2 governs the case where the *server* answers with a token error
-    # (401 and 40140 <= code < 40150); local expiry detection is optional under
-    # RSA4b1, and only once the library has persisted a clock offset from the
-    # Ably service (RSA10k). ably-python has no offset here, so it sends the
-    # expired token and lets the server rule on it.
-    await client.request('GET', '/channels/test', version=api_version)
+    with pytest.raises(AblyException) as excinfo:
+        await client.request('GET', '/channels/test', version=api_version)
 
-    assert len(captured_requests) == 1
-    assert captured_requests[0].headers['Authorization'] == bearer('expired-token')
+    # Token expired with no means of renewal
+    assert excinfo.value.code == 40171
+
+    # No HTTP request should have been made
+    assert len(captured_requests) == 0
 
 
 # UTS: rest/unit/RSA1/token-auth-takes-precedence-0

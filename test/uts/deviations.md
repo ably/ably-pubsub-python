@@ -7,9 +7,9 @@ this file records behaviour.
 Entries are grouped by root cause rather than by test, so one entry covers every
 test it affects. Headings are fixed and appear even when they hold nothing.
 
-Of 581 derived tests, 474 pass, 100 are gated behind `RUN_DEVIATIONS` and 7 cannot
-be run at all. Every gated test has been confirmed to fail when enabled, so none of
-them passes under both behaviours.
+Of 581 derived tests, 465 pass, 110 are gated behind `RUN_DEVIATIONS` and 6 cannot be
+run at all. Every gated test has been confirmed to fail when enabled, so none of them
+passes under both behaviours.
 
 Entries closed by a fix are removed rather than kept as history; `git log` holds that.
 
@@ -21,10 +21,38 @@ RUN_DEVIATIONS=1 uv run --extra crypto pytest test/uts
 
 ## UTS Spec Errors
 
-Faults in the specifications themselves, found while deriving. Each is asserted
-against the correct behaviour with a `# UTS SPEC ERROR:` comment naming the point,
-so the suite stays green; converting any of them to a fail-fast placeholder is a
-one-line change at the marked site.
+Faults in the specifications themselves, found while deriving. A fault here is not an
+SDK deviation, so it is recorded against the specification and not adapted to what the
+SDK happens to do.
+
+Where a specification *asserts* something `features.md` or `protocol.md` contradicts,
+there is no spec-correct assertion left to write. The test is still derived faithfully
+from the specification text, so that correcting the specification is all it takes to make
+it pass, and it is marked `@spec_error` — a skip gated on `RUN_DEVIATIONS`, the same gate
+`@deviation` uses, with a reason naming the specification rather than the SDK. The suite
+stays green, a real regression still shows, and the failure is one environment variable
+away. `spec-inconsistencies.md` carries the report raised upstream. Nine tests are gated
+this way:
+
+| Test | Spec error |
+|---|---|
+| `test_rsl1a_publish_message_array` | RSL1c - an object payload asserted to travel unstringified |
+| `test_rsl1k_mixed_ids_in_batch` | RSL1k - an absent id in a mixed batch asserted to be generated |
+| `test_rsa4a2_expired_token_no_renewal` | RSA4a2 - local expiry detection demanded |
+| `test_rsa4b1_preemptive_renewal` | RSA4b1 - local expiry detection demanded |
+| `test_rsa4b_renewal_msgpack_response` | RSA4b - renewal driven through the unauthenticated `/time` |
+| `test_rsa10i_authorize_preserves_key` | RSA10i - empty assertions, and a premise RSA8e contradicts |
+| `test_rsp4_history_pagination` | RSP4 - wire action 4 asserted to be LEAVE |
+| `test_tp3_presence_to_json` | TP3 - an outgoing action asserted as the string `"enter"` |
+| `test_tp3_null_attributes_omitted` | TP3 - the same outgoing string assertion |
+
+Where instead only a specification's *fixture*, *setup* or *label* is at fault, the
+assertion it carries still stands. Those tests keep the corrected fixture (or the
+corrected label in a comment), pass, and carry a `# UTS SPEC ERROR:` comment at the
+site. The entries below cover both kinds and say which applies.
+
+The three sections that follow this one record SDK behaviour rather than specification
+faults.
 
 ### `/time` is stubbed as an object rather than an array
 
@@ -148,7 +176,7 @@ claim is the one to revisit. `revoke_tokens.md` has the same internal split:
 
 | Spec | Fault |
 |---|---|
-| `options_types.md` | TO3 table uses pre-REC1 hostnames (`rest.ably.io`, `test-rest.ably.io`) |
+| `options_types.md` | The `TO/endpoint-affects-host-0` "Expected Rest Host" column uses pre-REC1 hostnames (`rest.ably.io`, `test-rest.ably.io`). No assertion reads the column, so the derived test is unaffected |
 | `channels_collection.md` | Header claims RSN3b and RSN3c; neither has a test |
 | `stats.md` | Fixture nests counts under `all`, which `Stats.from_dict` never reads |
 | `rest_client.md` | `RSC17` has two byte-identical tests; header lists RSC7 and RSC7b with no tests |
@@ -193,6 +221,12 @@ the mark is the only change needed once the SDK behaviour lands.
 | RSA16d | A failed renewal leaves the invalidated token in place — `_ensure_valid_auth_credentials` assigns only on success |
 | RSA16d | `authorize()` cannot switch a client back to basic auth: `_ensure_valid_auth_credentials` sets `Method.TOKEN` unconditionally, and `AuthOptions.replace` drops `use_token_auth`, which is stored outside the options dict |
 | RSA8c1a, RSA12b | `TokenParams` reach the `auth_url` under the SDK's internal snake_case names: `Auth._ensure_valid_auth_credentials` sets `token_params['client_id']` and `token_request_from_auth_url` passes the dict straight to the query string, so an auth server sees `client_id`, not `clientId` |
+
+### Options
+
+| Spec points | Behaviour |
+|---|---|
+| TO3 | `endpoint` is left unset when none is given, per `TO/endpoint-affects-host-0`. `Options.__init__` resolves the default eagerly to the REC1a routing policy id `main`, so the attribute never reads back as null. Only the default case is gated; the two that name an endpoint are derived and pass |
 
 ### Requests
 

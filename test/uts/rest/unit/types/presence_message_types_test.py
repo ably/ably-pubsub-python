@@ -6,7 +6,7 @@ Spec points: TP1, TP2, TP3, TP3a, TP3b, TP3c, TP3d, TP3e, TP3f, TP3g, TP3h, TP3i
 from datetime import datetime, timedelta
 
 from ably.types.presence import PresenceAction, PresenceMessage
-from test.uts.helpers.deviations import deviation
+from test.uts.helpers.deviations import deviation, spec_error
 
 
 def datetime_from_ms(ms):
@@ -189,6 +189,9 @@ def test_tp3_presence_encoded_data_from_json():
 
 
 # UTS: rest/unit/TP3/presence-to-json-2
+# An outgoing action is asserted as the string "enter", where protocol.md encodes it as the
+# enum ordinal; see spec-inconsistencies.md.
+@spec_error
 def test_tp3_presence_to_json():
     msg = PresenceMessage(
         action=PresenceAction.ENTER,
@@ -199,23 +202,21 @@ def test_tp3_presence_to_json():
 
     json_data = msg.to_encoded()
 
-    # UTS SPEC ERROR: TP3 - protocol.md encodes the presence action as the enum ordinal,
-    # not the string "enter".
-    assert json_data['action'] == PresenceAction.ENTER
+    assert json_data['action'] == 'enter'
     assert json_data['clientId'] == 'user-1'
     assert json_data['data'] == 'hello'
     assert json_data['extras']['headers']['x-key'] == 'x-value'
 
 
 # UTS: rest/unit/TP3/null-attributes-omitted-3
+# The same outgoing string action as presence-to-json-2; see spec-inconsistencies.md.
+@spec_error
 def test_tp3_null_attributes_omitted():
     msg = PresenceMessage(action=PresenceAction.ENTER, client_id='user-1')
 
     json_data = msg.to_encoded()
 
-    # UTS SPEC ERROR: TP3 - protocol.md encodes the presence action as the enum ordinal,
-    # not the string "enter".
-    assert json_data['action'] == PresenceAction.ENTER
+    assert json_data['action'] == 'enter'
     assert json_data['clientId'] == 'user-1'
     assert 'data' not in json_data or json_data['data'] is None
     assert 'encoding' not in json_data or json_data['encoding'] is None

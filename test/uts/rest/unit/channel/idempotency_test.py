@@ -10,6 +10,7 @@ import msgpack
 
 from ably.types.message import Message
 from test.uts.helpers.client import rest_client
+from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 
@@ -219,6 +220,10 @@ async def test_rsl1k2_same_id_on_retry():
 
 
 # UTS: rest/unit/RSL1k/mixed-ids-in-batch-1
+# RSL1k1 generates ids only when every message in a batch lacks one, and RSL1k3 preserves
+# ids "present or absent", so the id asserted here cannot be generated; see
+# spec-inconsistencies.md.
+@spec_error
 async def test_rsl1k_mixed_ids_in_batch():
     channel_name = f'test-RSL1k-mixed-{random_id()}'
     captured_requests = []
@@ -231,7 +236,7 @@ async def test_rsl1k_mixed_ids_in_batch():
 
     messages = [
         Message(id='client-id-1', name='event1', data='data1'),
-        Message(name='event2', data='data2'),  # No ID
+        Message(name='event2', data='data2'),  # No ID - should be generated
         Message(id='client-id-2', name='event3', data='data3'),
     ]
     await channel.publish(messages=messages)
@@ -243,9 +248,5 @@ async def test_rsl1k_mixed_ids_in_batch():
     assert body[0]['id'] == 'client-id-1'
     assert body[2]['id'] == 'client-id-2'
 
-    # UTS SPEC ERROR: RSL1k - the spec expects the middle message to receive a
-    # library-generated "<base>:<serial>" id. RSL1k1 generates ids only when every message
-    # has an empty id, and RSL1k3 in the features spec says that where any message in a
-    # batch carries an id, "all message ids (present or absent) are preserved"; so an absent
-    # id must stay absent. Asserting what the features spec requires.
-    assert 'id' not in body[1]
+    # Library-generated ID for middle message
+    assert re.fullmatch(r'[A-Za-z0-9_-]+:[0-9]+', body[1]['id'])

@@ -12,6 +12,7 @@ import pytest
 from ably.types.tokendetails import TokenDetails
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
+from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 CHANNEL_DETAILS_BODY = {
@@ -122,6 +123,10 @@ async def test_rsa4b_renewal_on_40140():
 
 
 # UTS: rest/unit/RSA4b1/preemptive-renewal-0
+# features.md RSA4b1 makes local expiry detection optional and conditional on a clock
+# offset persisted from the Ably service, which this setup never establishes; see
+# spec-inconsistencies.md.
+@spec_error
 async def test_rsa4b1_preemptive_renewal():
     callback_count = 0
     captured_requests = []
@@ -130,11 +135,13 @@ async def test_rsa4b1_preemptive_renewal():
         nonlocal callback_count
         callback_count += 1
         if callback_count == 1:
+            # First token is already expired
             return TokenDetails(token='expired-token', expires=now() - 1000)
         return TokenDetails(token='fresh-token', expires=now() + 3600000)
 
     def on_request(request):
         captured_requests.append(request)
+        # Only success response (no 401 expected)
         request.respond_with(200, [])
 
     mock_http = MockHttpClient(
@@ -143,17 +150,19 @@ async def test_rsa4b1_preemptive_renewal():
     )
     client = rest_client(mock_http, auth_callback=auth_callback)
 
+    # Force initial token acquisition
     await client.auth.authorize()
+
+    # This should detect expired token and renew before request
     await client.channels.get('test').history()
 
-    # UTS SPEC ERROR: RSA4b1 - the spec point makes pre-emptive expiry detection optional and
-    # conditional on a clock offset persisted from the Ably service (RSA10k), which this setup
-    # never establishes, so a compliant library may send the expired token and let the server rule.
-    assert callback_count == 1
+    # Callback was called twice (initial + pre-emptive renewal)
+    assert callback_count == 2
 
+    # Only ONE HTTP request to the API (history); no failed request with expired token
     requests_to_history = [r for r in captured_requests if r.path == '/channels/test/messages']
     assert len(requests_to_history) == 1
-    assert requests_to_history[0].headers['Authorization'] == bearer('expired-token')
+    assert requests_to_history[0].headers['Authorization'] == bearer('fresh-token')
 
 
 # UTS: rest/unit/RSA4a2/no-renewal-without-callback-0
@@ -314,6 +323,10 @@ async def test_rsc10b_non_token_401_no_renewal():
 
 
 # UTS: rest/unit/RSA4b/renewal-msgpack-response-4
+# The renewal is driven through `/time`, which carries no credentials - the same suite's
+# rest/unit/RSC16/no-auth-required-2 asserts as much - so it cannot return a token error;
+# see spec-inconsistencies.md.
+@spec_error
 async def test_rsa4b_renewal_msgpack_response():
     callback_count = 0
     request_count = 0
@@ -327,15 +340,17 @@ async def test_rsa4b_renewal_msgpack_response():
         nonlocal request_count
         request_count += 1
         if request_count == 1:
+            # First request fails with token expired - returned as msgpack
             request.respond_with(
                 401,
                 msgpack.packb(token_error_body(40142, 'Token expired'), use_bin_type=False),
                 {'Content-Type': 'application/x-msgpack'},
             )
         else:
+            # Retry succeeds - also returned as msgpack
             request.respond_with(
                 200,
-                msgpack.packb(CHANNEL_DETAILS_BODY, use_bin_type=False),
+                msgpack.packb([1234567890000], use_bin_type=False),
                 {'Content-Type': 'application/x-msgpack'},
             )
 
@@ -345,12 +360,13 @@ async def test_rsa4b_renewal_msgpack_response():
     )
     client = rest_client(mock_http, auth_callback=auth_callback, use_binary_protocol=True)
 
-    # UTS SPEC ERROR: RSA4b - the spec drives this through `client.time()`, but `/time` carries no
-    # credentials (its own rest/unit/RSC16/no-auth-required-2 asserts that), so it can never
-    # receive a token error or trigger renewal; an authenticated call exercises the stated intent.
-    result = await client.channels.get('test').status()
+    result = await client.time()
 
+    # Auth callback was called twice (initial + renewal)
     assert callback_count == 2
+
+    # Two HTTP requests were made (original + retry)
     assert request_count == 2
 
-    assert result.channel_id == 'test'
+    assert result == 1234567890000
+
