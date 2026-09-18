@@ -8,7 +8,7 @@ from urllib import parse
 
 import msgpack
 
-from ably.pubsub.http.paginatedresult import PaginatedResult, format_params
+from ably.pubsub.request.paginatedresult import PaginatedResult, format_params
 from ably.pubsub.types.annotation import (
     Annotation,
     AnnotationAction,
@@ -89,7 +89,7 @@ def construct_validate_annotation(msg_or_serial, annotation: Annotation) -> Anno
     )
 
 
-class RestAnnotations:
+class HttpAnnotations:
     """
     Provides REST API methods for managing annotations on messages.
     """
@@ -98,7 +98,7 @@ class RestAnnotations:
 
     def __init__(self, channel):
         """
-        Initialize RestAnnotations.
+        Initialize HttpAnnotations.
 
         Args:
             channel: The REST Channel this annotations instance belongs to

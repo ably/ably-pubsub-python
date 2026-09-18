@@ -12,8 +12,8 @@ import httpx
 from ably.pubsub.types.options import Options
 
 if TYPE_CHECKING:
+    from ably.pubsub.http.http import AblyHttp
     from ably.pubsub.realtime.realtime import AblyRealtime
-    from ably.pubsub.rest.rest import AblyRest
 
 from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.tokendetails import TokenDetails
@@ -31,7 +31,7 @@ class Auth:
         BASIC = "BASIC"
         TOKEN = "TOKEN"
 
-    def __init__(self, ably: AblyRest | AblyRealtime, options: Options):
+    def __init__(self, ably: AblyHttp | AblyRealtime, options: Options):
         self.__ably = ably
         self.__auth_options = options
 
@@ -411,7 +411,7 @@ class Auth:
         # Use clean URL for the request
         url = clean_url
 
-        from ably.pubsub.http.http import Response
+        from ably.pubsub.request.http import Response
         async with httpx.AsyncClient(http2=True) as client:
             resp = await client.request(method=method, url=url, headers=headers, params=params, data=body)
             response = Response(resp)

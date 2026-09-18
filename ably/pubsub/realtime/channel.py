@@ -4,11 +4,11 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from ably.pubsub.http.channel import Channel
+from ably.pubsub.http.channel import Channels as HttpChannels
 from ably.pubsub.realtime.annotations import RealtimeAnnotations
 from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.realtime.presence import RealtimePresence
-from ably.pubsub.rest.channel import Channel
-from ably.pubsub.rest.channel import Channels as RestChannels
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.annotation import Annotation
 from ably.pubsub.types.channelmode import ChannelMode, decode_channel_mode, encode_channel_mode
@@ -407,7 +407,7 @@ class RealtimeChannel(EventEmitter, Channel):
                         400, 40012)
 
 
-        # Encode messages (RTL6a: same encoding as RestChannel#publish)
+        # Encode messages (RTL6a: same encoding as HttpChannel#publish)
         encoded_messages = []
         for m in messages:
             # Encode the message with encryption if needed
@@ -960,7 +960,7 @@ class RealtimeChannel(EventEmitter, Channel):
         return flags
 
 
-class Channels(RestChannels):
+class Channels(HttpChannels):
     """Creates and destroys RealtimeChannel objects.
 
     Methods

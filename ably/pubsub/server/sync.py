@@ -7,10 +7,10 @@ subscribe to channels should use :func:`ably.pubsub.server.create_realtime_clien
 instead.
 """
 
-from ably.pubsub.sync.prototypes import RestClient
-from ably.pubsub.sync.rest.auth import AuthSync
-from ably.pubsub.sync.rest.push import PushSync
-from ably.pubsub.sync.rest.rest import AblyRestSync as _AblyRestSync
+from ably.pubsub.sync.http.auth import AuthSync
+from ably.pubsub.sync.http.http import AblyHttpSync as _AblyHttpSync
+from ably.pubsub.sync.http.push import PushSync
+from ably.pubsub.sync.prototypes import PubSubHttpClient
 from ably.pubsub.sync.types.annotation import Annotation, AnnotationAction
 from ably.pubsub.sync.types.capability import Capability
 from ably.pubsub.sync.types.channelmode import ChannelMode
@@ -28,7 +28,7 @@ from ably.pubsub.sync.vcdiff.defaultvcdiffdecoder import AblyVCDiffDecoder
 from ably.pubsub.version import api_version, lib_version
 
 
-def create_http_client(**kwargs) -> RestClient:
+def create_http_client(**kwargs) -> PubSubHttpClient:
     """Create a synchronous server Pub/Sub client that operates entirely over HTTP.
 
     Accepts every option :func:`ably.pubsub.server.create_http_client` does — see there
@@ -37,7 +37,7 @@ def create_http_client(**kwargs) -> RestClient:
 
     Returns
     -------
-    RestClient
+    PubSubHttpClient
         A client ready to use. It opens no connection until its first request.
 
     Raises
@@ -49,7 +49,7 @@ def create_http_client(**kwargs) -> RestClient:
         `environment`, `rest_host` or `realtime_host`.
     """
     with factory_construction():
-        return _AblyRestSync(**kwargs)
+        return _AblyHttpSync(**kwargs)
 
 
 __all__ = [
@@ -69,10 +69,10 @@ __all__ = [
     'MessageOperation',
     'MessageVersion',
     'Options',
+    'PubSubHttpClient',
     'PublishResult',
     'PushChannelSubscription',
     'PushSync',
-    'RestClient',
     'TokenDetails',
     'UpdateDeleteResult',
     'VCDiffDecoder',

@@ -1,312 +1,153 @@
-import functools
-import json
 import logging
-import time
-from urllib.parse import urljoin
+from typing import Optional
+from urllib.parse import urlencode
 
-import httpx
-import msgpack
-
-from ably.pubsub.http.httputils import HttpUtils
-from ably.pubsub.rest.auth import Auth
-from ably.pubsub.transport.defaults import Defaults
-from ably.pubsub.util.exceptions import AblyException
-from ably.pubsub.util.helper import extract_url_params, is_token_error
+from ably.pubsub.http.auth import Auth
+from ably.pubsub.http.channel import Channels
+from ably.pubsub.http.push import Push
+from ably.pubsub.request.http import Http
+from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult, format_params
+from ably.pubsub.types.options import Options
+from ably.pubsub.types.stats import stats_response_processor
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.construction import reject_direct_construction
+from ably.pubsub.util.exceptions import AblyException, catch_all
 
 log = logging.getLogger(__name__)
 
 
-def reauth_if_expired(func):
-    @functools.wraps(func)
-    async def wrapper(rest, *args, **kwargs):
-        if kwargs.get("skip_auth"):
-            return await func(rest, *args, **kwargs)
+class AblyHttp:
+    """Ably HTTP Client"""
 
-        # RSA4b1 Detect expired token to avoid round-trip request
-        auth = rest.auth
-        token_details = auth.token_details
-        if token_details and auth.time_offset is not None and auth.token_details_has_expired():
-            await auth.authorize()
-            retried = True
+    def __init__(self, key: Optional[str] = None, token: Optional[str] = None,
+                 token_details: Optional[TokenDetails] = None, **kwargs):
+        """Create an AblyHttp instance.
+
+        :Parameters:
+          **Credentials**
+          - `key`: a valid key string
+
+          **Or**
+          - `token`: a valid token string
+          - `token_details`: an instance of TokenDetails class
+
+          **Optional Parameters**
+          - `client_id`: Undocumented
+          - `endpoint`: Endpoint specifies either a routing policy name or
+            fully qualified domain name to connect to Ably.
+          - `rest_host`: Deprecated: this property is deprecated and will
+            be removed in a future version. The host to connect to.
+            Defaults to rest.ably.io
+          - `environment`: Deprecated: this property is deprecated and
+            will be removed in a future version. The environment to use.
+            Defaults to 'production'
+          - `port`: The port to connect to. Defaults to 80
+          - `tls_port`: The tls_port to connect to. Defaults to 443
+          - `tls`: Specifies whether the client should use TLS. Defaults
+            to True
+          - `auth_token`: Undocumented
+          - `auth_callback`: Undocumented
+          - `auth_url`: Undocumented
+        """
+        reject_direct_construction(type(self), 'ably.pubsub.server.create_http_client')
+
+        if key is not None and ('key_name' in kwargs or 'key_secret' in kwargs):
+            raise ValueError("key and key_name or key_secret are mutually exclusive. "
+                             "Provider either a key or key_name & key_secret")
+        if key is not None:
+            options = Options(key=key, **kwargs)
+        elif token is not None:
+            options = Options(auth_token=token, **kwargs)
+        elif token_details is not None:
+            if not isinstance(token_details, TokenDetails):
+                raise ValueError("token_details must be an instance of TokenDetails")
+            options = Options(token_details=token_details, **kwargs)
+        elif not ('auth_callback' in kwargs or 'auth_url' in kwargs or
+                  # and don't have both key_name and key_secret
+                  ('key_name' in kwargs and 'key_secret' in kwargs)):
+            raise ValueError("key is missing. Either an API key, token, or token auth method must be provided")
         else:
-            retried = False
+            options = Options(**kwargs)
 
-        try:
-            return await func(rest, *args, **kwargs)
-        except AblyException as e:
-            if is_token_error(e) and not retried:
-                await auth.authorize()
-                return await func(rest, *args, **kwargs)
+        if not hasattr(self, '_is_realtime'):
+            self._is_realtime = False
 
-            raise e
+        self.__http = Http(self, options)
+        self.__auth = Auth(self, options)
+        self.__http.auth = self.__auth
 
-    return wrapper
-
-
-class Request:
-    def __init__(self, method='GET', url='/', version=None, headers=None, body=None,
-                 skip_auth=False, raise_on_error=True):
-        self.__method = method
-        self.__headers = headers or {}
-        self.__body = body
-        self.__skip_auth = skip_auth
-        self.__url = url
-        self.__version = version
-        self.raise_on_error = raise_on_error
-
-    def with_relative_url(self, relative_url):
-        url = urljoin(self.url, relative_url)
-        return Request(self.method, url, self.version, self.headers, self.body,
-                       self.skip_auth, self.raise_on_error)
-
-    @property
-    def method(self):
-        return self.__method
-
-    @property
-    def url(self):
-        return self.__url
-
-    @property
-    def headers(self):
-        return self.__headers
-
-    @property
-    def body(self):
-        return self.__body
-
-    @property
-    def skip_auth(self):
-        return self.__skip_auth
-
-    @property
-    def version(self):
-        return self.__version
-
-
-class Response:
-    """
-    Composition for httpx.Response with delegation
-    """
-
-    def __init__(self, response):
-        self.__response = response
-
-    def to_native(self):
-        content = self.__response.content
-        if not content:
-            return None
-
-        content_type = self.__response.headers.get('content-type')
-        if isinstance(content_type, str):
-            if content_type.startswith('application/x-msgpack'):
-                return msgpack.unpackb(content)
-            elif content_type.startswith('application/json'):
-                return self.__response.json()
-
-        raise ValueError("Unsupported content type")
-
-    @property
-    def response(self):
-        return self.__response
-
-    def __getattr__(self, attr):
-        return getattr(self.__response, attr)
-
-
-class Http:
-    CONNECTION_RETRY_DEFAULTS = {
-        'http_open_timeout': 4,
-        'http_request_timeout': 10,
-        'http_max_retry_duration': 15,
-    }
-
-    def __init__(self, ably, options):
-        options = options or {}
-        self.__ably = ably
+        self.__channels = Channels(self)
         self.__options = options
-        self.__auth = None
-        # Cached fallback host (RSC15f)
-        self.__host = None
-        self.__host_expires = None
-        self.__client = httpx.AsyncClient(http2=True)
+        self.__push = Push(self)
 
-    async def close(self):
-        await self.__client.aclose()
+    async def __aenter__(self):
+        return self
 
-    def dump_body(self, body):
-        if self.options.use_binary_protocol:
-            return msgpack.packb(body, use_bin_type=False)
-        else:
-            return json.dumps(body, separators=(',', ':'))
+    @catch_all
+    async def stats(self, direction: Optional[str] = None, start=None, end=None, params: Optional[dict] = None,
+                    limit: Optional[int] = None, paginated=None, unit=None, timeout=None):
+        """Returns the stats for this application"""
+        formatted_params = format_params(params, direction=direction, start=start, end=end, limit=limit, unit=unit)
+        url = '/stats' + formatted_params
+        return await PaginatedResult.paginated_query(
+            self.http, url=url, response_processor=stats_response_processor)
 
-    def get_hosts(self):
-        hosts = self.options.get_hosts()
-        host = self.__host or self.options.fallback_host
-        if host is None:
-            return hosts
+    @catch_all
+    async def time(self, timeout: Optional[float] = None) -> float:
+        """Returns the current server time in ms since the unix epoch"""
+        r = await self.http.get('/time', skip_auth=True, timeout=timeout)
+        AblyException.raise_for_response(r)
+        return r.to_native()[0]
 
-        # unstore saved fallback host after fallbackRetryTimeout (RSC15f)
-        if self.__host_expires is not None and time.time() > self.__host_expires:
-            self.__host = None
-            self.__host_expires = None
-            return hosts
+    @property
+    def client_id(self) -> Optional[str]:
+        return self.options.client_id
 
-        hosts = list(hosts)
-        hosts.remove(host)
-        hosts.insert(0, host)
-        return hosts
-
-    @reauth_if_expired
-    async def make_request(self, method, path, version=None, headers=None, body=None,
-                           skip_auth=False, timeout=None, raise_on_error=True):
-
-        if body is not None and type(body) not in (bytes, str):
-            body = self.dump_body(body)
-
-        if body:
-            all_headers = HttpUtils.default_post_headers(self.options.use_binary_protocol, version=version)
-        else:
-            all_headers = HttpUtils.default_get_headers(self.options.use_binary_protocol, version=version)
-
-        params = HttpUtils.get_query_params(self.options)
-
-        if not skip_auth:
-            if self.auth.auth_mechanism == Auth.Method.BASIC and self.preferred_scheme.lower() == 'http':
-                raise AblyException(
-                    "Cannot use Basic Auth over non-TLS connections",
-                    401,
-                    40103)
-            auth_headers = await self.auth._get_auth_headers()
-            all_headers.update(auth_headers)
-        if headers:
-            all_headers.update(headers)
-
-        timeout = (self.http_open_timeout, self.http_request_timeout)
-        http_max_retry_duration = self.http_max_retry_duration
-        requested_at = time.time()
-
-        hosts = self.get_hosts()
-        for retry_count, host in enumerate(hosts):
-            def should_stop_retrying(retry_count=retry_count):
-                time_passed = time.time() - requested_at
-                # if it's the last try or cumulative timeout is done, we stop retrying
-                return retry_count == len(hosts) - 1 or time_passed > http_max_retry_duration
-
-            base_url = f"{self.preferred_scheme}://{host}:{self.preferred_port}"
-            url = urljoin(base_url, path)
-
-            (clean_url, url_params) = extract_url_params(url)
-
-            request = self.__client.build_request(
-                method=method,
-                url=clean_url,
-                content=body,
-                params=dict(url_params, **params),
-                headers=all_headers,
-                timeout=timeout,
-            )
-            try:
-                response = await self.__client.send(request)
-            except Exception as e:
-                if should_stop_retrying():
-                    raise e
-            else:
-                # RSC15l4
-                cloud_front_error = (response.headers.get('Server', '').lower() == 'cloudfront'
-                                     and response.status_code >= 400)
-                # RSC15l3
-                retryable_server_error = response.status_code >= 500 and response.status_code <= 504
-                # Resending requests that have failed for other failure conditions will not fix the problem
-                # and will simply increase the load on other datacenters unnecessarily
-                should_fallback = cloud_front_error or retryable_server_error
-
-                try:
-                    if raise_on_error:
-                        AblyException.raise_for_response(response)
-
-                    if should_fallback and not should_stop_retrying():
-                        continue
-
-                    # Keep fallback host for later (RSC15f)
-                    if retry_count > 0 and host != self.options.get_host():
-                        self.__host = host
-                        self.__host_expires = time.time() + (self.options.fallback_retry_timeout / 1000.0)
-
-                    return Response(response)
-                except AblyException as e:
-                    if should_stop_retrying() or not should_fallback:
-                        raise e
-
-    async def delete(self, url, headers=None, skip_auth=False, timeout=None):
-        result = await self.make_request('DELETE', url, headers=headers,
-                                         skip_auth=skip_auth, timeout=timeout)
-        return result
-
-    async def get(self, url, headers=None, skip_auth=False, timeout=None):
-        result = await self.make_request('GET', url, headers=headers,
-                                         skip_auth=skip_auth, timeout=timeout)
-        return result
-
-    async def patch(self, url, headers=None, body=None, skip_auth=False, timeout=None):
-        result = await self.make_request('PATCH', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
-        return result
-
-    async def post(self, url, headers=None, body=None, skip_auth=False, timeout=None):
-        result = await self.make_request('POST', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
-        return result
-
-    async def put(self, url, headers=None, body=None, skip_auth=False, timeout=None):
-        result = await self.make_request('PUT', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
-        return result
+    @property
+    def channels(self):
+        """Returns the channels container object"""
+        return self.__channels
 
     @property
     def auth(self):
         return self.__auth
 
-    @auth.setter
-    def auth(self, value):
-        self.__auth = value
+    @property
+    def http(self):
+        return self.__http
 
     @property
     def options(self):
         return self.__options
 
     @property
-    def preferred_host(self):
-        return self.options.get_host()
+    def push(self):
+        return self.__push
 
-    @property
-    def preferred_port(self):
-        return Defaults.get_port(self.options)
+    async def request(self, method: str, path: str, version: str, params:
+                      Optional[dict] = None, body=None, headers=None):
+        if version is None:
+            raise AblyException("No version parameter", 400, 40000)
 
-    @property
-    def preferred_scheme(self):
-        return Defaults.get_scheme(self.options)
+        url = path
+        if params:
+            url += '?' + urlencode(params)
 
-    @property
-    def http_open_timeout(self):
-        if self.options.http_open_timeout is not None:
-            return self.options.http_open_timeout
-        return self.CONNECTION_RETRY_DEFAULTS['http_open_timeout']
+        def response_processor(response):
+            items = response.to_native()
+            if not items:
+                return []
+            if type(items) is not list:
+                items = [items]
+            return items
 
-    @property
-    def http_request_timeout(self):
-        if self.options.http_request_timeout is not None:
-            return self.options.http_request_timeout
-        return self.CONNECTION_RETRY_DEFAULTS['http_request_timeout']
+        return await HttpPaginatedResponse.paginated_query(
+            self.http, method, url, version=version, body=body, headers=headers,
+            response_processor=response_processor,
+            raise_on_error=False)
 
-    @property
-    def http_max_retry_count(self):
-        if self.options.http_max_retry_count is not None:
-            return self.options.http_max_retry_count
-        return self.CONNECTION_RETRY_DEFAULTS['http_max_retry_count']
+    async def __aexit__(self, *excinfo):
+        await self.close()
 
-    @property
-    def http_max_retry_duration(self):
-        if self.options.http_max_retry_duration is not None:
-            return self.options.http_max_retry_duration
-        return self.CONNECTION_RETRY_DEFAULTS['http_max_retry_duration']
+    async def close(self):
+        await self.http.close()

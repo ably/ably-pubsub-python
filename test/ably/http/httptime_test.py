@@ -7,7 +7,7 @@ from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
 
 
-class TestRestTime(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
+class TestHttpTime(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     def per_protocol_setup(self, use_binary_protocol):
         self.ably.options.use_binary_protocol = use_binary_protocol

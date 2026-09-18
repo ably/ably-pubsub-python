@@ -26,7 +26,7 @@ class TestTextEncodersNoEncryption(BaseAsyncTestCase):
     async def test_text_utf8(self):
         channel = self.ably.channels["persisted:publish"]
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', 'foó')
             _, kwargs = post_mock.call_args
             assert json.loads(kwargs['body'])['data'] == 'foó'
@@ -36,7 +36,7 @@ class TestTextEncodersNoEncryption(BaseAsyncTestCase):
         # This test only makes sense for py2
         channel = self.ably.channels["persisted:publish"]
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', 'foo')
             _, kwargs = post_mock.call_args
             assert json.loads(kwargs['body'])['data'] == 'foo'
@@ -45,7 +45,7 @@ class TestTextEncodersNoEncryption(BaseAsyncTestCase):
     async def test_with_binary_type(self):
         channel = self.ably.channels["persisted:publish"]
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', bytearray(b'foo'))
             _, kwargs = post_mock.call_args
             raw_data = json.loads(kwargs['body'])['data']
@@ -55,7 +55,7 @@ class TestTextEncodersNoEncryption(BaseAsyncTestCase):
     async def test_with_bytes_type(self):
         channel = self.ably.channels["persisted:publish"]
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', b'foo')
             _, kwargs = post_mock.call_args
             raw_data = json.loads(kwargs['body'])['data']
@@ -65,7 +65,7 @@ class TestTextEncodersNoEncryption(BaseAsyncTestCase):
     async def test_with_json_dict_data(self):
         channel = self.ably.channels["persisted:publish"]
         data = {'foó': 'bár'}
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', data)
             _, kwargs = post_mock.call_args
             raw_data = json.loads(json.loads(kwargs['body'])['data'])
@@ -75,7 +75,7 @@ class TestTextEncodersNoEncryption(BaseAsyncTestCase):
     async def test_with_json_list_data(self):
         channel = self.ably.channels["persisted:publish"]
         data = ['foó', 'bár']
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', data)
             _, kwargs = post_mock.call_args
             raw_data = json.loads(json.loads(kwargs['body'])['data'])
@@ -156,7 +156,7 @@ class TestTextEncodersEncryption(BaseAsyncTestCase):
     async def test_text_utf8(self):
         channel = self.ably.channels.get("persisted:publish_enc",
                                          cipher=self.cipher_params)
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', 'fóo')
             _, kwargs = post_mock.call_args
             assert json.loads(kwargs['body'])['encoding'].strip('/') == 'utf-8/cipher+aes-128-cbc/base64'
@@ -167,7 +167,7 @@ class TestTextEncodersEncryption(BaseAsyncTestCase):
         # This test only makes sense for py2
         channel = self.ably.channels["persisted:publish"]
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', 'foo')
             _, kwargs = post_mock.call_args
             assert json.loads(kwargs['body'])['data'] == 'foo'
@@ -177,7 +177,7 @@ class TestTextEncodersEncryption(BaseAsyncTestCase):
         channel = self.ably.channels.get("persisted:publish_enc",
                                          cipher=self.cipher_params)
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', bytearray(b'foo'))
             _, kwargs = post_mock.call_args
 
@@ -190,7 +190,7 @@ class TestTextEncodersEncryption(BaseAsyncTestCase):
         channel = self.ably.channels.get("persisted:publish_enc",
                                          cipher=self.cipher_params)
         data = {'foó': 'bár'}
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', data)
             _, kwargs = post_mock.call_args
             assert json.loads(kwargs['body'])['encoding'].strip('/') == 'json/utf-8/cipher+aes-128-cbc/base64'
@@ -201,7 +201,7 @@ class TestTextEncodersEncryption(BaseAsyncTestCase):
         channel = self.ably.channels.get("persisted:publish_enc",
                                          cipher=self.cipher_params)
         data = ['foó', 'bár']
-        with mock.patch('ably.pubsub.rest.rest.Http.post', new_callable=AsyncMock) as post_mock:
+        with mock.patch('ably.pubsub.http.http.Http.post', new_callable=AsyncMock) as post_mock:
             await channel.publish('event', data)
             _, kwargs = post_mock.call_args
             assert json.loads(kwargs['body'])['encoding'].strip('/') == 'json/utf-8/cipher+aes-128-cbc/base64'
@@ -264,7 +264,7 @@ class TestBinaryEncodersNoEncryption(BaseAsyncTestCase):
     async def test_text_utf8(self):
         channel = self.ably.channels["persisted:publish"]
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.http.http.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish('event', 'foó')
             _, kwargs = post_mock.call_args
@@ -274,7 +274,7 @@ class TestBinaryEncodersNoEncryption(BaseAsyncTestCase):
     async def test_with_binary_type(self):
         channel = self.ably.channels["persisted:publish"]
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.http.http.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish('event', bytearray(b'foo'))
             _, kwargs = post_mock.call_args
@@ -284,7 +284,7 @@ class TestBinaryEncodersNoEncryption(BaseAsyncTestCase):
     async def test_with_json_dict_data(self):
         channel = self.ably.channels["persisted:publish"]
         data = {'foó': 'bár'}
-        with mock.patch('ably.pubsub.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.http.http.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish('event', data)
             _, kwargs = post_mock.call_args
@@ -295,7 +295,7 @@ class TestBinaryEncodersNoEncryption(BaseAsyncTestCase):
     async def test_with_json_list_data(self):
         channel = self.ably.channels["persisted:publish"]
         data = ['foó', 'bár']
-        with mock.patch('ably.pubsub.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.http.http.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish('event', data)
             _, kwargs = post_mock.call_args
@@ -362,7 +362,7 @@ class TestBinaryEncodersEncryption(BaseAsyncTestCase):
     async def test_text_utf8(self):
         channel = self.ably.channels.get("persisted:publish_enc",
                                          cipher=self.cipher_params)
-        with mock.patch('ably.pubsub.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.http.http.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish('event', 'fóo')
             _, kwargs = post_mock.call_args
@@ -374,7 +374,7 @@ class TestBinaryEncodersEncryption(BaseAsyncTestCase):
         channel = self.ably.channels.get("persisted:publish_enc",
                                          cipher=self.cipher_params)
 
-        with mock.patch('ably.pubsub.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.http.http.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish('event', bytearray(b'foo'))
             _, kwargs = post_mock.call_args
@@ -388,7 +388,7 @@ class TestBinaryEncodersEncryption(BaseAsyncTestCase):
         channel = self.ably.channels.get("persisted:publish_enc",
                                          cipher=self.cipher_params)
         data = {'foó': 'bár'}
-        with mock.patch('ably.pubsub.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.http.http.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish('event', data)
             _, kwargs = post_mock.call_args
@@ -400,7 +400,7 @@ class TestBinaryEncodersEncryption(BaseAsyncTestCase):
         channel = self.ably.channels.get("persisted:publish_enc",
                                          cipher=self.cipher_params)
         data = ['foó', 'bár']
-        with mock.patch('ably.pubsub.rest.rest.Http.post',
+        with mock.patch('ably.pubsub.http.http.Http.post',
                         wraps=channel.ably.http.post) as post_mock:
             await channel.publish('event', data)
             _, kwargs = post_mock.call_args

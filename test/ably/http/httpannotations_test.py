@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 
 @pytest.mark.parametrize("transport", ["json", "msgpack"], ids=["JSON", "MsgPack"])
-class TestRestAnnotations(BaseAsyncTestCase):
+class TestHttpAnnotations(BaseAsyncTestCase):
 
     @pytest.fixture(autouse=True)
     async def setup(self, transport):

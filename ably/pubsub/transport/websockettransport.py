@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import msgpack
 
-from ably.pubsub.http.httputils import HttpUtils
+from ably.pubsub.request.httputils import HttpUtils
 from ably.pubsub.types.connectiondetails import ConnectionDetails
 from ably.pubsub.types.operations import PublishResult
 from ably.pubsub.util.eventemitter import EventEmitter

@@ -8,8 +8,8 @@ whose package matches where it runs.
 Build a client with :func:`create_http_client` or
 :func:`create_realtime_client`; the classes behind them are internal and
 reject direct construction. Annotate against the prototypes they return,
-:class:`~ably.pubsub.prototypes.RestClient` and
-:class:`~ably.pubsub.prototypes.RealtimeClient`.
+:class:`~ably.pubsub.prototypes.PubSubHttpClient` and
+:class:`~ably.pubsub.prototypes.PubSubRealtimeClient`.
 
 This is the public API of the ``ably-pubsub-server`` distribution. Both
 ``ably`` and ``ably.pubsub`` are PEP 420 namespace packages shared with the
@@ -18,11 +18,11 @@ own and neither exports anything; everything the library offers is reachable
 from here.
 """
 
-from ably.pubsub.prototypes import RealtimeClient, RestClient
+from ably.pubsub.http.auth import Auth
+from ably.pubsub.http.http import AblyHttp as _AblyHttp
+from ably.pubsub.http.push import Push
+from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
 from ably.pubsub.realtime.realtime import AblyRealtime as _AblyRealtime
-from ably.pubsub.rest.auth import Auth
-from ably.pubsub.rest.push import Push
-from ably.pubsub.rest.rest import AblyRest as _AblyRest
 from ably.pubsub.types.annotation import Annotation, AnnotationAction
 from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.channelmode import ChannelMode
@@ -40,7 +40,7 @@ from ably.pubsub.vcdiff.defaultvcdiffdecoder import AblyVCDiffDecoder
 from ably.pubsub.version import api_version, lib_version
 
 
-def create_http_client(**kwargs) -> RestClient:
+def create_http_client(**kwargs) -> PubSubHttpClient:
     """Create a server Pub/Sub client that operates entirely over HTTP.
 
     Handles publish, history, presence reads, stats and token issuing. Give the client one
@@ -145,7 +145,7 @@ def create_http_client(**kwargs) -> RestClient:
 
     Returns
     -------
-    RestClient
+    PubSubHttpClient
         A client ready to use. It opens no connection until its first request.
 
     Raises
@@ -157,10 +157,10 @@ def create_http_client(**kwargs) -> RestClient:
         `environment`, `rest_host` or `realtime_host`.
     """
     with factory_construction():
-        return _AblyRest(**kwargs)
+        return _AblyHttp(**kwargs)
 
 
-def create_realtime_client(**kwargs) -> RealtimeClient:
+def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
     """Create a server Pub/Sub client with a persistent realtime connection.
 
     Everything the HTTP client does, plus subscribing to channels and entering presence.
@@ -222,7 +222,7 @@ def create_realtime_client(**kwargs) -> RealtimeClient:
 
     Returns
     -------
-    RealtimeClient
+    PubSubRealtimeClient
         A client which, unless `auto_connect=False`, is already connecting.
 
     Raises
@@ -254,11 +254,11 @@ __all__ = [
     'MessageOperation',
     'MessageVersion',
     'Options',
+    'PubSubHttpClient',
+    'PubSubRealtimeClient',
     'PublishResult',
     'Push',
     'PushChannelSubscription',
-    'RealtimeClient',
-    'RestClient',
     'TokenDetails',
     'UpdateDeleteResult',
     'VCDiffDecoder',

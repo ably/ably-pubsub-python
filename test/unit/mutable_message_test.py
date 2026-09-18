@@ -100,7 +100,7 @@ def test_message_version_serialization():
 def test_message_extras_preserved_in_as_dict():
     """Test that extras are included when a Message with extras is serialized.
 
-    Regression test: _send_update() in both RestChannel and RealtimeChannel
+    Regression test: _send_update() in both HttpChannel and RealtimeChannel
     constructed a new Message without copying extras or annotations from the
     user-supplied message, violating RSL15b/RTL32b which require "whatever
     fields were in the user-supplied Message" to be sent.

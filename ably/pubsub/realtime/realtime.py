@@ -2,15 +2,15 @@ import asyncio
 import logging
 from typing import Optional
 
+from ably.pubsub.http.http import AblyHttp
 from ably.pubsub.realtime.channel import Channels
 from ably.pubsub.realtime.connection import Connection, ConnectionState
-from ably.pubsub.rest.rest import AblyRest
 from ably.pubsub.util.construction import reject_direct_construction
 
 log = logging.getLogger(__name__)
 
 
-class AblyRealtime(AblyRest):
+class AblyRealtime(AblyHttp):
     """
     Ably Realtime Client
 
@@ -36,7 +36,7 @@ class AblyRealtime(AblyRest):
     """
 
     def __init__(self, key: Optional[str] = None, loop: Optional[asyncio.AbstractEventLoop] = None, **kwargs):
-        """Constructs a RealtimeClient object using an Ably API key.
+        """Constructs a PubSubRealtimeClient object using an Ably API key.
 
         Parameters
         ----------

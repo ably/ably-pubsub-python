@@ -54,8 +54,9 @@ instance `ably.types.message` becomes `ably.pubsub.types.message`, and
 ### Clients are built by factories
 
 `AblyRest` and `AblyRealtime` are internal in 4.0.0 and raise `TypeError` if
-constructed directly. Build clients through the factories instead, which take
-the same arguments:
+constructed directly (`AblyRest` is also renamed to `AblyHttp`, to match the
+factory that builds it). Build clients through the factories instead, which
+take the same arguments:
 
 Example 3.x code:
 ```python
@@ -70,8 +71,8 @@ realtime = create_realtime_client(key='xxx')
 ```
 
 Where you previously annotated against `AblyRest` or `AblyRealtime`, use the
-prototypes the factories return — `ably.pubsub.server.RestClient` and
-`ably.pubsub.server.RealtimeClient`. These are `typing.Protocol` definitions
+prototypes the factories return — `ably.pubsub.server.PubSubHttpClient` and
+`ably.pubsub.server.PubSubRealtimeClient`. These are `typing.Protocol` definitions
 describing the client surface, so `Protocol` support raises the minimum
 supported Python to 3.8 (which the CI matrix and README already assumed).
 
