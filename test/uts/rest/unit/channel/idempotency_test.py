@@ -12,10 +12,6 @@ from ably.types.message import Message
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 
-# The library's base id is base64 of 12 random bytes, so 16 characters of the standard
-# alphabet. The alphabet contains no ":", so splitting an id on ":" always yields two parts.
-BASE_ID_PATTERN = re.compile(r'[A-Za-z0-9+/]+={0,2}')
-
 
 def random_id():
     return uuid.uuid4().hex[:8]
@@ -76,11 +72,8 @@ async def test_rsl1k2_message_id_format():
     parts = message_id.split(':')
     assert len(parts) == 2
 
-    # UTS SPEC ERROR: RSL1k2 - the spec requires the base to match "[A-Za-z0-9_-]+", i.e.
-    # URL-safe base64, but RSL1k1 in the features spec only asks for "a base id string by
-    # base64-encoding a sequence of at least 9 bytes"; ably-python uses the standard
-    # alphabet, so a base id may contain "+" or "/". Asserting plain base64.
-    assert BASE_ID_PATTERN.fullmatch(parts[0])
+    # First part is base64-encoded (url-safe)
+    assert re.fullmatch(r'[A-Za-z0-9_-]+', parts[0])
     assert len(parts[0]) >= 12  # At least 9 bytes base64 encoded
 
     # Second part is a serial number (starting from 0)

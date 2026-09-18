@@ -160,11 +160,7 @@ async def test_rsan1c4_idempotent_id_generated():
     # Format: <base64>:0
     parts = annotation_id.split(':')
     assert len(parts) == 2
-    # UTS SPEC ERROR: RSAN1c4 - the spec asserts the random part matches "[A-Za-z0-9_-]+",
-    # the URL-safe base64 alphabet, but the features spec requires only "base64-encoding a
-    # sequence of at least 9 bytes"; standard base64 also emits '+' and '/', so the spec's
-    # pattern rejects roughly a quarter of conforming ids at random.
-    assert re.fullmatch(r'[A-Za-z0-9+/=_-]+', parts[0])
+    assert re.fullmatch(r'[A-Za-z0-9_-]+', parts[0])
     assert len(parts[0]) >= 12  # At least 9 bytes base64 encoded
     assert parts[1] == '0'
 

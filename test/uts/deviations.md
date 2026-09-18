@@ -50,9 +50,13 @@ The cost is coverage: TI2, TI3 and TI5 *as specified* are untested by the suite.
 
 `RSL1k2/message-id-format-0` and `RSAN1c4/idempotent-id-generated-0` assert
 `[A-Za-z0-9_-]+`. `features.md` RSL1k1 requires only "base64-encoding a sequence of
-at least 9 bytes" and names no alphabet. ably-python uses the standard alphabet, so
-roughly a third of generated ids contain `+` or `/`. The assertion is intermittently
-false for any SDK that does the same, ably-js included.
+at least 9 bytes" and names no alphabet, so the specification is stricter than its
+source and rejects a conforming SDK's ids at random. ably-js encodes with the
+standard alphabet and would fail both.
+
+ably-python now encodes URL-safe, so both tests are derived and pass. That settles
+the tests, not the specification: RSL1k1 still needs either to name the alphabet or
+to let the tests accept both.
 
 ### Wire encodings contradict the features spec
 
