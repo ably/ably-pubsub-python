@@ -19,10 +19,14 @@ from here.
 """
 
 from ably.pubsub.http.auth import Auth
-from ably.pubsub.http.http import AblyHttp as _AblyHttp
+from ably.pubsub.http.channel import Channels as HttpChannels
+from ably.pubsub.http.http import DefaultPubSubHttpClient as _DefaultPubSubHttpClient
 from ably.pubsub.http.push import Push
 from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
-from ably.pubsub.realtime.realtime import AblyRealtime as _AblyRealtime
+from ably.pubsub.realtime.channel import Channels as RealtimeChannels
+from ably.pubsub.realtime.connection import Connection
+from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient as _DefaultPubSubRealtimeClient
+from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult
 from ably.pubsub.types.annotation import Annotation, AnnotationAction
 from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.channelmode import ChannelMode
@@ -157,7 +161,7 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         `environment`, `rest_host` or `realtime_host`.
     """
     with factory_construction():
-        return _AblyHttp(**kwargs)
+        return _DefaultPubSubHttpClient(**kwargs)
 
 
 def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
@@ -234,7 +238,7 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
         `environment`, `rest_host` or `realtime_host`.
     """
     with factory_construction():
-        return _AblyRealtime(**kwargs)
+        return _DefaultPubSubRealtimeClient(**kwargs)
 
 
 __all__ = [
@@ -248,17 +252,22 @@ __all__ = [
     'ChannelMode',
     'ChannelOptions',
     'CipherParams',
+    'Connection',
     'DeviceDetails',
+    'HttpChannels',
+    'HttpPaginatedResponse',
     'IncompatibleClientIdException',
     'MessageAction',
     'MessageOperation',
     'MessageVersion',
     'Options',
+    'PaginatedResult',
     'PubSubHttpClient',
     'PubSubRealtimeClient',
     'PublishResult',
     'Push',
     'PushChannelSubscription',
+    'RealtimeChannels',
     'TokenDetails',
     'UpdateDeleteResult',
     'VCDiffDecoder',

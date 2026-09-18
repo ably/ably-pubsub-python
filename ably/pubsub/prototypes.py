@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from ably.pubsub.http.push import Push
     from ably.pubsub.realtime.channel import Channels as RealtimeChannels
     from ably.pubsub.realtime.connection import Connection
-    from ably.pubsub.request.http import Http
     from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult
     from ably.pubsub.types.options import Options
 
@@ -52,11 +51,6 @@ class PubSubHttpClient(Protocol):
     @property
     def client_id(self) -> str | None:
         """The client ID this client authenticates as, if any."""
-        ...
-
-    @property
-    def http(self) -> Http:
-        """The HTTP transport this client sends requests over."""
         ...
 
     @property

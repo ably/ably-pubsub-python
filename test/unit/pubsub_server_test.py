@@ -5,11 +5,11 @@ import pytest
 
 import ably.pubsub.server as server
 import ably.pubsub.server.sync as server_sync
-from ably.pubsub.http.http import AblyHttp
+from ably.pubsub.http.http import DefaultPubSubHttpClient
 from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
-from ably.pubsub.realtime.realtime import AblyRealtime
+from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient
 from ably.pubsub.server import create_http_client, create_realtime_client
-from ably.pubsub.sync.http.http import AblyHttpSync
+from ably.pubsub.sync.http.http import DefaultPubSubHttpClientSync
 from ably.pubsub.sync.prototypes import PubSubHttpClient as PubSubHttpClientSync
 
 
@@ -67,15 +67,15 @@ def parameter_shape(member):
 class TestFactories:
     def test_http_factory_returns_a_client(self):
         client = create_http_client(token='foo')
-        assert isinstance(client, AblyHttp)
+        assert isinstance(client, DefaultPubSubHttpClient)
 
     async def test_realtime_factory_returns_a_client(self):
         client = create_realtime_client(key='foo:bar', auto_connect=False)
-        assert isinstance(client, AblyRealtime)
+        assert isinstance(client, DefaultPubSubRealtimeClient)
         await client.close()
 
     def test_sync_http_factory_returns_a_client(self):
-        assert isinstance(server_sync.create_http_client(token='foo'), AblyHttpSync)
+        assert isinstance(server_sync.create_http_client(token='foo'), DefaultPubSubHttpClientSync)
 
     def test_factory_passes_options_through(self):
         client = create_http_client(token='foo', client_id='me')
@@ -85,41 +85,41 @@ class TestFactories:
 class TestConstructorsAreInternal:
     def test_rest_constructor_is_rejected(self):
         with pytest.raises(TypeError) as excinfo:
-            AblyHttp(token='foo')
+            DefaultPubSubHttpClient(token='foo')
         assert 'ably.pubsub.server.create_http_client' in str(excinfo.value)
 
     def test_realtime_constructor_is_rejected(self):
         with pytest.raises(TypeError) as excinfo:
-            AblyRealtime(key='foo:bar', auto_connect=False)
+            DefaultPubSubRealtimeClient(key='foo:bar', auto_connect=False)
         assert 'ably.pubsub.server.create_realtime_client' in str(excinfo.value)
 
     def test_sync_rest_constructor_is_rejected(self):
         with pytest.raises(TypeError) as excinfo:
-            AblyHttpSync(token='foo')
+            DefaultPubSubHttpClientSync(token='foo')
         assert 'ably.pubsub.server.sync.create_http_client' in str(excinfo.value)
 
     def test_permission_does_not_leak_past_the_factory(self):
         create_http_client(token='foo')
         with pytest.raises(TypeError):
-            AblyHttp(token='foo')
+            DefaultPubSubHttpClient(token='foo')
 
-    @pytest.mark.parametrize('name', ['AblyHttp', 'AblyRealtime'])
+    @pytest.mark.parametrize('name', ['DefaultPubSubHttpClient', 'DefaultPubSubRealtimeClient'])
     def test_client_classes_are_not_exported(self, name):
         assert not hasattr(server, name)
         assert name not in server.__all__
 
     def test_sync_client_class_is_not_exported(self):
-        assert not hasattr(server_sync, 'AblyHttpSync')
-        assert 'AblyHttpSync' not in server_sync.__all__
+        assert not hasattr(server_sync, 'DefaultPubSubHttpClientSync')
+        assert 'DefaultPubSubHttpClientSync' not in server_sync.__all__
 
 
 # Every prototype paired with the client declared to implement it, the
 # synchronous flavour included — unasync generates both sides of that pair,
 # so the pairing is worth checking rather than assuming.
 PROTOTYPE_IMPLEMENTATIONS = [
-    (PubSubHttpClient, AblyHttp),
-    (PubSubRealtimeClient, AblyRealtime),
-    (PubSubHttpClientSync, AblyHttpSync),
+    (PubSubHttpClient, DefaultPubSubHttpClient),
+    (PubSubRealtimeClient, DefaultPubSubRealtimeClient),
+    (PubSubHttpClientSync, DefaultPubSubHttpClientSync),
 ]
 
 

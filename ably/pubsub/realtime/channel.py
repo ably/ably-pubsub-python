@@ -24,7 +24,7 @@ from ably.pubsub.util.exceptions import AblyException, IncompatibleClientIdExcep
 from ably.pubsub.util.helper import Timer, is_callable_or_coroutine, validate_message_size
 
 if TYPE_CHECKING:
-    from ably.pubsub.realtime.realtime import AblyRealtime
+    from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,8 @@ class RealtimeChannel(EventEmitter, Channel):
         Unsubscribe to messages from a channel
     """
 
-    def __init__(self, realtime: AblyRealtime, name: str, channel_options: ChannelOptions | None = None):
+    def __init__(self, realtime: DefaultPubSubRealtimeClient, name: str,
+                 channel_options: ChannelOptions | None = None):
         EventEmitter.__init__(self)
         self.__name = name
         self.__realtime = realtime

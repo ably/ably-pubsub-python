@@ -12,8 +12,8 @@ import httpx
 from ably.pubsub.types.options import Options
 
 if TYPE_CHECKING:
-    from ably.pubsub.http.http import AblyHttp
-    from ably.pubsub.realtime.realtime import AblyRealtime
+    from ably.pubsub.http.http import DefaultPubSubHttpClient
+    from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient
 
 from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.tokendetails import TokenDetails
@@ -31,7 +31,7 @@ class Auth:
         BASIC = "BASIC"
         TOKEN = "TOKEN"
 
-    def __init__(self, ably: AblyHttp | AblyRealtime, options: Options):
+    def __init__(self, ably: DefaultPubSubHttpClient | DefaultPubSubRealtimeClient, options: Options):
         self.__ably = ably
         self.__auth_options = options
 

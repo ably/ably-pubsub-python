@@ -17,12 +17,16 @@ from ably.pubsub.util.exceptions import AblyException, catch_all
 log = logging.getLogger(__name__)
 
 
-class AblyHttp(PubSubHttpClient):
-    """Ably HTTP Client"""
+class DefaultPubSubHttpClient(PubSubHttpClient):
+    """The default :class:`~ably.pubsub.prototypes.PubSubHttpClient` implementation.
+
+    Built by :func:`ably.pubsub.server.create_http_client`, which is the only
+    way to construct one.
+    """
 
     def __init__(self, key: Optional[str] = None, token: Optional[str] = None,
                  token_details: Optional[TokenDetails] = None, **kwargs):
-        """Create an AblyHttp instance.
+        """Create an DefaultPubSubHttpClient instance.
 
         :Parameters:
           **Credentials**
