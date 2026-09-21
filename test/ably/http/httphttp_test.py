@@ -17,7 +17,7 @@ from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 
 
-class TestRestHttp(BaseAsyncTestCase):
+class TestHttpHttp(BaseAsyncTestCase):
     async def test_max_retry_attempts_and_timeouts_defaults(self):
         ably = create_http_client(token="foo")
         assert 'http_open_timeout' in ably.http.CONNECTION_RETRY_DEFAULTS

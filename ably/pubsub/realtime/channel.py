@@ -4,11 +4,11 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from ably.pubsub.http.channel import Channel
+from ably.pubsub.http.channel import Channels as HttpChannels
 from ably.pubsub.realtime.annotations import RealtimeAnnotations
 from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.realtime.presence import RealtimePresence
-from ably.pubsub.rest.channel import Channel
-from ably.pubsub.rest.channel import Channels as RestChannels
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.annotation import Annotation
 from ably.pubsub.types.channelmode import ChannelMode, decode_channel_mode, encode_channel_mode
@@ -24,7 +24,7 @@ from ably.pubsub.util.exceptions import AblyException, IncompatibleClientIdExcep
 from ably.pubsub.util.helper import Timer, is_callable_or_coroutine, validate_message_size
 
 if TYPE_CHECKING:
-    from ably.pubsub.realtime.realtime import AblyRealtime
+    from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +54,8 @@ class RealtimeChannel(EventEmitter, Channel):
         Unsubscribe to messages from a channel
     """
 
-    def __init__(self, realtime: AblyRealtime, name: str, channel_options: ChannelOptions | None = None):
+    def __init__(self, realtime: DefaultPubSubRealtimeClient, name: str,
+                 channel_options: ChannelOptions | None = None):
         EventEmitter.__init__(self)
         self.__name = name
         self.__realtime = realtime
@@ -407,7 +408,7 @@ class RealtimeChannel(EventEmitter, Channel):
                         400, 40012)
 
 
-        # Encode messages (RTL6a: same encoding as RestChannel#publish)
+        # Encode messages (RTL6a: same encoding as HttpChannel#publish)
         encoded_messages = []
         for m in messages:
             # Encode the message with encryption if needed
@@ -960,7 +961,7 @@ class RealtimeChannel(EventEmitter, Channel):
         return flags
 
 
-class Channels(RestChannels):
+class Channels(HttpChannels):
     """Creates and destroys RealtimeChannel objects.
 
     Methods

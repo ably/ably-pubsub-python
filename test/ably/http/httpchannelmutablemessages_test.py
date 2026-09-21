@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 
 @pytest.mark.parametrize("transport", ["json", "msgpack"], ids=["JSON", "MsgPack"])
-class TestRestChannelMutableMessages(BaseAsyncTestCase):
+class TestHttpChannelMutableMessages(BaseAsyncTestCase):
 
     @pytest.fixture(autouse=True)
     async def setup(self, transport):

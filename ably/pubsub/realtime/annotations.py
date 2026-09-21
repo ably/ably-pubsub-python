@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ably.pubsub.rest.annotations import RestAnnotations, construct_validate_annotation
+from ably.pubsub.http.annotations import HttpAnnotations, construct_validate_annotation
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.annotation import Annotation, AnnotationAction
 from ably.pubsub.types.channelmode import ChannelMode
@@ -37,7 +37,7 @@ class RealtimeAnnotations:
         self.__channel = channel
         self.__connection_manager = connection_manager
         self.__subscriptions = EventEmitter()
-        self.__rest_annotations = RestAnnotations(channel)
+        self.__http_annotations = HttpAnnotations(channel)
 
     async def __send_annotation(self, annotation: Annotation, params: dict | None = None):
         """
@@ -264,4 +264,4 @@ class RealtimeAnnotations:
             AblyException: If the request fails or serial is invalid
         """
         # Delegate to REST implementation
-        return await self.__rest_annotations.get(msg_or_serial, params)
+        return await self.__http_annotations.get(msg_or_serial, params)

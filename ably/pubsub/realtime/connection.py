@@ -12,7 +12,7 @@ from ably.pubsub.util.eventemitter import EventEmitter
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.realtime.realtime import AblyRealtime
+    from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class Connection(EventEmitter):  # RTN4
         Pings a realtime connection
     """
 
-    def __init__(self, realtime: AblyRealtime):
+    def __init__(self, realtime: DefaultPubSubRealtimeClient):
         self.__realtime = realtime
         self.__error_reason: AblyException | None = None
         self.__state = ConnectionState.CONNECTING if realtime.options.auto_connect else ConnectionState.INITIALIZED

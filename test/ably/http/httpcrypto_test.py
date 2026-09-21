@@ -16,7 +16,7 @@ from test.ably.utils import BaseAsyncTestCase, BaseTestCase, VaryByProtocolTests
 log = logging.getLogger(__name__)
 
 
-class TestRestCrypto(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
+class TestHttpCrypto(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @pytest.fixture(autouse=True)
     async def setup(self):

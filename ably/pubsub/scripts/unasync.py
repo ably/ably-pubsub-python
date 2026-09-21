@@ -5,7 +5,7 @@ import tokenize as std_tokenize
 import tokenize_rt
 
 rename_classes = [
-    "AblyRest",
+    "DefaultPubSubHttpClient",
     "Push",
     "PushAdmin",
     "Channel",
@@ -282,15 +282,16 @@ def run():
     _IMPORTS_REPLACE["test.ably"] = "test.ably.sync"
 
     _STRING_REPLACE['/../assets/testAppSpec.json'] = '/../../assets/testAppSpec.json'
-    _STRING_REPLACE['ably.pubsub.rest.auth.Auth.request_token'] = \
-        'ably.pubsub.sync.rest.auth.AuthSync.request_token'
-    _STRING_REPLACE['ably.pubsub.rest.auth.TokenRequest'] = 'ably.pubsub.sync.rest.auth.TokenRequest'
-    _STRING_REPLACE['ably.pubsub.rest.rest.Http.post'] = 'ably.pubsub.sync.rest.rest.HttpSync.post'
+    _STRING_REPLACE['ably.pubsub.http.auth.Auth.request_token'] = \
+        'ably.pubsub.sync.http.auth.AuthSync.request_token'
+    _STRING_REPLACE['ably.pubsub.http.auth.TokenRequest'] = 'ably.pubsub.sync.http.auth.TokenRequest'
+    _STRING_REPLACE['ably.pubsub.http.http.Http.post'] = 'ably.pubsub.sync.http.http.HttpSync.post'
     _STRING_REPLACE['httpx.AsyncClient.send'] = 'httpx.Client.send'
     _STRING_REPLACE['ably.pubsub.util.exceptions.AblyException.raise_for_response'] = \
         'ably.pubsub.sync.util.exceptions.AblyException.raise_for_response'
-    _STRING_REPLACE['ably.pubsub.rest.rest.AblyRest.time'] = 'ably.pubsub.sync.rest.rest.AblyRestSync.time'
-    _STRING_REPLACE['ably.pubsub.rest.auth.Auth._timestamp'] = 'ably.pubsub.sync.rest.auth.AuthSync._timestamp'
+    _STRING_REPLACE['ably.pubsub.http.http.DefaultPubSubHttpClient.time'] = \
+        'ably.pubsub.sync.http.http.DefaultPubSubHttpClientSync.time'
+    _STRING_REPLACE['ably.pubsub.http.auth.Auth._timestamp'] = 'ably.pubsub.sync.http.auth.AuthSync._timestamp'
 
     # round 1
     src_dir_path = os.path.join(os.getcwd(), "test", "ably")
@@ -301,8 +302,8 @@ def run():
     unasync_files(src_files, [Rule(fromdir=src_dir_path, todir=dest_dir_path)])
 
     # round 2
-    src_dir_path = os.path.join(os.getcwd(), "test", "ably", "rest")
-    dest_dir_path = os.path.join(os.getcwd(), "test", "ably", "sync", "rest")
+    src_dir_path = os.path.join(os.getcwd(), "test", "ably", "http")
+    dest_dir_path = os.path.join(os.getcwd(), "test", "ably", "sync", "http")
     src_files = find_files(src_dir_path, "*.py")
 
     unasync_files(src_files, [Rule(fromdir=src_dir_path, todir=dest_dir_path, output_file_prefix="sync_")])

@@ -2,7 +2,7 @@ from collections.abc import Iterable
 
 import pytest
 
-from ably.pubsub.rest.channel import Channel, Channels, Presence
+from ably.pubsub.http.channel import Channel, Channels, Presence
 from ably.pubsub.server import AblyException
 from ably.pubsub.util.crypto import generate_random_key
 from test.ably.testapp import TestApp

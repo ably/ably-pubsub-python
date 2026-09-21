@@ -8,8 +8,8 @@ from urllib import parse
 
 import msgpack
 
-from ably.pubsub.http.paginatedresult import PaginatedResult, format_params
-from ably.pubsub.rest.annotations import RestAnnotations
+from ably.pubsub.http.annotations import HttpAnnotations
+from ably.pubsub.request.paginatedresult import PaginatedResult, format_params
 from ably.pubsub.types.channeldetails import ChannelDetails
 from ably.pubsub.types.message import (
     Message,
@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 
 
 class Channel:
-    __annotations: RestAnnotations
+    __annotations: HttpAnnotations
 
     def __init__(self, ably, name, options):
         self.__ably = ably
@@ -40,7 +40,7 @@ class Channel:
         self.__cipher = None
         self.options = options
         self.__presence = Presence(self)
-        self.__annotations = RestAnnotations(self)
+        self.__annotations = HttpAnnotations(self)
 
     @catch_all
     async def history(self, direction=None, limit: int = None, start=None, end=None):
@@ -370,7 +370,7 @@ class Channel:
         return self.__presence
 
     @property
-    def annotations(self) -> RestAnnotations:
+    def annotations(self) -> HttpAnnotations:
         return self.__annotations
 
     @options.setter

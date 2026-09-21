@@ -6,7 +6,7 @@ from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
 
 
-class TestRestCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
+class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @pytest.fixture(autouse=True)
     async def setup(self):

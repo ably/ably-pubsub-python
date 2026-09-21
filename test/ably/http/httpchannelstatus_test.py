@@ -8,7 +8,7 @@ from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass
 log = logging.getLogger(__name__)
 
 
-class TestRestChannelStatus(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
+class TestHttpChannelStatus(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @pytest.fixture(autouse=True)
     async def setup(self):

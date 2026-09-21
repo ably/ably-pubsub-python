@@ -2,17 +2,21 @@ import asyncio
 import logging
 from typing import Optional
 
+from ably.pubsub.http.http import DefaultPubSubHttpClient
+from ably.pubsub.prototypes import PubSubRealtimeClient
 from ably.pubsub.realtime.channel import Channels
 from ably.pubsub.realtime.connection import Connection, ConnectionState
-from ably.pubsub.rest.rest import AblyRest
 from ably.pubsub.util.construction import reject_direct_construction
 
 log = logging.getLogger(__name__)
 
 
-class AblyRealtime(AblyRest):
+class DefaultPubSubRealtimeClient(DefaultPubSubHttpClient, PubSubRealtimeClient):
     """
-    Ably Realtime Client
+    The default :class:`~ably.pubsub.prototypes.PubSubRealtimeClient` implementation.
+
+    Built by :func:`ably.pubsub.server.create_realtime_client`, which is the
+    only way to construct one.
 
     Attributes
     ----------
@@ -36,7 +40,7 @@ class AblyRealtime(AblyRest):
     """
 
     def __init__(self, key: Optional[str] = None, loop: Optional[asyncio.AbstractEventLoop] = None, **kwargs):
-        """Constructs a RealtimeClient object using an Ably API key.
+        """Constructs a PubSubRealtimeClient object using an Ably API key.
 
         Parameters
         ----------

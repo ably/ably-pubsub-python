@@ -10,7 +10,7 @@ from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
 
 
-class TestRestInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
+class TestHttpInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @pytest.fixture(autouse=True)
     async def setup(self):
@@ -168,8 +168,8 @@ class TestRestInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
                                            use_binary_protocol=self.use_binary_protocol)
 
         timestamp = ably.auth._timestamp
-        with patch('ably.pubsub.rest.rest.AblyRest.time', wraps=ably.time) as server_time,\
-                patch('ably.pubsub.rest.auth.Auth._timestamp', wraps=timestamp) as local_time:
+        with patch('ably.pubsub.http.http.DefaultPubSubHttpClient.time', wraps=ably.time) as server_time,\
+                patch('ably.pubsub.http.auth.Auth._timestamp', wraps=timestamp) as local_time:
             await ably.auth.request_token()
             assert local_time.call_count == 1
             assert server_time.call_count == 1

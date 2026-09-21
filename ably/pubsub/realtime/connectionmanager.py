@@ -21,7 +21,7 @@ from ably.pubsub.util.exceptions import AblyException, IncompatibleClientIdExcep
 from ably.pubsub.util.helper import Timer, get_random_id, is_token_error
 
 if TYPE_CHECKING:
-    from ably.pubsub.realtime.realtime import AblyRealtime
+    from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient
 
 log = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class PendingPing:
 
 
 class ConnectionManager(EventEmitter):
-    def __init__(self, realtime: AblyRealtime, initial_state):
+    def __init__(self, realtime: DefaultPubSubRealtimeClient, initial_state):
         self.options = realtime.options
         self.__ably = realtime
         self.__state: ConnectionState = initial_state
