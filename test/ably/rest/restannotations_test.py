@@ -4,9 +4,9 @@ import string
 
 import pytest
 
-from ably import AblyException
-from ably.types.annotation import Annotation, AnnotationAction
-from ably.types.message import Message
+from ably.pubsub.server import AblyException
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.message import Message
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, assert_waiter
 

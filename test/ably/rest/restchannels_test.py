@@ -2,9 +2,9 @@ from collections.abc import Iterable
 
 import pytest
 
-from ably import AblyException
-from ably.rest.channel import Channel, Channels, Presence
-from ably.util.crypto import generate_random_key
+from ably.pubsub.rest.channel import Channel, Channels, Presence
+from ably.pubsub.server import AblyException
+from ably.pubsub.util.crypto import generate_random_key
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 

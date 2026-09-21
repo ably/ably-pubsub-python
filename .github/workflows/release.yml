@@ -42,27 +42,27 @@ jobs:
         with:
           name: python-package-distributions
           path: dist/
-      - name: Check that wheel and tarball contains ably/sync/
+      - name: Check that wheel and tarball contains ably/pubsub/sync/
         run: |
           # Check wheel
           WHEEL=$(ls dist/*.whl | head -n 1)
           echo "Checking wheel: $WHEEL"
-          if unzip -l "$WHEEL" | grep -q "ably/sync/"; then
-            echo "✅ Found ably/sync/ in wheel"
+          if unzip -l "$WHEEL" | grep -q "ably/pubsub/sync/"; then
+            echo "✅ Found ably/pubsub/sync/ in wheel"
           else
             unzip -l "$WHEEL" 
-            echo "❌ ably/sync/ not found in wheel"
+            echo "❌ ably/pubsub/sync/ not found in wheel"
             exit 1
           fi
           
           # Check tarball
           TARBALL=$(ls dist/*.tar.gz | head -n 1)
           echo "Checking tarball: $TARBALL"
-          if tar -tzf "$TARBALL" | grep -q "ably/sync/"; then
-            echo "✅ Found ably/sync/ in tarball"
+          if tar -tzf "$TARBALL" | grep -q "ably/pubsub/sync/"; then
+            echo "✅ Found ably/pubsub/sync/ in tarball"
           else
             tar -tzf "$TARBALL"
-            echo "❌ ably/sync/ not found in tarball"
+            echo "❌ ably/pubsub/sync/ not found in tarball"
             exit 1
           fi
 

@@ -3,10 +3,10 @@ import json
 
 import pytest
 
-from ably import AblyVCDiffDecoder
-from ably.realtime.connection import ConnectionState
-from ably.types.channeloptions import ChannelOptions
-from ably.types.options import VCDiffDecoder
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.server import AblyVCDiffDecoder
+from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.options import VCDiffDecoder
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, WaitableEvent
 

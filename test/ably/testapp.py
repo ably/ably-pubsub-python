@@ -2,12 +2,15 @@ import json
 import logging
 import os
 
-from ably.realtime.realtime import AblyRealtime
-from ably.rest.rest import AblyRest
-from ably.transport.defaults import Defaults
-from ably.types.capability import Capability
-from ably.types.options import Options
-from ably.util.exceptions import AblyException
+# unasync rewrites `from ably.pubsub.server import ...` to the sync package, which
+# is HTTP-only. Reaching the realtime factory through the module keeps the
+# generated sync copy of this helper importable; it has no realtime tests.
+import ably.pubsub.server
+from ably.pubsub.server import create_http_client
+from ably.pubsub.transport.defaults import Defaults
+from ably.pubsub.types.capability import Capability
+from ably.pubsub.types.options import Options
+from ably.pubsub.util.exceptions import AblyException
 
 log = logging.getLogger(__name__)
 
@@ -20,10 +23,13 @@ endpoint = os.environ.get('ABLY_ENDPOINT', 'nonprod:sandbox')
 port = 80
 tls_port = 443
 
-ably = AblyRest(token='not_a_real_token',
-                port=port, tls_port=tls_port, tls=tls,
-                endpoint=endpoint,
-                use_binary_protocol=False)
+# Not named `ably`: that would shadow the `ably` package imported above, and
+# `ably.pubsub.server.create_realtime_client` below would resolve against this
+# client instead of the module.
+app_setup_client = create_http_client(token='not_a_real_token',
+                                      port=port, tls_port=tls_port, tls=tls,
+                                      endpoint=endpoint,
+                                      use_binary_protocol=False)
 
 
 class TestApp:
@@ -32,7 +38,7 @@ class TestApp:
     @staticmethod
     async def get_test_vars():
         if not TestApp.__test_vars:
-            r = await ably.http.post("/apps", body=app_spec_local, skip_auth=True)
+            r = await app_setup_client.http.post("/apps", body=app_spec_local, skip_auth=True)
             AblyException.raise_for_response(r)
 
             app_spec = r.json()
@@ -65,13 +71,13 @@ class TestApp:
         test_vars = await TestApp.get_test_vars()
         options = TestApp.get_options(test_vars, **kw)
         options.update(kw)
-        return AblyRest(**options)
+        return create_http_client(**options)
 
     @staticmethod
     async def get_ably_realtime(**kw):
         test_vars = await TestApp.get_test_vars()
         options = TestApp.get_options(test_vars, **kw)
-        return AblyRealtime(**options)
+        return ably.pubsub.server.create_realtime_client(**options)
 
     @staticmethod
     def get_options(test_vars, **kwargs):

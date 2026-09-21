@@ -5,10 +5,10 @@ import string
 
 import pytest
 
-from ably.types.annotation import Annotation, AnnotationAction
-from ably.types.channelmode import ChannelMode
-from ably.types.channeloptions import ChannelOptions
-from ably.types.message import MessageAction
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.channelmode import ChannelMode
+from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.message import MessageAction
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, ReusableFuture, assert_waiter
 
@@ -332,7 +332,7 @@ class TestRealtimeAnnotations(BaseAsyncTestCase):
             pass
 
         # RTAN4e: Should log a warning (not raise), and still register the listener
-        with caplog.at_level(logging.WARNING, logger='ably.realtime.annotations'):
+        with caplog.at_level(logging.WARNING, logger='ably.pubsub.realtime.annotations'):
             await channel.annotations.subscribe(on_annotation)
 
         # Verify warning was logged mentioning the missing mode

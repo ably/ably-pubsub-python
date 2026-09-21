@@ -3,9 +3,9 @@ from typing import List
 
 import pytest
 
-from ably import AblyException, CipherParams, MessageAction
-from ably.types.message import Message
-from ably.types.operations import MessageOperation
+from ably.pubsub.server import AblyException, CipherParams, MessageAction
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.operations import MessageOperation
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, WaitableEvent, assert_waiter
 
