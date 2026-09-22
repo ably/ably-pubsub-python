@@ -53,7 +53,7 @@ class AblyException(Exception):
                     status_code=error['statusCode'],
                     code=int(error['code']),
                 )
-            except KeyError:
+            except (KeyError, TypeError):
                 msg = "Unexpected exception decoding server response: %s"
                 msg = msg % response.text
                 raise AblyException(message=msg, status_code=500, code=50000) from None

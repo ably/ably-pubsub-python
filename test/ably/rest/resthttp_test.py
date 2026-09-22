@@ -10,6 +10,7 @@ import respx
 from httpx import Response
 
 from ably import AblyRest
+from ably.http.httputils import HttpUtils
 from ably.transport.defaults import Defaults
 from ably.types.options import Options
 from ably.util.exceptions import AblyException
@@ -18,6 +19,15 @@ from test.ably.utils import BaseAsyncTestCase
 
 
 class TestRestHttp(BaseAsyncTestCase):
+    async def test_host_for_url_brackets_only_ipv6_literals(self):
+        assert HttpUtils.host_for_url('::1') == '[::1]'
+        assert HttpUtils.host_for_url('2001:db8::1') == '[2001:db8::1]'
+
+        # A colon alone does not make a host an IPv6 literal
+        assert HttpUtils.host_for_url('rest.ably.io') == 'rest.ably.io'
+        assert HttpUtils.host_for_url('https://www.google.com') == 'https://www.google.com'
+        assert HttpUtils.host_for_url('[::1]') == '[::1]'
+
     async def test_max_retry_attempts_and_timeouts_defaults(self):
         ably = AblyRest(token="foo")
         assert 'http_open_timeout' in ably.http.CONNECTION_RETRY_DEFAULTS

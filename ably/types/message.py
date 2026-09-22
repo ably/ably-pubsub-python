@@ -293,7 +293,7 @@ class Message(EncodeDataMixin):
         client_id = obj.get('clientId')
         connection_id = obj.get('connectionId')
         timestamp = obj.get('timestamp')
-        encoding = obj.get('encoding', '')
+        encoding = obj.get('encoding') or ''
         extras = obj.get('extras', None)
         serial = obj.get('serial')
         action = obj.get('action')

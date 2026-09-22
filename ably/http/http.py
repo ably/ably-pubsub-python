@@ -104,7 +104,7 @@ class Response:
             elif content_type.startswith('application/json'):
                 return self.__response.json()
 
-        raise ValueError("Unsupported content type")
+        raise AblyException("Unsupported content type", 400, 40013)
 
     @property
     def response(self):
@@ -118,6 +118,7 @@ class Http:
     CONNECTION_RETRY_DEFAULTS = {
         'http_open_timeout': 4,
         'http_request_timeout': 10,
+        'http_max_retry_count': 3,
         'http_max_retry_duration': 15,
     }
 
@@ -200,7 +201,7 @@ class Http:
                 # if it's the last try or cumulative timeout is done, we stop retrying
                 return retry_count == len(hosts) - 1 or time_passed > http_max_retry_duration
 
-            base_url = f"{self.preferred_scheme}://{host}:{self.preferred_port}"
+            base_url = f"{self.preferred_scheme}://{HttpUtils.host_for_url(host)}:{self.preferred_port}"
             url = urljoin(base_url, path)
 
             (clean_url, url_params) = extract_url_params(url)
