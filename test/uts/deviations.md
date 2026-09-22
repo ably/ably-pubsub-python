@@ -33,6 +33,8 @@ The tests gated this way:
 
 | Test | Spec error |
 |---|---|
+| `test_rsl1a_publish_message_array` | RSL1c - an object payload asserted to travel unstringified |
+| `test_rsl1k_mixed_ids_in_batch` | RSL1k - an absent id in a mixed batch asserted to be generated |
 
 | `test_rsp4_history_pagination` | RSP4 - wire action 4 asserted to be LEAVE |
 | `test_tp3_presence_to_json` | TP3 - an outgoing action asserted as the string `"enter"` |
@@ -85,6 +87,33 @@ The assertions are sound; the points they are filed under are not.
 | `idempotency.md` | RSL1k2 = id format, RSL1k3 = unique base | RSL1k1 is the id format, RSL1k2 client-supplied ids, RSL1k3 mixed batches. RSL1k4 and RSL1k5 are listed with no tests |
 
 The cost is coverage: TI2, TI3 and TI5 *as specified* are untested by the suite.
+
+### Generated message IDs are asserted to be URL-safe base64
+
+`RSL1k2/message-id-format-0` and `RSAN1c4/idempotent-id-generated-0` assert
+`[A-Za-z0-9_-]+`. `features.md` RSL1k1 requires only "base64-encoding a sequence of
+at least 9 bytes" and names no alphabet, so the specification is stricter than its
+source and rejects a conforming SDK's ids at random. ably-js encodes with the
+standard alphabet and would fail both.
+
+ably-python now encodes URL-safe, so both tests are derived and pass. That settles
+the tests, not the specification: RSL1k1 still needs either to name the alphabet or
+to let the tests accept both.
+
+### Wire encodings contradict the features spec
+
+- `publish.md` RSL1c asserts `body[1]["data"] == {"key": "value"}`. RSL4c3 and RSL4d3
+  require an object payload to be JSON-stringified with `encoding` set to `"json"`.
+- `publish.md` RSL1e asserts exact equality against a whole message body, which
+  cannot hold while idempotent publishing (RSL1k1, on by default) adds an `id`.
+- `RSL1k/mixed-ids-in-batch-1` expects a generated id for the id-less message in a
+  mixed batch. RSL1k1 generates ids only when every message lacks one, and RSL1k3
+  requires ids "present or absent" to be preserved.
+- `batch_publish.md` RSC22c6 asserts base64 with `encoding: "base64"` for binary
+  payloads, which is the RSL4d1 JSON-protocol branch. The test never sets
+  `useBinaryProtocol: false` and TO3f defaults it true, so RSL4c1 governs.
+- `auth_scheme.md` asserts a raw `Bearer <token>`. RSA3b makes Base64 optional, and
+  ably-python and ably-js both encode.
 
 ### Fixtures that cannot hold their stated values
 
@@ -148,9 +177,10 @@ the mark is the only change needed once the SDK behaviour lands.
 | Spec points | Missing | Tests |
 |---|---|---|
 
+| RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
 | RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` takes only `limit`, while `Presence.history` does take its documented params | 3 |
 | TP5 | `size` on `PresenceMessage`. The related `maxMessageSize` gap is adapted rather than gated, below; `features.md` TM6 has no UTS test | 1 |
-
+| RSL1i | REST publish never calls `validate_message_size`. The helper exists and is correct, but only `ably/realtime/channel.py:423` calls it, so an oversized REST publish goes out | 1 |
 | RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_handler` as a client option, and any use of `log_level` — it is stored on `Options` and read by nothing | 4 |
 | TI4, TI1/TI5 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors | 2 |
 | TP3a, TP3d, TP3g | Presence attributes defaulted from the encapsulating ProtocolMessage. There is no ProtocolMessage type; `ably/realtime/channel.py:751-761` passes the presence array through without context. Matters for synthesized-leave detection and `memberKey` | 3 |
@@ -174,10 +204,13 @@ comment above. These run, so they guard against regression.
 
 | Spec points | Specification | ably-python | Status |
 |---|---|---|---|
-
+| RSL2 | A space in a channel name is `%20` | `+`, from `parse.quote_plus` in `Channel.__init__`. `quote_plus` is form encoding, and a `+` in a URL *path* is a literal plus, so the name reaching the server is altered | Open bug, and a genuine correctness issue |
+| RSL8 | `Channel#status` URI-encodes the channel id | `status()` interpolates the name with no escaping at all. `a/b` addresses the wrong resource, `a?b` truncates the name into a query string, `a#b` becomes a fragment | Open bug |
+| RSL2, RSL11b, RSL15b | `:` is `%3A` | Left literal, from `safe=':'`. RFC 3986 allows `:` in a path segment and Ably uses it for namespaces, so the server receives the same value | Intentional |
 | RSC1b | Error code 40106 | A bare `ValueError` from `AblyRest.__init__` with an informative message, not an `AblyException`, so there is no code | Open bug |
 | RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
 | REC1b1, REC1c1 | Code 40000, or a message containing "invalid" or "conflict" | 400/40106 with a specific message. The features spec mandates no code | Cosmetic |
+| RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000 | Cosmetic; worth aligning cross-SDK |
 
 | HP6 | `errorCode` is a number | The raw header string, `'40101'` | Open bug, trivial |
 | HP8 | `headers` is a map | A list of `(name, value)` pairs, so the lookup the spec describes is impossible without converting, and case-insensitivity is lost | Open bug; changing the return type is breaking |
@@ -186,6 +219,8 @@ comment above. These run, so they guard against regression.
 | TI | `ErrorInfo` equality by attributes | No `__eq__`, so errors compare by identity. Python exceptions conventionally do, and the requirement appears nowhere in `features.md`. Adding `__eq__` without `__hash__` would make `AblyException` unhashable and break any caller that puts one in a set | Intentional |
 | TD5, RSA16a | `capability` is stringified JSON | A `Capability` object, a public convenience type used throughout `auth`. Narrowing the return type to `str` would break every caller that indexes or mutates it, so it is reserved for a future major | Intentional; a breaking change to align |
 
+| CHM2 | Missing metrics default to 0 | `ChannelMetrics.from_dict` uses a bare `obj.get(name)`, so any omitted metric parses as `None` | Open bug, broader than CHM2g/h |
+| CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
 | TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:422` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
 | TO3l1, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's values are milliseconds, while ably-python's `http_request_timeout` is seconds | Intentional |
 
