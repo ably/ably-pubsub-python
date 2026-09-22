@@ -57,17 +57,88 @@ and not filed, because ably-python's own encoding settles the tests either way. 
 references in these entries are against `ably/specification@d9a04ca`.
 
 
+### `/time` is stubbed as an object rather than an array
+
+`fallback.md` (~14 setups), `rest_client.md` (6), `request_endpoint.md` (4),
+`token_renewal.md` and `authorize.md` stub `/time` as `{"time": N}`. The endpoint
+returns a one-element array, which is what `time.md` itself uses and what RSC16
+describes. Any SDK that indexes the array raises.
+
+### Fallback tests contradict each other and the retry rules
+
+- `RSC15f/successful-fallback-cached-0` queues a response for one named fallback and
+  asserts it is chosen, which contradicts `RSC15a/fallback-random-order-0` in the
+  same file.
+- `RSC19d/response-status-code-0` and `response-success-indicator-1` queue a single
+  500, but RSC15l3 requires a 5xx to be retried against every fallback host, so the
+  first attempt consumes it.
+- `RSC15l4`'s CloudFront body `{"error": "Forbidden"}` is not a valid Ably error
+  shape; real CloudFront returns HTML.
+- Error bodies throughout omit `message` and `statusCode` while tests assert
+  `error.statusCode`. An SDK that reads the status from the payload cannot satisfy both.
+
+### Smaller faults
+
+| Spec | Fault |
+|---|---|
+
+| `channels_collection.md` | Header claims RSN3b and RSN3c; neither has a test |
+| `stats.md` | Fixture nests counts under `all`, which `Stats.from_dict` never reads |
+| `rest_client.md` | `RSC17` has two byte-identical tests; header lists RSC7 and RSC7b with no tests |
+| `rest_client.md` | `RSC18` requires constructor-time failure; RSA1/RSC18 only say "any attempt to use" |
+| `request.md` | `version` is written as an integer but lands in a header |
+| `fallback.md` | REC3a, REC3b and REC3 drive a Realtime client but sit in `rest/unit` |
+
 ## Failing Tests
 
 The specification's assertion is preserved and gated behind `@deviation`. Removing
 the mark is the only change needed once the SDK behaviour lands.
+
+### Unimplemented features
+
+| Spec points | Missing | Tests |
+|---|---|---|
+
+| RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_handler` as a client option, and any use of `log_level` — it is stored on `Options` and read by nothing | 4 |
+
+### Requests
+
+| Spec points | Behaviour |
+|---|---|
+| RSC19b | Caller-supplied headers override the configured `Authorization`, because `Http.make_request` applies `headers` after `auth_headers`. RSC19b says requests "unconditionally" use the configured mechanism |
 
 ## Adapted Tests
 
 The test asserts what the SDK does, with the specification's expectation in a
 comment above. These run, so they guard against regression.
 
+| Spec points | Specification | ably-python | Status |
+|---|---|---|---|
+
+| RSC1b | Error code 40106 | A bare `ValueError` from `AblyRest.__init__` with an informative message, not an `AblyException`, so there is no code | Open bug |
+| RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
+| REC1b1, REC1c1 | Code 40000, or a message containing "invalid" or "conflict" | 400/40106 with a specific message. The features spec mandates no code | Cosmetic |
+
+| RSC19e | An error indicated idiomatically | `httpx.ConnectError` / `ReadTimeout` reach the caller unwrapped, because `AblyRest.request` carries no `@catch_all` unlike `time()` and `stats()`. The messages do name the failure | Borderline; defensible under RSC19e |
+| RSC15a | Six hosts tried | Three. `Options.__get_hosts` truncates to `http_max_retry_count`, which TO3l5 sanctions | Intentional |
+
 ## Mock Infrastructure Limitations
+
+Tests that cannot be implemented as written. The first is caused by the SDK, not by
+the mock, but it lands here because the effect is the same: no test can observe the
+behaviour.
+
+### The connectivity check bypasses the injected transport — 3 tests
+
+`ConnectionManager.check_connection` is internal, synchronous, and calls
+`httpx.get` directly. `REC3a`, `REC3b` and `REC3` are skipped. These specs drive a
+Realtime client and belong under `realtime/unit` in any case.
+
+### `fallbackHostsUseDefault` is not implemented — 3 tests
+
+Optional per TO3k7, and `REC1b1` and `REC2a1` scope their checks to libraries that
+support it, so these are skipped as not applicable rather than recorded as
+deviations.
 
 ## How the specifications are adopted here
 
