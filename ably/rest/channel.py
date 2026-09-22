@@ -60,7 +60,7 @@ class Channel:
         if self.ably.options.idempotent_rest_publishing:
             # RSL1k1
             if all(message.id is None for message in messages):
-                base_id = base64.b64encode(os.urandom(12)).decode()
+                base_id = base64.urlsafe_b64encode(os.urandom(12)).decode()
                 for serial, message in enumerate(messages):
                     message.id = f'{base_id}:{serial}'
 
