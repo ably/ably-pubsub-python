@@ -45,3 +45,15 @@ def test_update_inner_message_fields_for_presence_msg_tm2():
         assert presence_msg.get('connectionId') == 'custom_connection_id'
         assert presence_msg.get('timestamp') == 23134
         msg_index = msg_index + 1
+
+
+# RSL6b
+def test_invalid_base64_data_is_delivered_with_remaining_encoding():
+    message = ably.types.message.Message.from_encoded({
+        'name': 'event',
+        'data': 'encrypted-data-here',
+        'encoding': 'custom-encryption/base64',
+    })
+
+    assert message.data == 'encrypted-data-here'
+    assert message.encoding == 'custom-encryption/base64'
