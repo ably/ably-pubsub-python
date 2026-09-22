@@ -245,6 +245,13 @@ class Http:
                     if should_stop_retrying() or not should_fallback:
                         raise e
 
+    async def request_external(self, method, url, headers=None, params=None, body=None):
+        """Performs a request to a URL outside the Ably endpoint.
+
+        Host fallback, authentication and the default headers do not apply.
+        """
+        return await self.__client.request(method=method, url=url, headers=headers, params=params, data=body)
+
     async def delete(self, url, headers=None, skip_auth=False, timeout=None):
         result = await self.make_request('DELETE', url, headers=headers,
                                          skip_auth=skip_auth, timeout=timeout)
