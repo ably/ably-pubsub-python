@@ -17,14 +17,15 @@ class TestRestRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
         self.ably = await TestApp.get_ably_rest()
         self.test_vars = await TestApp.get_test_vars()
 
-        # Populate the channel (using the new api)
         self.channel = self.get_channel_name()
         self.path = f'/channels/{self.channel}/messages'
-        for i in range(20):
-            body = {'name': f'event{i}', 'data': f'lorem ipsum {i}'}
-            await self.ably.request('POST', self.path, body=body, version=Defaults.protocol_version)
         yield
         await self.ably.close()
+
+    async def publish_messages(self, count):
+        for i in range(count):
+            body = {'name': f'event{i}', 'data': f'lorem ipsum {i}'}
+            await self.ably.request('POST', self.path, body=body, version=Defaults.protocol_version)
 
     def per_protocol_setup(self, use_binary_protocol):
         self.ably.options.use_binary_protocol = use_binary_protocol
@@ -42,6 +43,9 @@ class TestRestRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
         assert 'messageId' in result.items[0]
 
     async def test_get(self):
+        # Paging is exercised below, so the channel needs more messages than one page holds
+        await self.publish_messages(20)
+
         params = {'limit': 10, 'direction': 'forwards'}
         result = await self.ably.request('GET', self.path, params=params, version=Defaults.protocol_version)
 
