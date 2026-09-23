@@ -1,5 +1,13 @@
 # Change Log
 
+## [3.1.4](https://github.com/ably/ably-pubsub-python/tree/v3.1.4)
+
+[Full Changelog](https://github.com/ably/ably-pubsub-python/compare/v3.1.3...v3.1.4)
+
+### What's Changed
+
+- Fixed delta decoding so a protocol message carrying several chained delta messages decodes as a chain, instead of failing on the second message and dropping the whole batch [#707](https://github.com/ably/ably-pubsub-python/pull/707)
+
 ## [3.1.3](https://github.com/ably/ably-python/tree/v3.1.3)
 
 [Full Changelog](https://github.com/ably/ably-python/compare/v3.1.2...v3.1.3)
