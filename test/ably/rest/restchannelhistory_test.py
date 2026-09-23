@@ -15,7 +15,10 @@ class TestRestChannelHistory(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
 
     @pytest.fixture(autouse=True)
     async def setup(self):
-        self.ably = await TestApp.get_ably_rest(fallback_hosts=[])
+        # Publishing tens of messages one at a time leaves these tests unusually exposed to a
+        # connection failure part-way through, so they rely on the RSC15 retry onto one of the
+        # endpoint's fallback hosts to absorb it.
+        self.ably = await TestApp.get_ably_rest()
         self.test_vars = await TestApp.get_test_vars()
         yield
         await self.ably.close()
