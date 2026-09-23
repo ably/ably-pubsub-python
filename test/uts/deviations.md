@@ -334,6 +334,24 @@ connection and a failed request directly, as httpx raises `ConnectError`,
 
 The alternative, replacing the whole client, would stub out the code under test.
 
+### A websocket mock is a connect callable, supplied as a client option
+
+The seam is `TestOptions(websocket_connect=...)`, read by `WebSocketTransport`
+and called in place of `websockets.connect`. It is called as
+`connect(url, additional_headers=headers)`, or with `extra_headers=headers` if
+that raises `TypeError`, and returns an async context manager yielding an object
+supporting `__aiter__`, `send` and `close` — the whole surface the transport
+uses.
+
+Replacing the connect call keeps the URL and query parameter construction, the
+host fallback loop, frame decoding, the idle timer and the `ConnectionManager`
+state machine in the path. Injecting a replacement transport, the alternative,
+would stub out all of it, which is what the specifications assert on.
+
+A connect callable that raises reaches the library's failure handling exactly
+where a real one does, so a refused connection, a DNS error and a timeout are
+simulated by the exception the callable raises.
+
 ### A mock serves one client rather than being installed globally
 
 The specifications write `install_mock(mock_http)` and warn against passing a
