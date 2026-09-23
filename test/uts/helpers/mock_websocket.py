@@ -647,3 +647,13 @@ async def await_published(mock_websocket, count=1, timeout=5.0):
             raise AssertionError(
                 f'Timed out waiting for {count} published messages; {len(published)} were sent')
         await asyncio.sleep(0)
+
+
+def message_protocol_message(channel, messages, **fields):
+    """A MESSAGE protocol message carrying `messages` on `channel`."""
+    return {
+        'action': int(ProtocolMessageAction.MESSAGE),
+        'channel': channel,
+        'messages': messages,
+        **fields,
+    }
