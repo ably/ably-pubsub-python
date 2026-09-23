@@ -25,6 +25,17 @@ SETTLE_PASSES = 20
 MAX_TIMERS_PER_ADVANCE = 1000
 
 
+async def settle(passes=SETTLE_PASSES):
+    """Yields to the event loop until the tasks already queued have run.
+
+    This is the `process_pending_events()` convention of ``uts/README.md``,
+    with no notional or real time passing. One yield is rarely enough on the
+    realtime paths, which chain `create_task` several levels deep.
+    """
+    for _ in range(passes):
+        await asyncio.sleep(0)
+
+
 class FakeTimer:
     """A scheduled callback which fires when the clock reaches its due time."""
 
@@ -106,13 +117,8 @@ class FakeClock:
         await self.settle()
 
     async def settle(self):
-        """Yields to the event loop until the tasks already queued have run.
-
-        This is the `process_pending_events()` convention of ``uts/README.md``:
-        a plain yield, with no notional or real time passing.
-        """
-        for _ in range(self.__settle_passes):
-            await asyncio.sleep(0)
+        """Yields to the event loop until the tasks already queued have run."""
+        await settle(self.__settle_passes)
 
     def __next_due(self, target):
         candidates = [t for t in self.__pending if not t.cancelled and t.due <= target]

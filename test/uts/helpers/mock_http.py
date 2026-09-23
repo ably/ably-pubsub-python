@@ -17,7 +17,7 @@ import time
 import httpx
 import msgpack
 
-DEFAULT_PORTS = {'https': 443, 'http': 80}
+DEFAULT_PORTS = {'https': 443, 'http': 80, 'wss': 443, 'ws': 80}
 
 MSGPACK_CONTENT_TYPE = 'application/x-msgpack'
 JSON_CONTENT_TYPE = 'application/json'

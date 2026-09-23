@@ -35,11 +35,34 @@ mock_http = MockHttpClient(
 ably = AblyRest(key=key, test_options=TestOptions(http_transport=mock_http.as_transport()))
 ```
 
-The client builds its HTTP client once, so construct the mock first. Teardown is
-`await ably.close()`, which stands in for `uninstall_mock()`.
+A realtime client takes its websocket mock the same way, through
+`TestOptions(websocket_connect=...)`:
+
+```python
+mock_ws = MockWebSocket(
+    on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE),
+)
+ably = AblyRealtime(key=key, auto_connect=False,
+                    test_options=TestOptions(websocket_connect=mock_ws.as_connect()))
+```
+
+`rest_client(mock_http, ...)` and `realtime_client(mock_ws, ...)` in
+[helpers/client.py](helpers/client.py) wrap both, defaulting the credentials
+and registering the client for teardown. `realtime_client` also takes
+`mock_http=` for a realtime client whose HTTP calls a specification drives, and
+`clock=` for a `FakeClock`.
+
+The client builds its HTTP client once and reads its websocket hook once, so
+construct the mocks first. Teardown is `await ably.close()`, which stands in for
+`uninstall_mock()`.
 
 ## Running
 
 ```
 uv run --extra crypto pytest test/uts
 ```
+
+Realtime unit tests reach no network at all. Both seams are installed per
+client, so a test that forgets one, or that lets the host fallback loop run,
+reaches the real internet; see the fallback host note in
+[deviations.md](deviations.md).

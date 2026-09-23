@@ -7,7 +7,7 @@ before it records behaviour.
 Entries are grouped by root cause rather than by test, so one entry covers every
 test it affects. Headings are fixed and appear even when they hold nothing.
 
-Of 581 derived tests, 465 pass, 110 are gated behind `RUN_DEVIATIONS` and 6 cannot be
+Of 584 derived tests, 468 pass, 110 are gated behind `RUN_DEVIATIONS` and 6 cannot be
 run at all. Every gated test has been confirmed to fail when enabled, so none of them
 passes under both behaviours.
 
@@ -68,6 +68,16 @@ Raised upstream:
 | [#530](https://github.com/ably/specification/issues/530) | Token renewal driven through `/time` |
 | [#531](https://github.com/ably/specification/issues/531) | `RSA10i` asserting that an API key survives `authorize()`, with no assertions |
 | [#532](https://github.com/ably/specification/issues/532) | Housekeeping: a leaked local path, sections carrying no Test ID, a duplicate, misfiled tests |
+| [#542](https://github.com/ably/specification/issues/542) | Two presence specifications contradicting themselves over the wildcard clientId |
+| [#543](https://github.com/ably/specification/issues/543) | Tests that cannot detect what they exist to detect |
+| [#544](https://github.com/ably/specification/issues/544) | Fixtures that cannot produce the condition they describe |
+| [#545](https://github.com/ably/specification/issues/545) | Fixtures written against mock methods the contract does not define |
+| [#546](https://github.com/ably/specification/issues/546) | Connection setups crediting a key-authenticated client with an initial token request |
+
+`#527` also carries a comment on the realtime wire-format assertions, `#532` one on the
+same housekeeping categories in `realtime/unit`, and
+[#466](https://github.com/ably/specification/issues/466) — which is not ours — one on the
+RSA4c3 contradiction, since that issue is what decides it.
 
 Not every entry has an issue of its own: the URL-safe base64 alphabet is recorded below
 and not filed, because ably-python's own encoding settles the tests either way. Line
@@ -281,6 +291,8 @@ comment above. These run, so they guard against regression.
 | CHM2 | Missing metrics default to 0 | `ChannelMetrics.from_dict` uses a bare `obj.get(name)`, so any omitted metric parses as `None` | Open bug, broader than CHM2g/h |
 | CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
 | TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:422` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
+| RTN3 | `connection.id` | Not exposed. `Connection` has no `id`, `key` or `recovery_key` property; the connection id lives on `connection.connection_manager.connection_id`. Every RTN test that asserts an id reads it there | Open bug |
+| RTN15, RTN23 | A DISCONNECTED `ErrorInfo` needs no `statusCode` | `ConnectionManager.on_disconnected` evaluates `exception.status_code >= 500` unguarded, so a DISCONNECTED whose error omits `statusCode` raises `TypeError` in a task whose exception is only logged, and the connection silently stays CONNECTED. `DISCONNECTED_MESSAGE` supplies 400 | Open bug |
 | TO3l1, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's values are milliseconds, while ably-python's `http_request_timeout` is seconds | Intentional |
 
 ## Mock Infrastructure Limitations
@@ -294,6 +306,21 @@ behaviour.
 `ConnectionManager.check_connection` is internal, synchronous, and calls
 `httpx.get` directly. `REC3a`, `REC3b` and `REC3` are skipped. These specs drive a
 Realtime client and belong under `realtime/unit` in any case.
+
+### WebSocket ping frames reach no library hook — 0 tests so far
+
+`mock_websocket.md` offers `send_ping_frame()` for RTN23b, for platforms whose
+websocket client surfaces ping events. `WebSocketTransport` has none: `websockets`
+answers pings itself, `on_activity` is called only from `on_protocol_message`, and
+no `ping_interval` or `ping_handler` is configured on the connection.
+
+`send_ping_frame()` is implemented, and records a `PING_FRAME` event, but nothing
+observable follows — proved by
+`mock_websocket_test.py::test_a_ping_frame_is_recorded_but_reaches_no_library_hook`,
+which asserts that the transport's `last_activity` is unmoved. The client also sends
+no `heartbeats` query parameter, so the server would be free to use ping frames.
+Any RTN23b test that asserts a ping frame keeps the connection alive belongs here;
+RTN23a, driven by `send_to_client(HEARTBEAT_MESSAGE)`, is testable as written.
 
 ### `fallbackHostsUseDefault` is not implemented — 3 tests
 
@@ -375,6 +402,77 @@ interaction between faked time and the real `await`s around it. What has no
 such handle is `connection_state_ttl`: it is not a constructor parameter, and
 the suspend timer reads `Defaults.connection_state_ttl` directly, which costs
 120 real seconds. That is what the fake clock is for.
+
+### Injected frames are encoded for the protocol the client asked for
+
+`send_to_client(CONNECTED_MESSAGE)` leaves the encoding open, and
+`use_binary_protocol` defaults to `True`, so a mock that always fed JSON would
+make `decode_raw_websocket_frame` raise. `ws_read_loop` catches that with a
+broad `except Exception` and logs it, so the test would simply hang to its
+timeout with nothing to go on.
+
+A message given as a dict is therefore msgpack-packed or JSON-encoded to match
+the `format` query parameter of the connection it is going to, exactly as the
+HTTP mock encodes a native response body to match the request's `Accept`
+header. A message given as `bytes` or `str` is passed through untouched, so a
+specification that is about the wire format can still pin it.
+
+A message is deep-copied before it is encoded, so the shared templates survive
+being sent. The templates are still plain dictionaries, and
+`connected_message(...)` builds a variant rather than mutating one.
+
+### `realtime_client` defaults `auto_connect` off
+
+`AblyRealtime` connects from its constructor when `auto_connect` is true, which
+is the option's own default. Derived tests get the opposite default, for three
+reasons.
+
+The await-based mock API needs a waiter registered before the event it is
+waiting for. A client that connects during construction has already made its
+first attempt by the time the test's next statement runs, so
+`await_connection_attempt()` could only ever catch a retry.
+
+A realtime client built for a REST-over-realtime specification is given no
+websocket mock, because the specification is about HTTP. With `auto_connect`
+true that client opens a real websocket to the internet.
+
+And the specifications themselves overwhelmingly pass `autoConnect: false` and
+call `connect()`. The ones that are about the default — the three in
+`connection/auto_connect_test.md` — name `auto_connect=True` explicitly, which
+is what a test of a default should do anyway.
+
+### `realtime_client` defaults the fallback hosts empty
+
+`ConnectionManager.check_connection` calls `httpx.get` directly, module level
+and synchronously, on every host of the fallback loop. No seam reaches it: it
+is not the client's HTTP layer, so `TestOptions(http_transport=...)` does not
+serve it either.
+
+Measured, a client with the default fallback hosts and a connect that fails
+makes six connection attempts and one real request to
+`internet-up.ably-realtime.com` per host, blocking the event loop for each.
+With `socket.create_connection` blocked it makes one attempt, because the
+connectivity check raises and `connect_with_fallback_hosts` swallows it per
+host. Either way a unit test has reached the network.
+
+`fallback_hosts=[]` keeps the loop out of the path entirely. A specification
+that is about the fallback loop passes its own `fallback_hosts`, and has to
+accept that the connectivity check goes to the real internet; the three REC3
+tests are skipped for that reason already.
+
+### A DISCONNECTED template carries a status code the specification omits
+
+`mock_websocket.md` writes `DISCONNECTED_MESSAGE` with an `ErrorInfo` of
+`code` and `message` only. `ConnectionManager.on_disconnected` reads
+`exception.status_code` and compares it against 500 without guarding, so a
+DISCONNECTED with no `statusCode` raises `TypeError` inside a task whose
+exception is only logged — the same silent hang as a frame that will not
+decode.
+
+The template supplies `statusCode: 400`, the status Ably sends with 80003. The
+unguarded comparison is recorded above; a
+specification that is about a DISCONNECTED without a status code sends its own
+message rather than the template.
 
 ### A mock serves one client rather than being installed globally
 
