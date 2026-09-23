@@ -19,6 +19,12 @@ from test.ably.utils import (
 DEVICE_TOKEN = '740f4707bebcf74f9b7c25d48e3358945f6aa01da5ddb387462c7eaf61bb78ad'
 
 
+# Each test in this class registers a set of devices and subscriptions in setup
+# and deletes them again in teardown, a dozen or more sequential requests per
+# phase against a live endpoint. A device deletion alone measures around 600ms,
+# so the default 30s per-phase timeout leaves too little headroom on a loaded
+# runner for teardown to finish.
+@pytest.mark.timeout(120)
 class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     @pytest.fixture(autouse=True)
@@ -37,10 +43,12 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
             await self.save_subscription(channel, device_id=device.id)
         assert len(list(itertools.chain(*self.channels.values()))) == len(self.devices)
         yield
-        for key, channel in zip(self.devices, itertools.cycle(self.channels)):
-            device = self.devices[key]
-            await self.remove_subscription(channel, device_id=device.id)
-            await self.ably.push.admin.device_registrations.remove(device_id=device.id)
+        # Removing a device registration also removes that device's channel
+        # subscriptions, so deleting every device cleans up both. This covers
+        # devices the test body registered as well, which matters because other
+        # tests assert on the total number of registered devices.
+        for device_id in list(self.devices):
+            await self.ably.push.admin.device_registrations.remove(device_id=device_id)
         await self.ably.close()
 
     def per_protocol_setup(self, use_binary_protocol):
@@ -119,11 +127,6 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         subscription = PushChannelSubscription(channel, **kw)
         subscription = await self.ably.push.admin.channel_subscriptions.save(subscription)
         self.channels.setdefault(channel, []).append(subscription)
-        return subscription
-
-    async def remove_subscription(self, channel, **kw):
-        subscription = PushChannelSubscription(channel, **kw)
-        subscription = await self.ably.push.admin.channel_subscriptions.remove(subscription)
         return subscription
 
     # RSH1a

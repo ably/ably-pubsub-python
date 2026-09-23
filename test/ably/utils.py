@@ -85,8 +85,12 @@ def assert_responses_type(protocol):
         @functools.wraps(fn)
         async def test_decorated(self, *args, **kwargs):
             patcher = patch()
-            await fn(self, *args, **kwargs)
-            unpatch(patcher)
+            try:
+                await fn(self, *args, **kwargs)
+            finally:
+                # The patch is undone however the test body exits, so Http.make_request is
+                # left as it was found even when an assertion or a transport error escapes.
+                unpatch(patcher)
 
             assert len(responses) >= 1, \
                 "If your test doesn't make any requests, use the @dont_vary_protocol decorator"

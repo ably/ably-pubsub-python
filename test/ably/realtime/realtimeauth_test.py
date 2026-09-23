@@ -228,6 +228,17 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         original_transport = await ably.connection.connection_manager.once_async('transport.pending')
+
+        # Protocol messages from the first transport are withheld, so the connection is still
+        # CONNECTING for as long as it takes to obtain the new token
+        async def withhold_protocol_message(msg):
+            pass
+
+        original_transport.on_protocol_message = withhold_protocol_message
+        assert ably.connection.state == ConnectionState.CONNECTING
+
+        # RTC8b: a reauth issued while CONNECTING halts the in-flight connection attempt and
+        # starts a new one with the new token
         await ably.auth.authorize()
         assert ably.connection.state == ConnectionState.CONNECTED
         assert ably.connection.connection_manager.transport is not original_transport
