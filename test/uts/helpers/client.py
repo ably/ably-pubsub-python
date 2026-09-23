@@ -130,3 +130,37 @@ async def close_open_clients():
                 await client.http.close()
             except Exception:
                 pass
+
+
+async def await_channel_state(channel, state, timeout=STATE_TIMEOUT):
+    """Waits for `channel` to reach `state`, returning at once if it holds it."""
+    if channel.state == state:
+        return
+    reached = asyncio.get_running_loop().create_future()
+
+    def on_state(change):
+        if not reached.done():
+            reached.set_result(change)
+
+    channel.once(state, on_state)
+    try:
+        await asyncio.wait_for(reached, timeout)
+    except asyncio.TimeoutError:
+        raise AssertionError(
+            f'Timed out waiting for channel state {state}; it was {channel.state}') from None
+
+
+async def poll_until(condition, timeout=STATE_TIMEOUT, description='condition'):
+    """Yields to the event loop until `condition()` holds.
+
+    This is the specifications' `AWAIT UNTIL`. It suits a premise a state does
+    not capture, such as an attempt being in flight: `client.connect()` sets
+    CONNECTING before the attempt is scheduled, so waiting on the state is
+    satisfied before anything has happened.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while not condition():
+        if loop.time() >= deadline:
+            raise AssertionError(f'Timed out waiting until {description}')
+        await asyncio.sleep(0)
