@@ -21,4 +21,4 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 api_version = '5'
-lib_version = '3.1.3'
+lib_version = '3.1.4'
