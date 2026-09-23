@@ -38,16 +38,9 @@ jobs:
         with:
           enable-cache: true
 
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        name: Define a cache for the virtual environment based on the dependencies lock file
-        id: cache
-        with:
-          path: ./.venv
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('uv.lock') }}
-
       - name: Install dependencies
         run: uv sync --extra crypto --extra dev
       - name: Generate rest sync code and tests
-        run: uv run unasync
+        run: uv run --extra crypto --extra dev unasync
       - name: Test with pytest
-        run: uv run pytest --verbose --tb=short --capture=no
+        run: uv run --extra crypto --extra dev pytest --verbose --tb=short --capture=no
