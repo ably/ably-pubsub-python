@@ -18,7 +18,7 @@ from ably.types.operations import PublishResult
 from ably.types.tokendetails import TokenDetails
 from ably.util.eventemitter import EventEmitter
 from ably.util.exceptions import AblyException, IncompatibleClientIdException
-from ably.util.helper import Timer, get_random_id, is_token_error
+from ably.util.helper import Timer, get_random_id, is_token_error, select_timer
 
 if TYPE_CHECKING:
     from ably.realtime.realtime import AblyRealtime
@@ -140,6 +140,7 @@ class PendingPing:
 class ConnectionManager(EventEmitter):
     def __init__(self, realtime: AblyRealtime, initial_state):
         self.options = realtime.options
+        self.timer_func = select_timer(self.options)
         self.__ably = realtime
         self.__state: ConnectionState = initial_state
         self.__pending_pings: dict[str, PendingPing] = {}
@@ -718,7 +719,7 @@ class ConnectionManager(EventEmitter):
 
         log.debug(f'ConnectionManager.start_transition_timer(): setting timer for {timeout}ms')
 
-        self.transition_timer = Timer(timeout, on_transition_timer_expire)
+        self.transition_timer = self.timer_func(timeout, on_transition_timer_expire)
 
     def cancel_transition_timer(self):
         log.debug('ConnectionManager.cancel_transition_timer()')
@@ -741,7 +742,7 @@ class ConnectionManager(EventEmitter):
                 )
                 self.__fail_state = ConnectionState.SUSPENDED
 
-        self.suspend_timer = Timer(Defaults.connection_state_ttl, on_suspend_timer_expire)
+        self.suspend_timer = self.timer_func(Defaults.connection_state_ttl, on_suspend_timer_expire)
 
     def check_suspend_timer(self, state: ConnectionState) -> None:
         if state not in (
@@ -764,7 +765,7 @@ class ConnectionManager(EventEmitter):
             self.retry_timer = None
             self.request_state(ConnectionState.CONNECTING)
 
-        self.retry_timer = Timer(interval, on_retry_timeout)
+        self.retry_timer = self.timer_func(interval, on_retry_timeout)
 
     def cancel_retry_timer(self) -> None:
         if self.retry_timer:

@@ -75,6 +75,19 @@ class Timer:
     def cancel(self):
         self._task.cancel()
 
+
+def select_timer(options) -> Callable:
+    """The callable a client schedules its delayed callbacks with.
+
+    `TestOptions.timer` substitutes for the real timer during tests, letting
+    them drive time-dependent behaviour without waiting for it. Clients which
+    supply none get `Timer`.
+    """
+    test_options = getattr(options, 'test_options', None)
+    if test_options is not None and test_options.timer is not None:
+        return test_options.timer
+    return Timer
+
 def validate_message_size(encoded_messages: list, use_binary_protocol: bool, max_message_size: int) -> None:
     """Validate that encoded messages don't exceed the maximum size limit.
 

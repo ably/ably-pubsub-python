@@ -352,6 +352,30 @@ A connect callable that raises reaches the library's failure handling exactly
 where a real one does, so a refused connection, a DNS error and a timeout are
 simulated by the exception the callable raises.
 
+### Fake time is a timer factory, and a last resort
+
+Every delayed callback in the realtime library is a `ably.util.helper.Timer`,
+constructed at six sites across the transport, the channel and the connection
+manager. `TestOptions(timer=...)` replaces it at all six, selected once per
+consumer by `select_timer(options)`. `test/uts/helpers/clock.py` is the fake:
+`await clock.advance(ms)` fires what has fallen due, in due order, and lets the
+event loop settle so the effects have landed when it returns. It is the
+`enable_fake_timers()` / `ADVANCE_TIME(ms)` pair of `mock_websocket.md`.
+
+The option is client-scoped for the same reason the HTTP mock is: a
+module-level factory would outlive the test that set it and be shared by every
+client the suite builds.
+
+A derived test reaches for it only where nothing else reaches the behaviour.
+`realtime_request_timeout`, `disconnected_retry_timeout`,
+`suspended_retry_timeout` and `channel_retry_timeout` are client options, and
+`maxIdleInterval` arrives in the CONNECTED message's `connectionDetails` and is
+honoured, so a real short value drives those and the test stays free of the
+interaction between faked time and the real `await`s around it. What has no
+such handle is `connection_state_ttl`: it is not a constructor parameter, and
+the suspend timer reads `Defaults.connection_state_ttl` directly, which costs
+120 real seconds. That is what the fake clock is for.
+
 ### A mock serves one client rather than being installed globally
 
 The specifications write `install_mock(mock_http)` and warn against passing a
@@ -405,8 +429,8 @@ renaming; the function name makes failures readable without it.
 is no clock seam — `ably/http/http.py` calls `time.time()` directly. Where a
 specification advances time, the derived test shortens the interval through a
 client option instead, which is what the specifications themselves do for
-`fallback_retry_timeout`. Adding a clock seam is left until the realtime specs,
-which need one for reconnection timing.
+`fallback_retry_timeout`. The realtime specifications do get a timer seam,
+for the one interval no option reaches; see the fake time section above.
 
 ### A TokenDetails payload is recognised by its `token`, not only by `issued`
 

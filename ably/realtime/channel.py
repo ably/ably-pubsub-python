@@ -21,7 +21,7 @@ from ably.types.operations import MessageOperation, PublishResult, UpdateDeleteR
 from ably.types.presence import PresenceMessage
 from ably.util.eventemitter import EventEmitter
 from ably.util.exceptions import AblyException, IncompatibleClientIdException
-from ably.util.helper import Timer, is_callable_or_coroutine, validate_message_size
+from ably.util.helper import Timer, is_callable_or_coroutine, select_timer, validate_message_size
 
 if TYPE_CHECKING:
     from ably.realtime.realtime import AblyRealtime
@@ -58,6 +58,7 @@ class RealtimeChannel(EventEmitter, Channel):
         EventEmitter.__init__(self)
         self.__name = name
         self.__realtime = realtime
+        self.__timer_func = select_timer(realtime.options)
         self.__state = ChannelState.INITIALIZED
         self.__message_emitter = EventEmitter()
         self.__state_timer: Timer | None = None
@@ -846,7 +847,7 @@ class RealtimeChannel(EventEmitter, Channel):
                 self.__state_timer = None
                 self.__timeout_pending_state()
 
-            self.__state_timer = Timer(self.__realtime.options.realtime_request_timeout, on_timeout)
+            self.__state_timer = self.__timer_func(self.__realtime.options.realtime_request_timeout, on_timeout)
 
     def __clear_state_timer(self) -> None:
         if self.__state_timer:
@@ -866,7 +867,8 @@ class RealtimeChannel(EventEmitter, Channel):
         if self.__retry_timer:
             return
 
-        self.__retry_timer = Timer(self.ably.options.channel_retry_timeout, self.__on_retry_timer_expire)
+        self.__retry_timer = self.__timer_func(
+            self.ably.options.channel_retry_timeout, self.__on_retry_timer_expire)
 
     def __cancel_retry_timer(self) -> None:
         if self.__retry_timer:

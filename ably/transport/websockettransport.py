@@ -15,7 +15,7 @@ from ably.types.connectiondetails import ConnectionDetails
 from ably.types.operations import PublishResult
 from ably.util.eventemitter import EventEmitter
 from ably.util.exceptions import AblyException
-from ably.util.helper import Timer, unix_time_ms
+from ably.util.helper import select_timer, unix_time_ms
 
 try:
     # websockets 15+ preferred imports
@@ -68,6 +68,7 @@ class WebSocketTransport(EventEmitter):
         self.connection_manager = connection_manager
         self.options = self.connection_manager.options
         self.connect_func = self.__select_connect_func(self.options)
+        self.timer_func = select_timer(self.options)
         self.is_connected = False
         self.idle_timer = None
         self.last_activity = None
@@ -300,7 +301,7 @@ class WebSocketTransport(EventEmitter):
     def set_idle_timer(self, timeout: float):
         if self.idle_timer:
             self.idle_timer.cancel()
-        self.idle_timer = Timer(timeout, self.on_idle_timer_expire)
+        self.idle_timer = self.timer_func(timeout, self.on_idle_timer_expire)
 
     async def on_idle_timer_expire(self):
         self.idle_timer = None
