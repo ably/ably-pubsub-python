@@ -67,8 +67,8 @@ class WsProxy:
 
     @property
     def endpoint(self) -> str:
-        """Endpoint string to pass to AblyRealtime (combine with tls=False)."""
-        return f"127.0.0.1:{self.port}"
+        """Host to pass to AblyRealtime (combine with tls=False and port=self.port)."""
+        return "127.0.0.1"
 
     async def __aenter__(self):
         self.server = await ws_serve(self._handler, "127.0.0.1", 0, ping_interval=None)
@@ -242,6 +242,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
                 realtime_request_timeout=20000,
                 tls=False,
                 endpoint=proxy.endpoint,
+                port=proxy.port,
             )
             try:
                 await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=10)
@@ -654,6 +655,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
                 suspended_retry_timeout=500_000,
                 tls=False,
                 endpoint=proxy.endpoint,
+                port=proxy.port,
             )
 
             try:

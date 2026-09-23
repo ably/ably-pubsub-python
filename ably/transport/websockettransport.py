@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import msgpack
 
 from ably.http.httputils import HttpUtils
+from ably.transport.defaults import Defaults
 from ably.types.connectiondetails import ConnectionDetails
 from ably.types.operations import PublishResult
 from ably.util.eventemitter import EventEmitter
@@ -81,7 +82,8 @@ class WebSocketTransport(EventEmitter):
         headers = HttpUtils.default_headers()
         query_params = urllib.parse.urlencode(self.params)
         scheme = 'wss' if self.options.tls else 'ws'
-        ws_url = f'{scheme}://{self.host}?{query_params}'
+        port = Defaults.get_port(self.options)
+        ws_url = f'{scheme}://{self.host}:{port}?{query_params}'
         log.info(f'connect(): attempting to connect to {ws_url}')
         self.ws_connect_task = asyncio.create_task(self.ws_connect(ws_url, headers))
         self.ws_connect_task.add_done_callback(self.on_ws_connect_done)
