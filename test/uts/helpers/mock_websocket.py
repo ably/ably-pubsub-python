@@ -627,3 +627,23 @@ def contains_in_order(observed, expected):
         if remaining and item == remaining[0]:
             remaining.pop(0)
     return not remaining
+
+
+async def await_published(mock_websocket, count=1, timeout=5.0):
+    """Waits until `count` MESSAGE protocol messages have left the client.
+
+    A publish is awaited until the server acknowledges it, so a test which
+    publishes has nothing to await on the client side until it answers. This
+    waits for the message to reach the mock so that the answer can be sent.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    message_action = int(ProtocolMessageAction.MESSAGE)
+    while True:
+        published = [m for m in mock_websocket.messages_from_client if m.get('action') == message_action]
+        if len(published) >= count:
+            return published
+        if loop.time() >= deadline:
+            raise AssertionError(
+                f'Timed out waiting for {count} published messages; {len(published)} were sent')
+        await asyncio.sleep(0)
