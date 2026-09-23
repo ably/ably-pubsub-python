@@ -679,3 +679,34 @@ def channel_error_message(channel, code, message, status_code=None):
         'channel': channel,
         'error': {'code': code, 'statusCode': status_code, 'message': message},
     }
+
+
+def annotation_protocol_message(channel, annotations, **fields):
+    """An ANNOTATION protocol message carrying `annotations` on `channel`."""
+    return {
+        'action': int(ProtocolMessageAction.ANNOTATION),
+        'channel': channel,
+        'annotations': annotations,
+        **fields,
+    }
+
+
+def ack(message, serials=None, count=1):
+    """An ACK answering `message`, which a client awaits before its publish returns."""
+    acknowledgement = {'action': int(ProtocolMessageAction.ACK), 'msgSerial': message['msgSerial'], 'count': count}
+    if serials is not None:
+        acknowledgement['res'] = [{'serials': serials}]
+    return acknowledgement
+
+
+def nack(message, code, description, status_code=None, count=1):
+    """A NACK rejecting `message`, which surfaces as an AblyException carrying `code`."""
+    if status_code is None:
+        derived = code // 100
+        status_code = derived if derived < 600 else 500
+    return {
+        'action': int(ProtocolMessageAction.NACK),
+        'msgSerial': message['msgSerial'],
+        'count': count,
+        'error': {'code': code, 'statusCode': status_code, 'message': description},
+    }
