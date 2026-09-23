@@ -40,7 +40,7 @@ dependencies = [
 [project.optional-dependencies]
 oldcrypto = ["pycrypto>=2.6.1,<3.0.0"]
 crypto = ["pycryptodome"]
-vcdiff = ["vcdiff-decoder>=0.1.0,<0.2.0"]
+vcdiff = ["vcdiff-decoder>=0.2.0,<1.0.0"]
 dev = [
   "pytest>=7.1,<8.0",
   "pytest-asyncio>=0.21.0,<0.23.0; python_version=='3.7'",
@@ -55,7 +55,7 @@ dev = [
   "pytest-timeout>=2.1.0,<3.0.0",
   "async-case>=10.1.0,<11.0.0; python_version=='3.7'",
   "tokenize_rt",
-  "vcdiff-decoder>=0.1.0a1",
+  "vcdiff-decoder>=0.2.0",
 ]
 
 [project.scripts]

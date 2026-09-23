@@ -739,7 +739,6 @@ class RealtimeChannel(EventEmitter, Channel):
             try:
                 messages = Message.from_encoded_array(proto_msg.get('messages'),
                                                       cipher=self.cipher, context=self.__decoding_context)
-                self.__decoding_context.last_message_id = messages[-1].id
                 self.__channel_serial = channel_serial
             except AblyException as e:
                 if e.code == 40018:  # Delta decode failure - start recovery

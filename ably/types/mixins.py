@@ -127,4 +127,16 @@ class EncodeDataMixin:
 
     @classmethod
     def from_encoded_array(cls, objs, cipher=None, context=None):
-        return [cls.from_encoded(obj, cipher=cipher, context=context) for obj in objs]
+        if context is None:
+            return [cls.from_encoded(obj, cipher=cipher) for obj in objs]
+
+        # Decoding a message advances the context, and a batch that fails part way through is
+        # discarded whole and replayed by the server, so the context is only kept if every
+        # message in it decoded. Otherwise the replayed batch would decode against the base
+        # payload left behind by its own first messages.
+        base_payload, last_message_id = context.base_payload, context.last_message_id
+        try:
+            return [cls.from_encoded(obj, cipher=cipher, context=context) for obj in objs]
+        except Exception:
+            context.base_payload, context.last_message_id = base_payload, last_message_id
+            raise

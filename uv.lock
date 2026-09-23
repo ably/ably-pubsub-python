@@ -79,8 +79,8 @@ requires-dist = [
     { name = "respx", marker = "python_full_version >= '3.8' and extra == 'dev'", specifier = ">=0.22.0,<0.23.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.0,<1.0.0" },
     { name = "tokenize-rt", marker = "extra == 'dev'" },
-    { name = "vcdiff-decoder", marker = "extra == 'dev'", specifier = ">=0.1.0a1" },
-    { name = "vcdiff-decoder", marker = "extra == 'vcdiff'", specifier = ">=0.1.0,<0.2.0" },
+    { name = "vcdiff-decoder", marker = "extra == 'dev'", specifier = ">=0.2.0" },
+    { name = "vcdiff-decoder", marker = "extra == 'vcdiff'", specifier = ">=0.2.0,<0.3.0" },
     { name = "websockets", marker = "python_full_version == '3.7.*'", specifier = ">=10.0,<12.0" },
     { name = "websockets", marker = "python_full_version == '3.8.*'", specifier = ">=12.0,<15.0" },
     { name = "websockets", marker = "python_full_version >= '3.9'", specifier = ">=15.0,<16.0" },
@@ -1553,11 +1553,11 @@ wheels = [
 
 [[package]]
 name = "vcdiff-decoder"
-version = "0.1.0"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4c/17/fb4e840967b9e734e45fef6b61280bac49aa40da675a031958010707c31b/vcdiff_decoder-0.1.0.tar.gz", hash = "sha256:905d9c39fd451331301652c16b19505c16d323446fa4dffa745b2855aff5fe69", size = 18613, upload-time = "2025-09-19T17:15:14.909Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/15/bd/1cb5f75efe8b88f8ce6f5bc7a11d1d0da5821c8ec7aafc2736732c701a4f/vcdiff_decoder-0.2.0.tar.gz", hash = "sha256:c89a76fd46d879e5a4195187c6fc9be09827251004726a0840dd9ef8f59f5e74", size = 18248, upload-time = "2026-09-23T13:05:58.438Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/10/d5/0d1153f2dbaa02a11b2491d26b59f08e203409dacb91853c26c13bc28cb6/vcdiff_decoder-0.1.0-py3-none-any.whl", hash = "sha256:42f4e3d77b3bd4be881853858ee471a11d6a474fda375482d589b8576b91318f", size = 26333, upload-time = "2025-09-19T17:15:13.611Z" },
+    { url = "https://files.pythonhosted.org/packages/6f/81/5aace343f579809a50e152eac66458ad159c4fae9e06bef438ddb0ebaf92/vcdiff_decoder-0.2.0-py3-none-any.whl", hash = "sha256:0be7163871d0c79fb57b0c9f0a994ee151c4e348a442d3d508da6975983b91aa", size = 19277, upload-time = "2026-09-23T13:05:57.346Z" },
 ]
 
 [[package]]
