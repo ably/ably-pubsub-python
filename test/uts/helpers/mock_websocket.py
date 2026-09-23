@@ -587,3 +587,43 @@ def ERROR_MESSAGE(code, message, status_code=None):  # noqa: N802 - the specific
 
 def PING_MESSAGE(id):  # noqa: N802 - the specification's name
     return {'action': PING_ACTION, 'id': id}
+
+
+CONNECTED_MESSAGE_NO_IDLE = connected_message(maxIdleInterval=0)
+"""A CONNECTED message which leaves the transport's idle timer unscheduled.
+
+The transport only sets the timer for a non-zero `maxIdleInterval`, so this is
+what a test driving time with a `FakeClock` connects with: the idle timer
+compares against the real clock and would otherwise fire on every advance.
+"""
+
+
+def attached_message(channel, **fields):
+    """An ATTACHED message for `channel`."""
+    return {'action': int(ProtocolMessageAction.ATTACHED), 'channel': channel, **fields}
+
+
+def detached_message(channel, **fields):
+    """A DETACHED message for `channel`."""
+    return {'action': int(ProtocolMessageAction.DETACHED), 'channel': channel, **fields}
+
+
+def server_detached_message(channel, code, message, status_code=None):
+    """A DETACHED message carrying the error a server sends when it detaches a channel."""
+    if status_code is None:
+        derived = code // 100
+        status_code = derived if derived < 600 else 500
+    return detached_message(channel, error={'code': code, 'statusCode': status_code, 'message': message})
+
+
+def contains_in_order(observed, expected):
+    """Whether `expected` appears in `observed` in order, other entries allowed between.
+
+    This is the specifications' `CONTAINS_IN_ORDER`, which they prefer to an
+    equality check because a transient state may be passed through more than once.
+    """
+    remaining = list(expected)
+    for item in observed:
+        if remaining and item == remaining[0]:
+            remaining.pop(0)
+    return not remaining

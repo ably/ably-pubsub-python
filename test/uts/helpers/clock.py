@@ -135,3 +135,19 @@ class FakeClock:
             result = callback()
             if inspect.isawaitable(result):
                 await result
+
+
+async def advance_to_connection_state(client, clock, state, step, limit=60):
+    """Advances `clock` in `step` increments until the connection reaches `state`.
+
+    This is the specifications' `LOOP up to N: ADVANCE_TIME(x)`, for a state
+    several timers away — reaching SUSPENDED means turning the whole retry
+    cycle. Raises if `limit` steps pass without arriving.
+    """
+    for _ in range(limit):
+        if client.connection.state == state:
+            return
+        await clock.advance(step)
+    raise AssertionError(
+        f'Connection did not reach {state} within {limit} advances of {step} ms; '
+        f'it was {client.connection.state}')
