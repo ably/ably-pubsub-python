@@ -5,6 +5,7 @@ import logging
 
 from ably import AblyRealtime, AblyRest
 from ably.types.testoptions import TestOptions
+from test.uts.helpers.clock import settle
 
 log = logging.getLogger(__name__)
 
@@ -181,3 +182,50 @@ async def connected_client(mock_websocket, **kwargs):
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
     return client
+
+
+async def drop_transport(client, mock_websocket):
+    """Drops the transport under `client` and leaves the connection DISCONNECTED.
+
+    The connection retries a drop from CONNECTED immediately, so the attempt
+    handler is stalled first, leaving the connection settled where a
+    specification expects to find it rather than reconnecting behind the
+    assertions. Returns the connection states recorded along the way.
+    """
+    from ably.realtime.connection import ConnectionState
+
+    states = []
+
+    def record(change):
+        states.append(change.current)
+
+    client.connection.on(record)
+    mock_websocket.on_connection_attempt = lambda conn: None
+    mock_websocket.simulate_disconnect()
+    await poll_until(
+        lambda: ConnectionState.DISCONNECTED in states,
+        description='the connection to report DISCONNECTED')
+    await settle()
+    return states
+
+
+async def reconnect_transport(client, mock_websocket, connected_message=None):
+    """Drops the transport and waits for `client` to reach CONNECTED again.
+
+    Waiting on the connection state alone would be satisfied by the CONNECTED
+    the client already holds, so this counts a fresh arrival.
+    """
+    from ably.realtime.connection import ConnectionState
+    from test.uts.helpers.mock_websocket import CONNECTED_MESSAGE
+
+    message = CONNECTED_MESSAGE if connected_message is None else connected_message
+    reconnected = []
+
+    def record(change):
+        reconnected.append(change)
+
+    client.connection.on(ConnectionState.CONNECTED, record)
+    mock_websocket.on_connection_attempt = lambda conn: conn.respond_with_success(message)
+    mock_websocket.simulate_disconnect()
+    await poll_until(lambda: len(reconnected) > 0, description='the connection to be re-established')
+    return reconnected[0]
