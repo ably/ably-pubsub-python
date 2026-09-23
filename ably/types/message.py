@@ -300,11 +300,16 @@ class Message(EncodeDataMixin):
         version = obj.get('version', None)
 
         delta_extra = DeltaExtras(extras)
-        if delta_extra.from_id and delta_extra.from_id != context.last_message_id:
+        if context and delta_extra.from_id and delta_extra.from_id != context.last_message_id:
             raise AblyException(f"Delta message decode failure - previous message not available. "
                                 f"Message id = {id}", 400, 40018)
 
         decoded_data = Message.decode(data, encoding, cipher, context)
+
+        # A protocol message can carry several messages, each a delta from the one before it, so
+        # the base for the next delta is this message rather than the last one of the batch.
+        if context:
+            context.last_message_id = id
 
         if action is not None:
             try:
