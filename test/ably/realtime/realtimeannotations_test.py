@@ -57,17 +57,19 @@ class TestRealtimeAnnotations(BaseAsyncTestCase):
 
         await channel.annotations.subscribe(on_annotation)
 
-        # Publish a message
-        publish_result = await channel.publish('message', 'foobar')
-
-        # Reset for next message (summary)
+        # The summary for a message is delivered as a separate message carrying the same
+        # serial, once the server has aggregated the annotations made against it, so the
+        # message's own create echo reaches this listener first
         message_summary = asyncio.Future()
 
         def on_message(msg):
-            if not message_summary.done():
+            if msg.action == MessageAction.MESSAGE_SUMMARY and not message_summary.done():
                 message_summary.set_result(msg)
 
         await channel.subscribe('message', on_message)
+
+        # Publish a message
+        publish_result = await channel.publish('message', 'foobar')
 
         # Publish annotation using realtime
         await channel.annotations.publish(publish_result.serials[0], Annotation(

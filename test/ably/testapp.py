@@ -71,6 +71,11 @@ class TestApp:
     async def get_ably_realtime(**kw):
         test_vars = await TestApp.get_test_vars()
         options = TestApp.get_options(test_vars, **kw)
+        # A connect attempt that fails leaves the connection DISCONNECTED until the retry
+        # timer expires. The default interval is longer than the timeout most tests allow
+        # for reaching CONNECTED, so a short one keeps a single failed attempt from using
+        # up the whole budget. Tests that assert on retry timing set their own value.
+        options.setdefault('disconnected_retry_timeout', 1000)
         return AblyRealtime(**options)
 
     @staticmethod
