@@ -629,24 +629,34 @@ def contains_in_order(observed, expected):
     return not remaining
 
 
-async def await_published(mock_websocket, count=1, timeout=5.0):
-    """Waits until `count` MESSAGE protocol messages have left the client.
+async def await_protocol_messages(mock_websocket, action, count=1, timeout=5.0):
+    """Waits until `count` protocol messages carrying `action` have left the client.
 
-    A publish is awaited until the server acknowledges it, so a test which
-    publishes has nothing to await on the client side until it answers. This
-    waits for the message to reach the mock so that the answer can be sent.
+    An operation the server acknowledges is awaited on the client side, so a
+    test driving one has nothing to wait on until it answers. This waits for the
+    message to reach the mock so that the answer can be sent.
     """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
-    message_action = int(ProtocolMessageAction.MESSAGE)
+    wanted = int(action)
     while True:
-        published = [m for m in mock_websocket.messages_from_client if m.get('action') == message_action]
-        if len(published) >= count:
-            return published
+        sent = [m for m in mock_websocket.messages_from_client if m.get('action') == wanted]
+        if len(sent) >= count:
+            return sent
         if loop.time() >= deadline:
             raise AssertionError(
-                f'Timed out waiting for {count} published messages; {len(published)} were sent')
+                f'Timed out waiting for {count} messages with action {wanted}; {len(sent)} were sent')
         await asyncio.sleep(0)
+
+
+async def await_published(mock_websocket, count=1, timeout=5.0):
+    """Waits until `count` MESSAGE protocol messages have left the client."""
+    return await await_protocol_messages(mock_websocket, ProtocolMessageAction.MESSAGE, count, timeout)
+
+
+async def await_presence_sent(mock_websocket, count=1, timeout=5.0):
+    """Waits until `count` PRESENCE protocol messages have left the client."""
+    return await await_protocol_messages(mock_websocket, ProtocolMessageAction.PRESENCE, count, timeout)
 
 
 def message_protocol_message(channel, messages, **fields):
