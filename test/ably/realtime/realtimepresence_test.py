@@ -17,6 +17,32 @@ from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 
 
+async def await_presence_sync(channel):
+    """
+    Block until the channel's presence set is in sync with the server.
+
+    An ATTACHED reply may carry the HAS_PRESENCE flag, in which case the server
+    follows it with a presence SYNC. Until that SYNC lands, a member entering
+    the channel can be delivered inside the SYNC with action PRESENT instead of
+    as a live ENTER, and the duplicate live ENTER that follows is then correctly
+    discarded by the RTP2b2 newness check (it carries the same message id), so
+    no 'enter' event is emitted at all. Waiting here for the SYNC to complete
+    means anything that happens afterwards is observed as a live event.
+    """
+    await channel.presence.get()
+
+
+async def wait_until(predicate, timeout=10.0, interval=0.05):
+    """Wait until predicate() is truthy, or raise AssertionError on timeout."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        if predicate():
+            return
+        await asyncio.sleep(interval)
+    raise AssertionError(f'condition not met within {timeout}s')
+
+
 async def force_suspended(client):
     client.connection.connection_manager.request_state(ConnectionState.DISCONNECTED)
 
@@ -70,6 +96,7 @@ class TestRealtimePresenceBasics(BaseAsyncTestCase):
                 presence_received.set_result(msg)
 
         await channel1.presence.subscribe(on_presence)
+        await await_presence_sync(channel1)
 
         # Client 2 enters without attaching first
         channel2 = self.client2.channels.get(channel_name)
@@ -119,6 +146,7 @@ class TestRealtimePresenceBasics(BaseAsyncTestCase):
             events.append((msg.action, msg.client_id))
 
         await channel1.presence.subscribe(on_presence)
+        await await_presence_sync(channel1)
 
         # Client 2 enters
         await channel2.presence.enter('enter data')
@@ -346,6 +374,7 @@ class TestRealtimePresenceSubscribe(BaseAsyncTestCase):
                 received.set_result(msg)
 
         await channel1.presence.subscribe(on_presence)
+        await await_presence_sync(channel1)
         await channel1.presence.enter()
 
         msg = await asyncio.wait_for(received, timeout=5.0)
@@ -469,6 +498,7 @@ class TestRealtimePresenceConnectionLifecycle(BaseAsyncTestCase):
                 received.set_result(msg)
 
         await listener_channel.presence.subscribe(on_presence)
+        await await_presence_sync(listener_channel)
 
         # Create client and enter before it's connected
         enterer_client = await TestApp.get_ably_realtime(
@@ -509,6 +539,7 @@ class TestRealtimePresenceConnectionLifecycle(BaseAsyncTestCase):
                 second_enter_received.set_result(msg)
 
         await listener_channel.presence.subscribe(on_presence)
+        await await_presence_sync(listener_channel)
 
         # Create enterer client
         enterer_client = await TestApp.get_ably_realtime(
@@ -660,9 +691,11 @@ class TestRealtimePresenceAutoReentry(BaseAsyncTestCase):
             })
 
         await observer_channel.presence.subscribe(on_presence)
+        await await_presence_sync(observer_channel)
 
         # Create main client with remainPresentFor to control LEAVE timing
-        # This tells the server to send LEAVE for presence members 5 seconds after disconnect
+        # remainPresentFor tells the server how long to keep this connection's presence
+        # members after it disconnects before emitting a LEAVE for them
         client = await TestApp.get_ably_realtime(
             client_id='test_client',
             transport_params={'remainPresentFor': 1000},
@@ -695,14 +728,24 @@ class TestRealtimePresenceAutoReentry(BaseAsyncTestCase):
         # Connection IDs should be different after suspend
         assert first_conn_id != second_conn_id
 
-        # Wait for presence events including LEAVE (which arrives after remainPresentFor timeout)
-        await asyncio.sleep(2)
+        def leaves():
+            return [e for e in events if e['action'] == PresenceAction.LEAVE
+                    and e['client_id'] == 'test_client']
 
-        # Should see LEAVE for old connection and ENTER for new connection
-        leave_events = [e for e in events if e['action'] == PresenceAction.LEAVE
-                       and e['client_id'] == 'test_client']
-        enter_events = [e for e in events if e['action'] == PresenceAction.ENTER
-                       and e['client_id'] == 'test_client']
+        def enters():
+            return [e for e in events if e['action'] == PresenceAction.ENTER
+                    and e['client_id'] == 'test_client']
+
+        # The LEAVE for the old connection is emitted by the server once
+        # remainPresentFor elapses, so its timing is not under the test's
+        # control.
+        await wait_until(
+            lambda: any(e['connection_id'] == first_conn_id for e in leaves())
+            and any(e['connection_id'] == second_conn_id for e in enters())
+        )
+
+        leave_events = leaves()
+        enter_events = enters()
 
         assert len(leave_events) >= 1, "Should have LEAVE event for old connection"
         assert len(enter_events) >= 2, "Should have ENTER event for new connection"
