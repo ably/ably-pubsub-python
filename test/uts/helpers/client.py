@@ -164,3 +164,20 @@ async def poll_until(condition, timeout=STATE_TIMEOUT, description='condition'):
         if loop.time() >= deadline:
             raise AssertionError(f'Timed out waiting until {description}')
         await asyncio.sleep(0)
+
+
+async def connected_client(mock_websocket, **kwargs):
+    """A realtime client already CONNECTED through `mock_websocket`.
+
+    Most channel specifications open this way, since a channel cannot attach
+    until the connection carrying it is up.
+    """
+    from ably.realtime.connection import ConnectionState
+    from test.uts.helpers.mock_websocket import CONNECTED_MESSAGE
+
+    if mock_websocket.on_connection_attempt is None:
+        mock_websocket.on_connection_attempt = lambda conn: conn.respond_with_success(CONNECTED_MESSAGE)
+    client = realtime_client(mock_websocket, **kwargs)
+    client.connect()
+    await await_connection_state(client, ConnectionState.CONNECTED)
+    return client

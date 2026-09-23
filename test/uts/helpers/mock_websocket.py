@@ -657,3 +657,15 @@ def message_protocol_message(channel, messages, **fields):
         'messages': messages,
         **fields,
     }
+
+
+def channel_error_message(channel, code, message, status_code=None):
+    """An ERROR message scoped to `channel`, which the connection routes to it."""
+    if status_code is None:
+        derived = code // 100
+        status_code = derived if derived < 600 else 500
+    return {
+        'action': int(ProtocolMessageAction.ERROR),
+        'channel': channel,
+        'error': {'code': code, 'statusCode': status_code, 'message': message},
+    }
