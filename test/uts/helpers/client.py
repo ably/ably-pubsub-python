@@ -90,6 +90,28 @@ async def await_connection_state(client, state, timeout=STATE_TIMEOUT):
             f'Timed out waiting for connection state {state}; it was {connection.state}') from None
 
 
+async def next_connection_state(client, state, timeout=STATE_TIMEOUT):
+    """Waits for `client`'s connection to enter `state` afresh.
+
+    Where `await_connection_state` is satisfied by the state the connection is
+    already in, this one always waits for the next entry into it, which is what
+    a specification means by reconnecting to a state it has held before.
+    """
+    connection = client.connection
+    reached = asyncio.get_running_loop().create_future()
+
+    def on_state(change):
+        if not reached.done():
+            reached.set_result(change)
+
+    connection.once(state, on_state)
+    try:
+        return await asyncio.wait_for(reached, timeout)
+    except asyncio.TimeoutError:
+        raise AssertionError(
+            f'Timed out waiting for the next {state}; it was {connection.state}') from None
+
+
 async def close_open_clients():
     """Closes the clients a test built, whatever state they are in.
 

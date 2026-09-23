@@ -569,10 +569,19 @@ def connected_message(connection_id='test-connection-id', **connection_details):
     return message
 
 
-def ERROR_MESSAGE(code, message):  # noqa: N802 - the specification's name
+def ERROR_MESSAGE(code, message, status_code=None):  # noqa: N802 - the specification's name
+    """An ERROR protocol message carrying `code`.
+
+    The specification derives the status code as `code / 100`, which holds for
+    the 4xxxx and 5xxxx ranges. The 8xxxx connection errors would yield 800, so
+    they fall back to 500 unless `status_code` names one.
+    """
+    if status_code is None:
+        derived = code // 100
+        status_code = derived if derived < 600 else 500
     return {
         'action': int(ProtocolMessageAction.ERROR),
-        'error': {'code': code, 'statusCode': code // 100, 'message': message},
+        'error': {'code': code, 'statusCode': status_code, 'message': message},
     }
 
 
