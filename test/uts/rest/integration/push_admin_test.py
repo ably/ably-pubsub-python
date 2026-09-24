@@ -71,8 +71,9 @@ async def test_rsh1a_push_publish_invalid_recipient(sandbox):
     # NOTE: the spec expects the server to reject the empty recipient and the
     # error to carry a `code`. `PushAdmin.publish` validates the recipient
     # itself (`ably/rest/push.py:57`) and raises `ValueError` before any request
-    # is made, so there is no server error and no code to read. See
-    # test/uts/deviations-push-admin-integration.md.
+    # is made, so there is no server error and no code to read. See the RSH1a row
+    # under Adapted Tests -> REST behaviours asserted as they are, in
+    # test/uts/deviations.md.
     with pytest.raises(ValueError):
         await client.push.admin.publish({}, {'notification': {'title': 'Test'}})
 

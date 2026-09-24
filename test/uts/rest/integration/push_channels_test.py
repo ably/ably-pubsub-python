@@ -26,7 +26,9 @@ That confirmation also turned up a fault in the specification, recorded against 
 RSH7a setup below: the `deviceIdentityToken` it hard-codes is rejected, and the real
 one from the registration response is used instead.
 
-See [deviations-batch-push-channels-integration.md](../../deviations-batch-push-channels-integration.md).
+See [deviations.md](../../deviations.md): the gating under *Failing Tests* ->
+*Unimplemented features*, and the hard-coded device identity token under *UTS Spec
+Errors*.
 """
 
 from ably import AblyException, DeviceDetails

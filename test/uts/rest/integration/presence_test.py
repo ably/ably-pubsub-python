@@ -27,8 +27,9 @@ def member_for(page, client_id):
     """The one fixture member with `client_id`, or None.
 
     The specifications reach for this with `presence.get(clientId: ...)`, which
-    `Presence.get` does not offer; see
-    [deviations-presence-integration.md](../../deviations-presence-integration.md).
+    `Presence.get` does not offer; see *Adaptations forced by the absent `clientId`
+    filter on `RestPresence#get`* under *Adapted Tests* in
+    [deviations.md](../../deviations.md).
     """
     return next((item for item in page.items if item.client_id == client_id), None)
 

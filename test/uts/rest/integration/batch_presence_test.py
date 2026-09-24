@@ -20,7 +20,10 @@ channel the key has no capability for. Two details of that confirmation are reco
 beside the assertions they bear on — the `presence` key the server omits for an empty
 channel, and the presence members a closed connection takes with it.
 
-See [deviations-batch-push-channels-integration.md](../../deviations-batch-push-channels-integration.md).
+See [deviations.md](../../deviations.md): the gating under *Failing Tests* ->
+*Unimplemented features*, the omitted `presence` key and the closed connection under
+*UTS Spec Errors*, and `enterClient` on an anonymous connection under *Failing Tests* ->
+*Auth*.
 """
 
 from ably.realtime.connection import ConnectionState

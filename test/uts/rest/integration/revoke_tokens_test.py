@@ -18,8 +18,9 @@ Everything either side of the revocation call is real: the app, the revocable ke
 the issued token and the realtime connection the revocation drops. The two
 connection tests assert FAILED with 40171 where the specification asserts
 DISCONNECTED with 40141, which is an adaptation recorded in
-[deviations-revoke-tokens-integration.md](../../deviations-revoke-tokens-integration.md)
-and explained where it is made.
+[deviations.md](../../deviations.md) under *Adapted Tests* -> *A token error with no
+means to renew reports the renewal failure, not the server's error*, and explained
+where it is made.
 """
 
 import asyncio
@@ -107,7 +108,8 @@ async def test_rsa17g_revoke_token_prevents_use(sandbox):
         # server does push exactly that — action 6 carrying `{"code": 40141, "message":
         # "token revoked"}` — but a connection holding only a `TokenDetails` has no way to
         # renew, so ably-python fails it under RSA4a with 40171 and the 40141 never reaches
-        # the connection's state. See deviations-revoke-tokens-integration.md.
+        # the connection's state. See "A token error with no means to renew reports
+        # the renewal failure, not the server's error" in test/uts/deviations.md.
         state_change = await dropped
         assert state_change.reason.code == 40171
         assert state_change.reason.status_code == 403
