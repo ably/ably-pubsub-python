@@ -29,6 +29,15 @@ it pass, and it is marked `@spec_error` — a skip gated on `RUN_DEVIATIONS`, th
 stays green, a real regression still shows, and the failure is one environment variable
 away. Each is filed upstream, in the issues named below.
 
+The tests gated this way:
+
+| Test | Spec error |
+|---|---|
+
+| `test_rsp4_history_pagination` | RSP4 - wire action 4 asserted to be LEAVE |
+| `test_tp3_presence_to_json` | TP3 - an outgoing action asserted as the string `"enter"` |
+| `test_tp3_null_attributes_omitted` | TP3 - the same outgoing string assertion |
+
 Where instead only a specification's *fixture*, *setup* or *label* is at fault, the
 assertion it carries still stands. Those tests keep the corrected fixture (or the
 corrected label in a comment), pass, and carry a `# UTS SPEC ERROR:` comment at the
@@ -64,6 +73,44 @@ references in these entries are against `ably/specification@d9a04ca`.
 returns a one-element array, which is what `time.md` itself uses and what RSC16
 describes. Any SDK that indexes the array raises.
 
+### Spec points are mislabelled across four specs
+
+The assertions are sound; the points they are filed under are not.
+
+| Spec | Filed as | `features.md` says |
+|---|---|---|
+| `error_types.md` | TI2 = `statusCode`, TI3 = `message`, TI5 = `cause` | TI1 carries every attribute. TI2 is "server errors inherit from ErrorInfo", TI3 the ably-common submodule, TI5 help URLs in log entries. Only TI4 (`href`) is right |
+| `token_types.md` | TD1 = token … TD5 = clientId | Every TD label is one short: TD1 is the type, TD2 = token … TD6 = clientId. TE2 and TE4 are swapped, "TE6 - nonce" names the point given to `fromJson`, and there is no TK6 at all |
+| `authorize.md` | RSA10e, RSA10g, RSA10h, RSA10i | RSA10e is features RSA10g, RSA10g is RSA10f, RSA10h is RSA10j, and RSA10i maps to nothing |
+| `idempotency.md` | RSL1k2 = id format, RSL1k3 = unique base | RSL1k1 is the id format, RSL1k2 client-supplied ids, RSL1k3 mixed batches. RSL1k4 and RSL1k5 are listed with no tests |
+
+The cost is coverage: TI2, TI3 and TI5 *as specified* are untested by the suite.
+
+### Fixtures that cannot hold their stated values
+
+- `RSP5/decode-cipher-channel-7`: the ciphertext is 32 bytes, an IV plus one AES-CBC
+  block, but the stated plaintext `{"secret":"data"}` is 17 bytes and pads to two
+  blocks. Decrypting it yields `{"example":{"jso` — a truncated copy of a longer
+  fixture.
+- `RSL6b/unrecognized-encoding-preserved-0`: the payload `"encrypted-data-here"` is
+  not decodable base64 (17 alphabet characters), yet the test asserts base64 is
+  decoded and the result is bytes.
+- `RSL4/encoding-fixtures-ably-common-0` loads `encoding.json` from ably-common. No
+  such file exists; RSL6a1 names `messages-encoding.json`, which has a different
+  schema and runs in the decode direction.
+
+### Presence actions are written as strings
+
+Presence wire fixtures across `rest_presence.md` and `presence_message_types.md`
+write `"action": "enter"`. `protocol.md` encodes the action as the enum ordinal, and
+the suite's own TP2 asserts ordinals. `presence-to-json-2` is the sharpest case: it
+asserts an *outgoing* body carries `"enter"`, which would be invalid on the wire.
+
+`RSP4/history-pagination-1` asserts action `4` is `leave`, contradicting
+`RSP4a/history-returns-paginated-1` and `RSP5/presence-action-mapping-8` in the same
+file, and the protocol, which fix LEAVE at 3 and UPDATE at 4. The closing note on
+`RSP_Action_1` ("3 = leave (some SDKs use 4)") invites the confusion and should go.
+
 ### Fallback tests contradict each other and the retry rules
 
 - `RSC15f/successful-fallback-cached-0` queues a response for one named fallback and
@@ -81,13 +128,15 @@ describes. Any SDK that indexes the array raises.
 
 | Spec | Fault |
 |---|---|
-
+| `options_types.md` | The `TO/endpoint-affects-host-0` "Expected Rest Host" column uses pre-REC1 hostnames (`rest.ably.io`, `test-rest.ably.io`). No assertion reads the column, so the derived test is unaffected |
 | `channels_collection.md` | Header claims RSN3b and RSN3c; neither has a test |
 | `stats.md` | Fixture nests counts under `all`, which `Stats.from_dict` never reads |
 | `rest_client.md` | `RSC17` has two byte-identical tests; header lists RSC7 and RSC7b with no tests |
 | `rest_client.md` | `RSC18` requires constructor-time failure; RSA1/RSC18 only say "any attempt to use" |
 | `request.md` | `version` is written as an integer but lands in a header |
 | `fallback.md` | REC3a, REC3b and REC3 drive a Realtime client but sit in `rest/unit` |
+| `message_encoding.md`, `msgpack_interop.md`, `annotations.md` | Six sections carry no Test ID; ids were inferred by sibling convention |
+| `publish.md`, `rest_presence.md`, `message_encoding.md`, `history.md`, `idempotency.md` | All point at `/Users/paddy/data/worknew/dev/dart-experiments/...` for the mock contract |
 
 ## Failing Tests
 
@@ -99,7 +148,18 @@ the mark is the only change needed once the SDK behaviour lands.
 | Spec points | Missing | Tests |
 |---|---|---|
 
+| RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` takes only `limit`, while `Presence.history` does take its documented params | 3 |
+| TP5 | `size` on `PresenceMessage`. The related `maxMessageSize` gap is adapted rather than gated, below; `features.md` TM6 has no UTS test | 1 |
+
 | RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_handler` as a client option, and any use of `log_level` — it is stored on `Options` and read by nothing | 4 |
+| TI4, TI1/TI5 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors | 2 |
+| TP3a, TP3d, TP3g | Presence attributes defaulted from the encapsulating ProtocolMessage. There is no ProtocolMessage type; `ably/realtime/channel.py:751-761` passes the presence array through without context. Matters for synthesized-leave detection and `memberKey` | 3 |
+
+### Options
+
+| Spec points | Behaviour |
+|---|---|
+| TO3 | `endpoint` is left unset when none is given, per `TO/endpoint-affects-host-0`. `Options.__init__` resolves the default eagerly to the REC1a routing policy id `main`, so the attribute never reads back as null. Only the default case is gated; the two that name an endpoint are derived and pass |
 
 ### Requests
 
@@ -119,8 +179,15 @@ comment above. These run, so they guard against regression.
 | RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
 | REC1b1, REC1c1 | Code 40000, or a message containing "invalid" or "conflict" | 400/40106 with a specific message. The features spec mandates no code | Cosmetic |
 
+| HP6 | `errorCode` is a number | The raw header string, `'40101'` | Open bug, trivial |
+| HP8 | `headers` is a map | A list of `(name, value)` pairs, so the lookup the spec describes is impossible without converting, and case-insensitivity is lost | Open bug; changing the return type is breaking |
 | RSC19e | An error indicated idiomatically | `httpx.ConnectError` / `ReadTimeout` reach the caller unwrapped, because `AblyRest.request` carries no `@catch_all` unlike `time()` and `stats()`. The messages do name the failure | Borderline; defensible under RSC19e |
 | RSC15a | Six hosts tried | Three. `Options.__get_hosts` truncates to `http_max_retry_count`, which TO3l5 sanctions | Intentional |
+| TI | `ErrorInfo` equality by attributes | No `__eq__`, so errors compare by identity. Python exceptions conventionally do, and the requirement appears nowhere in `features.md`. Adding `__eq__` without `__hash__` would make `AblyException` unhashable and break any caller that puts one in a set | Intentional |
+| TD5, RSA16a | `capability` is stringified JSON | A `Capability` object, a public convenience type used throughout `auth`. Narrowing the return type to `str` would break every caller that indexes or mutates it, so it is reserved for a future major | Intentional; a breaking change to align |
+
+| TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:422` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
+| TO3l1, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's values are milliseconds, while ably-python's `http_request_timeout` is seconds | Intentional |
 
 ## Mock Infrastructure Limitations
 
