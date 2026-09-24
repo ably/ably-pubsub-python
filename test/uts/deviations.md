@@ -7,6 +7,10 @@ before it records behaviour.
 Entries are grouped by root cause rather than by test, so one entry covers every
 test it affects. Headings are fixed and appear even when they hold nothing.
 
+Of 581 derived tests, 465 pass, 110 are gated behind `RUN_DEVIATIONS` and 6 cannot be
+run at all. Every gated test has been confirmed to fail when enabled, so none of them
+passes under both behaviours.
+
 Entries closed by a fix are removed rather than kept as history; `git log` holds that.
 
 Run the gated tests with:
@@ -27,9 +31,8 @@ from the specification text, so that correcting the specification is all it take
 it pass, and it is marked `@spec_error` — a skip gated on `RUN_DEVIATIONS`, the same gate
 `@deviation` uses, with a reason naming the specification rather than the SDK. The suite
 stays green, a real regression still shows, and the failure is one environment variable
-away. Each is filed upstream, in the issues named below.
-
-The tests gated this way:
+away. Each is filed upstream, in the issues named below. Nine tests are gated
+this way:
 
 | Test | Spec error |
 |---|---|
@@ -176,6 +179,19 @@ file, and the protocol, which fix LEAVE at 3 and UPDATE at 4. The closing note o
 - Error bodies throughout omit `message` and `statusCode` while tests assert
   `error.statusCode`. An SDK that reads the status from the payload cannot satisfy both.
 
+### Batch response envelopes disagree between sibling specs
+
+`batch_presence.md` states that with `X-Ably-Version >= 3` the server returns a
+`BatchResult` envelope "for all batch responses" and calls the plain array legacy.
+Every mock in `batch_publish.md` uses the plain array. `features.md` RSC22b backs
+`batch_publish.md` — "the response will still be an array" — so `batch_presence.md`'s
+claim is the one to revisit. `revoke_tokens.md` has the same internal split:
+`RSA17c_1` and `TRS2_1` stub a bare array while asserting envelope fields.
+
+`batch_publish.md` RSC22_Headers1 also pins `X-Ably-Version: 2` and
+`Content-Type: application/json`; CSV2b templates the version, the sibling spec says
+">= 3", and the binary protocol default makes the content type msgpack.
+
 ### Smaller faults
 
 | Spec | Fault |
@@ -199,7 +215,9 @@ the mark is the only change needed once the SDK behaviour lands.
 
 | Spec points | Missing | Tests |
 |---|---|---|
-
+| RSC22, RSC24, BSP2, BPR2, BPF2, BAR2, BGR2, BGF2 | `batchPublish` and `batchPresence`, and all six result types. `grep -rn batch ably/` finds nothing | 41 |
+| RSA17, RSA17b–g, BAR2, TRS2, TRF2 | `Auth#revokeTokens`, `TokenRevocationTargetSpecifier`, `BatchResult` | 17 |
+| RSH7, RSH7a–e, RSH6, RSH8 | `PushChannel`: `channel.push`, `client.device`, `LocalDevice`. The push *admin* surface (RSH1) does exist | 10 |
 | RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
 | RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` takes only `limit`, while `Presence.history` does take its documented params | 3 |
 | TP5 | `size` on `PresenceMessage`. The related `maxMessageSize` gap is adapted rather than gated, below; `features.md` TM6 has no UTS test | 1 |
@@ -235,6 +253,7 @@ the mark is the only change needed once the SDK behaviour lands.
 | Spec points | Behaviour |
 |---|---|
 | RSC19b | Caller-supplied headers override the configured `Authorization`, because `Http.make_request` applies `headers` after `auth_headers`. RSC19b says requests "unconditionally" use the configured mechanism |
+| RSH1b1 | Device ids are interpolated raw into push paths (`ably/rest/push.py` lines 82, 106, 118), so an id containing `/` addresses a different resource and `:` is unescaped. `ably/rest/channel.py` does quote channel names, so the SDK is inconsistent with itself |
 
 ## Adapted Tests
 
@@ -250,7 +269,7 @@ comment above. These run, so they guard against regression.
 | RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
 | REC1b1, REC1c1 | Code 40000, or a message containing "invalid" or "conflict" | 400/40106 with a specific message. The features spec mandates no code | Cosmetic |
 | RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000 | Cosmetic; worth aligning cross-SDK |
-
+| RSH1a | Empty `recipient` or `data` rejected with code 40000 | `TypeError` / `ValueError`, not an `AblyException`. The "no HTTP request" half is satisfied | Open bug, minor |
 | HP6 | `errorCode` is a number | The raw header string, `'40101'` | Open bug, trivial |
 | HP8 | `headers` is a map | A list of `(name, value)` pairs, so the lookup the spec describes is impossible without converting, and case-insensitivity is lost | Open bug; changing the return type is breaking |
 | RSC19e | An error indicated idiomatically | `httpx.ConnectError` / `ReadTimeout` reach the caller unwrapped, because `AblyRest.request` carries no `@catch_all` unlike `time()` and `stats()`. The messages do name the failure | Borderline; defensible under RSC19e |
