@@ -15,7 +15,7 @@ from ably.types.connectiondetails import ConnectionDetails
 from ably.types.operations import PublishResult
 from ably.util.eventemitter import EventEmitter
 from ably.util.exceptions import AblyException
-from ably.util.helper import Timer, unix_time_ms
+from ably.util.helper import select_timer, unix_time_ms
 
 try:
     # websockets 15+ preferred imports
@@ -67,6 +67,8 @@ class WebSocketTransport(EventEmitter):
         self.ws_connect_task: asyncio.Task | None = None
         self.connection_manager = connection_manager
         self.options = self.connection_manager.options
+        self.connect_func = self.__select_connect_func(self.options)
+        self.timer_func = select_timer(self.options)
         self.is_connected = False
         self.idle_timer = None
         self.last_activity = None
@@ -76,6 +78,13 @@ class WebSocketTransport(EventEmitter):
         self.params = params
         self.format = params.get('format', 'json')
         super().__init__()
+
+    @staticmethod
+    def __select_connect_func(options):
+        test_options = getattr(options, 'test_options', None)
+        if test_options is not None and test_options.websocket_connect is not None:
+            return test_options.websocket_connect
+        return ws_connect
 
     def connect(self):
         headers = HttpUtils.default_headers()
@@ -101,11 +110,11 @@ class WebSocketTransport(EventEmitter):
         try:
             # Use additional_headers for websockets 15+, fallback to extra_headers for older versions
             try:
-                async with ws_connect(ws_url, additional_headers=headers) as websocket:
+                async with self.connect_func(ws_url, additional_headers=headers) as websocket:
                     await self._handle_websocket_connection(ws_url, websocket)
             except TypeError:
                 # Fallback for websockets 14 and earlier
-                async with ws_connect(ws_url, extra_headers=headers) as websocket:
+                async with self.connect_func(ws_url, extra_headers=headers) as websocket:
                     await self._handle_websocket_connection(ws_url, websocket)
         except (WebSocketException, socket.gaierror) as e:
             exception = AblyException(f'Error opening websocket connection: {e}', 400, 40000)
@@ -292,7 +301,7 @@ class WebSocketTransport(EventEmitter):
     def set_idle_timer(self, timeout: float):
         if self.idle_timer:
             self.idle_timer.cancel()
-        self.idle_timer = Timer(timeout, self.on_idle_timer_expire)
+        self.idle_timer = self.timer_func(timeout, self.on_idle_timer_expire)
 
     async def on_idle_timer_expire(self):
         self.idle_timer = None
