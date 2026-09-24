@@ -1,11 +1,13 @@
 """Construction and teardown for the clients that derived tests drive."""
 
 import asyncio
+import inspect
 import logging
 
 from ably import AblyRealtime, AblyRest
 from ably.types.testoptions import TestOptions
 from test.uts.helpers.clock import settle
+from test.uts.helpers.sandbox import SANDBOX_ENDPOINT
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +21,11 @@ CLOSE_TIMEOUT = 5.0
 
 # The wait the specifications quote for a connection state change.
 STATE_TIMEOUT = 5.0
+
+# What an integration specification's `poll_until(interval: 500ms, timeout: 10s)`
+# is asking for, as wall-clock seconds.
+POLL_TIMEOUT = 10.0
+POLL_INTERVAL = 0.5
 
 __open_clients = []
 
@@ -59,6 +66,51 @@ def realtime_client(mock_websocket=None, mock_http=None, clock=None, **kwargs):
         websocket_connect=mock_websocket.as_connect() if mock_websocket is not None else None,
         timer=clock.timer if clock is not None else None,
     ), **kwargs)
+    __open_clients.append(client)
+    return client
+
+
+def sandbox_rest_client(key=None, **kwargs):
+    """A REST client talking to the real sandbox, for the integration tier.
+
+    Stands in for an integration specification's `Rest(options: ClientOptions(
+    key: api_key, endpoint: "nonprod:sandbox"))`. Where `rest_client` serves
+    every call from a mock, this one reaches the network: it carries no
+    `test_options`, because there is no transport to install in front of a
+    server the tests are there to talk to.
+
+    `key` is the positional credential most specifications pass; one that
+    authenticates some other way passes `token=`, `auth_callback=` or
+    `auth_url=` instead and leaves it out. The protocol defaults to JSON, which
+    is what a specification without a `## Protocol Variants` section means; a
+    specification with one drives it from the `use_binary_protocol` fixture.
+    The client is closed when the test ends.
+    """
+    if key is not None:
+        kwargs['key'] = key
+    kwargs.setdefault('endpoint', SANDBOX_ENDPOINT)
+    kwargs.setdefault('use_binary_protocol', False)
+    client = AblyRest(**kwargs)
+    __open_clients.append(client)
+    return client
+
+
+def sandbox_realtime_client(key=None, **kwargs):
+    """A realtime client talking to the real sandbox, for the integration tier.
+
+    Several REST specifications need presence members or presence history that
+    only a realtime connection can produce, and read them back over REST.
+
+    Unlike `realtime_client`, this one leaves `auto_connect` and the fallback
+    hosts at their library defaults: connecting is the point, and a real
+    fallback host is a real host worth reaching for. The client is closed when
+    the test ends.
+    """
+    if key is not None:
+        kwargs['key'] = key
+    kwargs.setdefault('endpoint', SANDBOX_ENDPOINT)
+    kwargs.setdefault('use_binary_protocol', False)
+    client = AblyRealtime(**kwargs)
     __open_clients.append(client)
     return client
 
@@ -165,6 +217,49 @@ async def poll_until(condition, timeout=STATE_TIMEOUT, description='condition'):
         if loop.time() >= deadline:
             raise AssertionError(f'Timed out waiting until {description}')
         await asyncio.sleep(0)
+
+
+async def wall_clock_poll_until(condition, timeout=POLL_TIMEOUT, description='condition',
+                                interval=POLL_INTERVAL):
+    """Waits on real time until `condition` gives something truthy, and returns it.
+
+    This is the integration tier's `poll_until`. `poll_until` above yields to
+    the event loop between attempts, which is the right thing against a mock,
+    where nothing but the loop can move the state being waited for. Against a
+    real server it would spin a core on a network wait, so this one sleeps the
+    specifications' interval instead.
+
+    `condition` may be a plain callable or a coroutine function, since what a
+    specification usually polls for is the result of a request. The value the
+    condition gave is returned, so a condition that answers with the page it
+    fetched saves fetching it again:
+
+        async def published_message():
+            page = await channel.history()
+            return page if len(page.items) == 1 else None
+
+        history = await wall_clock_poll_until(
+            published_message, description='the published message to reach history')
+
+    A `PaginatedResult` is truthy whether or not it holds anything, so a
+    condition that returns one straight from `history()` is satisfied by the
+    first empty page. Answer with `None` until the page holds what the test is
+    waiting for, as above.
+
+    A timeout raises, naming what was being waited for rather than leaving a
+    caller with the bare deadline.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while True:
+        result = condition()
+        if inspect.isawaitable(result):
+            result = await result
+        if result:
+            return result
+        if loop.time() >= deadline:
+            raise AssertionError(f'Timed out after {timeout}s waiting for {description}')
+        await asyncio.sleep(interval)
 
 
 async def connected_client(mock_websocket, **kwargs):
