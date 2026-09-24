@@ -35,7 +35,10 @@ The tests gated this way:
 |---|---|
 | `test_rsl1a_publish_message_array` | RSL1c - an object payload asserted to travel unstringified |
 | `test_rsl1k_mixed_ids_in_batch` | RSL1k - an absent id in a mixed batch asserted to be generated |
-
+| `test_rsa4a2_expired_token_no_renewal` | RSA4a2 - local expiry detection demanded |
+| `test_rsa4b1_preemptive_renewal` | RSA4b1 - local expiry detection demanded |
+| `test_rsa4b_renewal_msgpack_response` | RSA4b - renewal driven through the unauthenticated `/time` |
+| `test_rsa10i_authorize_preserves_key` | RSA10i - empty assertions, and a premise RSA8e contradicts |
 | `test_rsp4_history_pagination` | RSP4 - wire action 4 asserted to be LEAVE |
 | `test_tp3_presence_to_json` | TP3 - an outgoing action asserted as the string `"enter"` |
 | `test_tp3_null_attributes_omitted` | TP3 - the same outgoing string assertion |
@@ -115,6 +118,26 @@ to let the tests accept both.
 - `auth_scheme.md` asserts a raw `Bearer <token>`. RSA3b makes Base64 optional, and
   ably-python and ably-js both encode.
 
+### Token expiry tests demand optional behaviour
+
+`RSA4a2/expired-token-no-renewal-0` and `RSA4b1/preemptive-renewal-0` require local
+expiry detection. RSA4b1 makes it optional *and* conditional on having persisted a
+clock offset per RSA10k and judging expiry against Ably service time rather than the
+local clock. Neither setup establishes that precondition.
+
+`RSA4b/renewal-msgpack-response-4` drives a renewal flow through `client.time()`.
+`/time` is unauthenticated — the same suite's `RSC16/no-auth-required-2` asserts it
+carries no `Authorization` header — so it cannot return a token error or trigger
+renewal in any SDK.
+
+### `RSA10i` asserts that an API key survives `authorize()`
+
+RSA8e says provided `AuthOptions` "are used instead of the stored values (even when
+null)", and RSA10j repeats it. No features point requires key preservation, and
+ably-js's own error text reads "A passed authOptions replaces the stored options
+rather than merging." `RSA10k`'s setup depends on the same premise and cannot reach
+`/time` without it. `RSA10i` also has an empty assertions block.
+
 ### Fixtures that cannot hold their stated values
 
 - `RSP5/decode-cipher-channel-7`: the ciphertext is 32 bytes, an IV plus one AES-CBC
@@ -185,6 +208,22 @@ the mark is the only change needed once the SDK behaviour lands.
 | TI4, TI1/TI5 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors | 2 |
 | TP3a, TP3d, TP3g | Presence attributes defaulted from the encapsulating ProtocolMessage. There is no ProtocolMessage type; `ably/realtime/channel.py:751-761` passes the presence array through without context. Matters for synthesized-leave detection and `memberKey` | 3 |
 
+### Auth
+
+| Spec points | Behaviour |
+|---|---|
+| RSA4 | With a `key` present, `auth_callback` and `auth_url` are ignored when choosing the auth scheme, so Basic is selected and the callback is never called. `Auth.__init__` considers only `use_token_auth` and `key_secret`. `AblyRest.__init__`'s credential `elif` chain compounds it by discarding `token`/`token_details` when a key is given |
+| RSA15a, RSA15c | A mismatch between `ClientOptions.clientId` and a statically supplied `TokenDetails.clientId` is never detected. `Auth.__init__` only falls back to the token's clientId; `_configure_client_id`, which would raise, is reached only after a *fetched* token |
+| RSA12a | A token with a **null** clientId is rejected when `ClientOptions.clientId` is set, with 40102 "Client ID cannot be changed to 'None'". RSA15a constrains only non-wildcard token clientIds. Needs a `new_client_id is not None` guard |
+| RSA7, RSA16c | A clientId learned from a token is treated as immutable, so `authorize()` to a token with a different clientId raises 40102. RSA15 scopes immutability to a clientId set in `ClientOptions`. `_configure_client_id` uses `self.client_id or self.auth_options.client_id`, conflating the two. Possibly deliberate — worth a maintainer's call |
+| RSA10b, RSA10h, RSA10j | `authorize()` overwrites an explicit `tokenParams.clientId`. `ably/rest/auth.py:126-127` assigns `self.client_id` unconditionally. RSA10h makes it the default "if not null" |
+| RSA5c, RSA6c | `create_token_request()` ignores `default_token_params`. The merge lives in `Auth.request_token` only, so a direct call yields `ttl=None` and `capability=None`. RSA5, RSA5b, RSA5d, RSA6, RSA6b and RSA6d all pass, so the nullability requirement itself is met |
+| RSA16b | `TokenDetails` built from a bare token string fabricates `expires` (now plus an hour), `issued` (0) and `capability`. RSA16b requires only `token` to be populated. The invented expiry can drive spurious renewal |
+| RSA16c | No local expiry detection without a server time offset, which an authCallback client never obtains. See the RSA4b1 spec error above; here the specification asserts renewal *does* happen, so there is no green reading |
+| RSA16d | A failed renewal leaves the invalidated token in place — `_ensure_valid_auth_credentials` assigns only on success |
+| RSA16d | `authorize()` cannot switch a client back to basic auth: `_ensure_valid_auth_credentials` sets `Method.TOKEN` unconditionally, and `AuthOptions.replace` drops `use_token_auth`, which is stored outside the options dict |
+| RSA8c1a, RSA12b | `TokenParams` reach the `auth_url` under the SDK's internal snake_case names: `Auth._ensure_valid_auth_credentials` sets `token_params['client_id']` and `token_request_from_auth_url` passes the dict straight to the query string, so an auth server sees `client_id`, not `clientId` |
+
 ### Options
 
 | Spec points | Behaviour |
@@ -218,7 +257,8 @@ comment above. These run, so they guard against regression.
 | RSC15a | Six hosts tried | Three. `Options.__get_hosts` truncates to `http_max_retry_count`, which TO3l5 sanctions | Intentional |
 | TI | `ErrorInfo` equality by attributes | No `__eq__`, so errors compare by identity. Python exceptions conventionally do, and the requirement appears nowhere in `features.md`. Adding `__eq__` without `__hash__` would make `AblyException` unhashable and break any caller that puts one in a set | Intentional |
 | TD5, RSA16a | `capability` is stringified JSON | A `Capability` object, a public convenience type used throughout `auth`. Narrowing the return type to `str` would break every caller that indexes or mutates it, so it is reserved for a future major | Intentional; a breaking change to align |
-
+| RSA6b, RSA6d | The capability literal as passed | Canonicalised by `Capability.c14n`, which RSA9f requires | Compliant; rendering only |
+| RSA8d | `error.message` contains the callback's text | Wrapped as 40170 with the original in `cause`; `__str__` renders both | Rendering |
 | CHM2 | Missing metrics default to 0 | `ChannelMetrics.from_dict` uses a bare `obj.get(name)`, so any omitted metric parses as `None` | Open bug, broader than CHM2g/h |
 | CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
 | TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:422` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
