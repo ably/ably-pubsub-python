@@ -130,7 +130,7 @@ class RestAnnotations:
         # RSAN1c4: Generate random ID if not provided (for idempotent publishing)
         # Spec: base64-encode at least 9 random bytes, append ':0'
         if not annotation.id and self.__client_options.idempotent_rest_publishing:
-            random_id = base64.b64encode(os.urandom(9)).decode('ascii') + ':0'
+            random_id = base64.urlsafe_b64encode(os.urandom(9)).decode('ascii') + ':0'
             annotation = annotation._copy_with(id=random_id)
 
         # RSAN1c3: encrypt the data payload on an encrypted channel

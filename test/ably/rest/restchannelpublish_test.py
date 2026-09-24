@@ -503,7 +503,7 @@ class TestRestChannelPublishIdempotent(BaseAsyncTestCase, metaclass=VaryByProtoc
         message = Message('name', 'data')
         request_body = channel._Channel__publish_request_body(messages=[message])
         base_id, serial = request_body['id'].split(':')
-        assert len(base64.b64decode(base_id)) >= 9
+        assert len(base64.urlsafe_b64decode(base_id)) >= 9
         assert serial == '0'
 
     # RSL1k2
