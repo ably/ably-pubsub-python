@@ -24,30 +24,33 @@ One Test ID can become more than one derived test: five Test IDs in `rest/unit` 
 `error_types_test.py`, `fallback_test.py`, `rest_client_test.py` (two) and
 `paginated_result_test.py` — assert several independent things under a single id, and
 the derivation writes a function for each rather than one function with an unrelated
-second half. That turns 1051 Test IDs into 1060 derived tests. Going the other way, one
-derived test can become more than one case: five of the eleven `rest/integration`
+second half. That turns 1059 Test IDs into 1068 derived tests. Going the other way, one
+derived test can become more than one case: five of the twelve `rest/integration`
 specifications carry a `## Protocol Variants` section and run every one of their tests
 twice, once per protocol, and nine `rest/unit` tests are parametrized over a table of
-fixtures the specification gives inline. That turns 1060 derived tests into 1131 pytest
+fixtures the specification gives inline. That turns 1068 derived tests into 1139 pytest
 cases.
 
-Of **1051 Test IDs, derived as 1060 tests and run as 1131 pytest cases**: 834 Test IDs
-(843 tests, 910 cases) pass, 202 (202 tests, 206 cases) are gated behind
-`RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. Every gated test has
-been confirmed to fail when enabled, so none of them passes under both behaviours. 494
-of the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 481 from
-`uts/realtime/unit` (481, 481) and 76 from `uts/rest/integration` (76, 114); of the
-gated Test IDs 121 are REST and 81 realtime, which is 125 REST cases and 81 realtime.
+Of **1059 Test IDs, derived as 1068 tests and run as 1139 pytest cases**: 841 Test IDs
+(850 tests, 917 cases) pass, 203 (203 tests, 207 cases) are gated behind
+`RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
+disjoint: two Test IDs, and one parametrized test, have a gated part and a passing part,
+and are counted with the gated. Every gated test has been confirmed to fail when
+enabled, so none of them passes under both behaviours. 494 of the Test IDs come from
+`uts/rest/unit` (503 tests, 536 cases), 481 from `uts/realtime/unit` (481, 481) and 84
+from `uts/rest/integration` (84, 122), 8 of those (8, 8) from the `proxy` package within
+it; of the gated Test IDs 122 are REST and 81 realtime, which is 126 REST cases and 81
+realtime.
 A further 122 pytest cases under `helpers/` cover the mock infrastructure itself and are
 not derived from a specification.
 
-The 192 gated Test IDs that record SDK non-compliance — 192 tests, 196 cases — reduce to
-**66 distinct root causes**, 26 on the REST side and 40 on the realtime side. Three further
+The 193 gated Test IDs that record SDK non-compliance — 193 tests, 197 cases — reduce to
+**67 distinct root causes**, 27 on the REST side and 40 on the realtime side. Three further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
 synthesized LEAVE timestamps), or is worked around in the setup of every test that
 would otherwise trip over it (`enterClient` on an anonymous connection), so the file
-carries **69 SDK root causes** in all. The remaining 10 gated Test IDs are
+carries **70 SDK root causes** in all. The remaining 10 gated Test IDs are
 specification faults, and reduce to 7.
 
 Entries closed by a fix are removed rather than kept as history; `git log` holds that.
@@ -1377,6 +1380,51 @@ which is about a client that *does* configure `clientId: "*"`.
 |---|---|
 | TO3 | `endpoint` is left unset when none is given, per `TO/endpoint-affects-host-0`. `Options.__init__` resolves the default eagerly to the REC1a routing policy id `main`, so the attribute never reads back as null. Only the default case is gated; the two that name an endpoint are derived and pass |
 
+#### `httpRequestTimeout` is seconds where the specification counts milliseconds — 1 test
+
+**Spec points:** TO3l4, RSC15l2, `rest/proxy/RSC15l2/timeout-triggers-fallback-0`.
+
+`ably/http/http.py:193` builds `timeout = (self.http_open_timeout,
+self.http_request_timeout)` and hands it to `httpx`, which reads both as **seconds**.
+TO3l4's `httpRequestTimeout` is milliseconds, default 10000, and
+`CONNECTION_RETRY_DEFAULTS` holds `10`. So a caller passing the value the published
+specification describes gets a deadline a thousand times longer than the one asked for:
+`http_request_timeout=3000` is three thousand seconds. The **defaults** come out right
+by coincidence — 10 seconds is TO3l4's 10000 ms, and `http_open_timeout`'s 4 is TO3l3's
+4000 — which is why only a client that configures the option is affected, and why the
+mismatch reads as cosmetic anywhere it is only compared against `options`.
+
+Measured through the proxy. Against a session delaying the first `/time` by 20 seconds,
+a client built with the specification's `httpRequestTimeout: 3000` sat out the whole
+delay, succeeded on the primary host, and tried no fallback — one `/time` request in the
+event log where the test asserts two, which is the `assert 1 >= 2` the gated run shows.
+Passing `3` in its place makes the same test pass in 3.1 seconds: the timeout fires, the
+retry goes to the fallback host and succeeds. So RSC15l2's fallback path is compliant and
+the unit is the whole of the defect.
+
+The same mismatch is recorded twice under *Adapted Tests*, at `TO3l1, TO3l5` and at
+`RTC7 (TO3l3, TO3l4)` in *REST behaviours asserted as they are*, where it is what makes
+the effective defaults unreadable from `options`. This is that defect seen from outside:
+the same line of `http.py`, reached through a public client option rather than through an
+attribute, so a caller is affected whether or not they ever read `options`. It is counted
+as one root cause, here, because it is the only gated test on it; neither Adapted Tests
+row is counted again.
+
+**Tests affected:** `test_rsc15l2_timeout_triggers_fallback`, the one gated test in
+`rest/integration/proxy`. The test is written exactly as the specification has it, with
+`http_request_timeout=3000`, so removing the gate is all that is needed once the unit is
+fixed.
+
+**Status:** open bug. The fix converts at the boundary — `Http` dividing the option by
+1000 before it reaches `httpx`, with `CONNECTION_RETRY_DEFAULTS` restated in
+milliseconds — and has to move `http_open_timeout` (TO3l3) with it, since both halves of
+the tuple are read the same way. That same line carries a second, filed defect:
+[#709](https://github.com/ably/ably-python/issues/709) is that the value, in whatever
+unit, bounds one socket read rather than the request, so a connection that keeps
+producing frames is never timed out and `write` and `pool` are left unbounded. The two
+want fixing together, since both change what one attempt may spend of the RSC15 retry
+budget.
+
 ### Requests
 
 | Spec points | Behaviour |
@@ -1767,6 +1815,8 @@ pseudocode is not mistaken for non-compliance.
 | RTP19a's route | the specification models an ATTACHED without HAS_PRESENCE as `startSync()` then `endSync()`. `on_attached(has_presence=False)` calls `_synthesize_leaves(...)` then `clear()` (`presence.py:611-618`), which is the requirement itself rather than the model of it |
 | `hasNext` as a value | `push_admin.md` RSH1b2 writes `ASSERT result.hasNext == true`. In Python `has_next` is a bound method (`ably/http/paginatedresult.py:63`), truthy whatever the page holds, so the direct translation asserts nothing. `test_rsh1b2_list_devices_pagination` writes `result.has_next() is True`, confirmed to fail when inverted |
 | Push `remove` return values | the specification's remove steps assert nothing about a return value ("should not throw"). `PushDeviceRegistrations.remove` / `remove_where` and `PushChannelSubscriptions.remove` / `remove_where` return the `ably.http.http.Response` from the DELETE rather than `None` (`ably/rest/push.py:112-127`, `:176-192`), so the six derived removal tests assert `response.status_code == 204`, which is stronger than the specification asks and matches what `test/ably/rest/restpush_test.py` already asserts |
+| `rest/proxy/RSC15l/unreachable-endpoint-error-0` | the specification asserts only that the error carries a non-null `status_code` or `code`, leaving the values open, so the derived test asserts exactly that and is the weakest of the eight proxy tests. What this SDK produces against a refused connection is 500 / 50000 with the message "All connection attempts failed", `catch_all` having wrapped the `httpx.ConnectError`, and that is recorded here rather than asserted, since pinning it would assert more than the specification does |
+| `RSL1k4`'s history read | the event log is per session, so any request the client under test makes through it is recorded — including the `history()` the test verifies deduplication with. The log is therefore read **before** the history call, and the POST count assertion made against that snapshot. The history read itself is a `wall_clock_poll_until` rather than one fetch, for the same reason every other integration verification is: a published message does not reach history at once |
 | RSP4b1's time bounds | the specification records `time_before = now_millis()` before generating the presence events and `time_after = now_millis()` after, then asserts a `history(start=, end=)` over that window returns them. Read from the runner's clock the window is only as good as the skew against the sandbox, which decides the timestamps actually stored, so a runner running a little fast would exclude the very events the test generated. Both bounds come from `await client.time()` instead — the same instant on the clock that stamps the events. `Presence.history` passes an `int` straight through as milliseconds (`ably/types/presence.py:232-241`), which is what `client.time()` returns, so no conversion is involved |
 
 ### REST behaviours asserted as they are
@@ -1794,8 +1844,8 @@ pseudocode is not mistaken for non-compliance.
 | CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
 | TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:422` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
 | RTN15, RTN23 | A DISCONNECTED `ErrorInfo` needs no `statusCode` | `ConnectionManager.on_disconnected` evaluates `exception.status_code >= 500` unguarded, so a DISCONNECTED whose error omits `statusCode` raises `TypeError` in a task whose exception is only logged, and the connection silently stays CONNECTED. `DISCONNECTED_MESSAGE` supplies 400 | Open bug |
-| TO3l1, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's values are milliseconds, while ably-python's `http_request_timeout` is seconds | Intentional |
-| RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | Both `None` on `Options`; `Http.http_open_timeout` / `http_request_timeout` fall back to `CONNECTION_RETRY_DEFAULTS`, which holds 4 and 10 — seconds, because that is what `httpx` takes. The three realtime timeouts the same test checks are defaulted on `Options` and match | Open bug for the default being unreadable from `options`; the unit difference alone is internal |
+| TO3l1, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's `httpRequestTimeout` is milliseconds and ably-python's `http_request_timeout` is seconds, on the value a caller passes as much as on the default — gated, with the measurement, under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests | Intentional for where the defaults are applied; the unit is an open bug, recorded there |
+| RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | Both `None` on `Options`; `Http.http_open_timeout` / `http_request_timeout` fall back to `CONNECTION_RETRY_DEFAULTS`, which holds 4 and 10 — seconds, where TO3l3 and TO3l4 count milliseconds. The three realtime timeouts the same test checks are defaulted on `Options` and match | Two faults in one row: the defaults are unreadable from `options`, and the unit reaches the wire — `rest/proxy/RSC15l2/timeout-triggers-fallback-0` measures a request outliving its configured timeout by a factor of a thousand. Both open; the unit is gated under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests |
 | RTC17 (RSA7b1) | `client.clientId == client.auth.clientId` | `AblyRealtime.client_id` reads `options.client_id` and returns the configured value, while `Auth.__init__` sets `self.__client_id = None` whenever `ably._is_realtime` (`rest/auth.py:34-41`), deferring it to whatever a CONNECTED confirms. The two disagree on a client that has not connected | Open bug. RSA12b only allows the realtime clientId to be unknown while it has not been *configured* |
 | RTC1f | a `transportParams` boolean appears as `"true"` / `"false"` | `True` / `False`, because `WebSocketTransport.connect` builds the query string with `urllib.parse.urlencode`, which renders each value through `str()` (`websockettransport.py:89`). Integers are unaffected | Open bug. A caller can pass the strings directly, but a bool is what the spec's Stringifiable type admits |
 
@@ -2029,7 +2079,7 @@ is missing accessors over correct behaviour. Within a tier the order is blast ra
 | [#706](https://github.com/ably/ably-python/issues/706) | the fabricated `"None:0"` message id | 3.3 |
 | [#658](https://github.com/ably/ably-python/issues/658) | presence messages sent on reconnection before reattach | adjacent to 3.14, which is the other half of RTP17 automatic re-entry |
 | [#656](https://github.com/ably/ably-python/issues/656) | `utcfromtimestamp` deprecation | adjacent to 2.4 |
-| [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712) | REST request timeout, token-request nonce reuse, single-host retry, `dispose()` teardown | none — filed from the REST derivation, and distinct from everything here |
+| [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712) | REST request timeout, token-request nonce reuse, single-host retry, `dispose()` teardown | adjacent to I.3, which is a second defect on the line #709 is about and is not covered by it; otherwise none, these having been filed from the REST derivation |
 
 Every reproduction below is prefixed by:
 
@@ -2360,8 +2410,10 @@ none of these shows up as a failure — which is why they are easy to lose.
 
 The five tiers above classify the realtime derivation; the REST unit derivation's
 candidates went upstream as [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712).
-Two further defects came out of `rest/integration`, and neither is filed. Both are
-tier 2 by the ranking above — an error where there should be none.
+Three further defects came out of `rest/integration`, and none of them is filed. The
+first two are tier 2 by the ranking above — an error where there should be none. The
+third is tier 1 for a client that configures the option it concerns, since the call does
+not come back when the caller asked for it to.
 
 **I.1 `Rest#request` never renews an expired token.** RSC10, RSC19. Every other REST
 operation renews and retries on a 40140–40149; `Rest#request` returns the 401 to the
@@ -2381,6 +2433,20 @@ validated and `None`. `can_assume_client_id` then refuses every clientId. One li
 fix, and `enter_client` is unusable without one. No test gates on it — the three tests that
 would hit it pass `client_id='*'` in setup instead, as the repository's own presence suite
 does — so it will not show up as a failure.
+
+**I.3 `httpRequestTimeout` is applied as seconds where the specification counts
+milliseconds.** TO3l4, TO3l3, RSC15l2. `ably/http/http.py:193` hands
+`(http_open_timeout, http_request_timeout)` to `httpx`, which reads seconds, so a client
+built with the specification's `httpRequestTimeout: 3000` waits three thousand seconds.
+Measured through `uts-proxy` against a session delaying `/time` by 20 seconds: the
+request sat out the whole delay, succeeded on the primary host and attempted no
+fallback, where `http_request_timeout=3` timed out at 3.1 seconds and the fallback retry
+succeeded. The defaults are unaffected, 4 and 10 seconds being TO3l3's and TO3l4's 4000
+and 10000 ms, so this reaches only a client that sets the option — but such a client gets
+no timeout and no fallback at all. Distinct from
+[#709](https://github.com/ably/ably-python/issues/709), which is about the same value
+bounding a single socket read rather than the request; a fix wants to settle both.
+`test/uts/rest/integration/proxy/rest_fallback_test.py -k rsc15l2`
 
 ## How the specifications are adopted here
 
@@ -2649,8 +2715,8 @@ indices are the capabilities each specification's app-provisioning section names
 
 A specification carrying a `## Protocol Variants` section runs each of its Test IDs twice,
 through a `use_binary_protocol` fixture parametrized `[False, True]` with the ids `json`
-and `msgpack`. Five of the eleven specifications carry that section, so 38 of the 76
-integration Test IDs are two pytest cases each. The six that do not are json only and
+and `msgpack`. Five of the twelve specifications carry that section, so 38 of the 84
+integration Test IDs are two pytest cases each. The seven that do not are json only and
 take the default `sandbox_rest_client` applies. This is why the counts in this file give
 Test IDs and cases separately.
 
@@ -2659,6 +2725,33 @@ An autouse fixture closes every client a test built, whether or not its assertio
 `AWAIT realtime.close()` inline, which is redundant against that fixture and in two
 places actively destroys what the following REST read is about — see the UTS Spec Error
 above. Tests omit the inline close and leave it to teardown.
+
+### The proxy package runs against a pinned proxy, with a session per test
+
+`uts/docs/proxy.md` puts `ably/uts-proxy` between the client and the sandbox for the
+specifications under `rest/integration/proxy`, and three harness choices follow from
+having to supply the proxy itself.
+
+The release is pinned and verified rather than built or assumed present. The archive for
+the machine is downloaded on first use, checked against the sha256 the release publishes,
+and extracted into `~/.cache/uts-proxy/<version>/`, under a lock file so that the several
+Python versions CI runs fetch it once between them. `UTS_PROXY_LOCAL_PATH` substitutes a
+locally built binary or distributive, and `UTS_PROXY_CONTROL_URL` substitutes a control
+API a developer is already running, which the suite then leaves alone. One control
+process is started per test run on a free port, rather than a fixed one, so two suites on
+a machine do not collide, and it is reaped at the end of the run and again at interpreter
+exit.
+
+A session is per test and the `proxy_session` fixture closes every one it handed out,
+which is the specifications' `AFTER EACH TEST: IF session IS NOT null: session.close()`
+without each test having to carry it. The session's `timeoutMs` is set to 120000 against
+the proxy's own 30000, because it is an idle timer and one of these tests sits through a
+twenty-second delay before it reads anything; the package's per-test pytest timeout is
+300 seconds against the tier's 120, for the delay and for the download the first test may
+wait on. Every client in the package authenticates through an `authCallback` whose own
+request goes straight to the sandbox: the session speaks plain HTTP, RSC18 refuses basic
+auth over it, and a token request routed through the session would be counted by the
+assertions that count requests.
 
 ### A hedged integration setup is provisioned so its guarded assertions bite
 

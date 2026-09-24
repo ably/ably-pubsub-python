@@ -144,6 +144,54 @@ Tests here are given 120 seconds each, per `uts/docs/integration-testing.md`, ra
 than the 30 seconds `pyproject.toml` sets for the suite as a whole. The marker covers
 the integration package alone.
 
+`rest/integration/proxy/` routes its traffic through
+[ably/uts-proxy](https://github.com/ably/uts-proxy), a programmable proxy standing
+between the client and the sandbox. Those specifications are about what the SDK does
+when a request goes wrong — a connection dropped mid-request, a 503, a CloudFront 403,
+a response held past the request timeout — and the sandbox answers correctly, so the
+fault is injected in front of it. The proxy binds a port per session, takes plain HTTP
+on it and speaks TLS onwards to the sandbox, applies the rules the session was opened
+with, and records every request and response that crosses it.
+
+The binary is a pinned `uts-proxy` release. The first run that needs it fetches the
+release archive for the machine, checks it against the sha256 the release publishes,
+and extracts the binary into `~/.cache/uts-proxy/<version>/`, where every run
+afterwards finds it; the download is serialised on a lock file, so several Python
+versions starting at once on an empty cache fetch it once between them.
+`UTS_PROXY_LOCAL_PATH` names a locally built binary, or a `.tar.gz` holding one, to be
+used in place of the release, and `UTS_PROXY_CONTROL_URL` names a control API someone
+is already running, which the suite uses as it stands and leaves running. Otherwise one
+control process is started for the test session on a free port and reaped at the end of
+it; it serves every session the run opens.
+
+`proxy_session` is a specification's `create_proxy_session(...)`, and closes every
+session it hands out when the test ends. A client reaches its session by naming
+`localhost` and the session's port with TLS off, which disables fallback hosts (REC2c2);
+a scenario about a retry names the same session again as its fallback, so both attempts
+arrive at the one port and appear in the one event log, which `session.get_log()`
+returns:
+
+```python
+async def test_rsc15l_connection_drop_fallback(sandbox, proxy_session):
+    session = await proxy_session(rules=[{
+        'match': {'type': 'http_request', 'pathContains': '/time'},
+        'action': {'type': 'http_drop'},
+        'times': 1,
+    }])
+    client = sandbox_rest_client(
+        auth_callback=token_auth_callback(sandbox.key_str),
+        endpoint='localhost', fallback_hosts=['localhost'],
+        port=session.proxy_port, tls=False, use_binary_protocol=False)
+```
+
+A plain connection rules basic auth out, since RSC18 refuses it, so every client here
+authenticates through a callback whose own request goes straight to the sandbox and
+stays out of the event log.
+
+Tests in this package are given 300 seconds each: a cold cache downloads the binary
+before the first of them runs, and a specification that provokes a timeout sits through
+the delay it asked the proxy for.
+
 ## Running
 
 ```
