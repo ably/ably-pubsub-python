@@ -208,7 +208,7 @@ class Annotation(EncodeDataMixin):
         name = obj.get('name')
         count = obj.get('count')
         data = obj.get('data')
-        encoding = obj.get('encoding', '')
+        encoding = obj.get('encoding') or ''
         id = obj.get('id')
         client_id = obj.get('clientId')
         connection_id = obj.get('connectionId')

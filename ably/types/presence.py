@@ -175,7 +175,7 @@ class PresenceMessage(EncodeDataMixin):
         client_id = obj.get('clientId')
         connection_id = obj.get('connectionId')
         data = obj.get('data')
-        encoding = obj.get('encoding', '')
+        encoding = obj.get('encoding') or ''
         timestamp = obj.get('timestamp')
         # member_key = obj.get('memberKey', None)
         extras = obj.get('extras', None)

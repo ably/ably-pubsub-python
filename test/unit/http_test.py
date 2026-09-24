@@ -65,3 +65,24 @@ async def test_http_surfaces_transport_connection_errors():
 def test_http_uses_a_network_transport_without_test_options():
     ably = AblyRest(token="foo")
     assert isinstance(ably.http._Http__client._transport, httpx.AsyncHTTPTransport)
+
+
+async def test_auth_url_requests_go_through_the_client_http_layer():
+    def respond(request):
+        if request.url.host == 'auth.example.com':
+            return httpx.Response(200, text='a-token', headers={'content-type': 'text/plain'})
+        return httpx.Response(200, json=[1500000000000])
+
+    transport = RecordingTransport(respond)
+    ably = AblyRest(auth_url='https://auth.example.com/token',
+                    test_options=TestOptions(http_transport=transport))
+
+    await ably.auth.authorize()
+
+    auth_requests = [r for r in transport.requests if r.url.host == 'auth.example.com']
+    assert len(auth_requests) == 1
+    assert auth_requests[0].url.path == '/token'
+    # An auth_url addresses a server outside Ably, so none of the Ably headers apply
+    assert 'Authorization' not in auth_requests[0].headers
+    assert 'X-Ably-Version' not in auth_requests[0].headers
+    await ably.close()

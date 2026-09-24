@@ -31,6 +31,7 @@ def format_params(params=None, direction=None, start=None, end=None, limit=None,
     if end:
         params['end'] = format_time_param(end)
     if limit:
+        limit = int(limit)
         if limit > 1000:
             raise ValueError("The maximum allowed limit is 1000")
         params['limit'] = f'{limit}'
@@ -95,7 +96,7 @@ class PaginatedResult:
 
         items = response_processor(response)
 
-        content_type = response.headers['Content-Type']
+        content_type = response.headers.get('Content-Type')
         links = response.links
         if 'first' in links:
             first_rel_request = request.with_relative_url(links['first']['url'])

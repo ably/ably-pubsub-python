@@ -1,4 +1,5 @@
 import base64
+import ipaddress
 import os
 import platform
 
@@ -29,6 +30,19 @@ class HttpUtils:
         headers = HttpUtils.default_get_headers(binary=binary, version=version)
         headers["Content-Type"] = headers["Accept"]
         return headers
+
+    @staticmethod
+    def host_for_url(host):
+        """Renders a host for inclusion in a URL.
+
+        An IPv6 literal is bracketed so that its colons are not read as a port
+        separator; every other form of host is returned unchanged.
+        """
+        try:
+            is_ipv6 = ipaddress.ip_address(host).version == 6
+        except ValueError:
+            is_ipv6 = False
+        return f'[{host}]' if is_ipv6 else host
 
     @staticmethod
     def get_host_header(host):
