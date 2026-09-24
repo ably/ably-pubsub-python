@@ -7,24 +7,34 @@ allowed-tools: Bash, Read, Edit, Write, WebFetch
 
 ## Sources
 
-Fetch both fresh at the start of every run; do not work from memory.
+Fetch the governing doc and the spec fresh at the start of every run; do not work from
+memory.
 
 ```bash
 gh api repos/ably/specification/contents/uts/docs/writing-derived-tests.md --jq '.content' | base64 -d
+gh api repos/ably/specification/contents/uts/docs/integration-testing.md --jq '.content' | base64 -d
 gh api repos/ably/specification/contents/uts/rest/unit/<spec>.md --jq '.content' | base64 -d
 gh api repos/ably/specification/contents/uts/realtime/unit/<spec>.md --jq '.content' | base64 -d
+gh api repos/ably/specification/contents/uts/rest/integration/<spec>.md --jq '.content' | base64 -d
 ```
 
-`writing-derived-tests.md` governs. This file covers only what is particular to ably-python.
+`writing-derived-tests.md` governs, and `integration-testing.md` alongside it for
+`uts/rest/integration`. This file covers only what is particular to ably-python.
 
 ## Layout
 
 A spec at `uts/<tier path>/<name>.md` becomes `test/uts/<tier path>/<name>_test.py`, so
-`uts/rest/unit/auth/token_renewal.md` becomes `test/uts/rest/unit/auth/token_renewal_test.py`.
+`uts/rest/unit/auth/token_renewal.md` becomes `test/uts/rest/unit/auth/token_renewal_test.py`
+and `uts/rest/integration/history.md` becomes `test/uts/rest/integration/history_test.py`.
 Every directory needs an `__init__.py`, as `test` is a package.
 
-`test/uts/rest/unit/time_test.py` is the reference example for REST, and
-`test/uts/realtime/unit/connection/auto_connect_test.py` for realtime. Follow their shape.
+There are two kinds of tier. `rest/unit` and `realtime/unit` serve every request from a
+mock and reach no network; `rest/integration` runs against the real Ably sandbox and has
+no mock at all. See **The integration tier** below.
+
+`test/uts/rest/unit/time_test.py` is the reference example for REST unit,
+`test/uts/realtime/unit/connection/auto_connect_test.py` for realtime, and
+`test/uts/rest/integration/history_test.py` for integration. Follow their shape.
 
 ## Anatomy of a derived test
 
@@ -81,6 +91,9 @@ async def test_rsc16_time_returns_server_time():
 | `install_mock(m)` + `Realtime(options: ...)` | `realtime_client(m, ...)` from `test.uts.helpers.client` |
 | `AWAIT_STATE client.connection.state == X` | `await await_connection_state(client, ConnectionState.X)` |
 | `mock_ws.active_connection` | the same, on `MockWebSocket` |
+| `Rest(ClientOptions(key: api_key, endpoint: "nonprod:sandbox"))` | `sandbox_rest_client(key)`; `sandbox_realtime_client(key)` for realtime |
+| `app_config.keys[i]` / `BEFORE ALL TESTS` app setup | the `sandbox` fixture and `sandbox.key(i)` |
+| `poll_until(interval: 500ms, timeout: 10s)` in an integration spec | `await wall_clock_poll_until(condition, description='...')`, **not** `poll_until` |
 
 Client options are snake_case throughout. Check the actual signature in
 `ably/types/options.py` before assuming an option exists.
@@ -268,6 +281,57 @@ All in `test.uts.helpers.clock`.
 | `clock.now`, `clock.pending`, `clock.fired` | inspection. **`clock.now` inside a callback equals that timer's due time**, which makes a delay measurement exact rather than sampled |
 | `settle(passes=20)` | `process_pending_events()`: twenty yields, because the realtime paths chain `create_task` several levels deep |
 | `advance_to_connection_state(client, clock, state, step, limit=60)` | the specifications' `LOOP up to N: ADVANCE_TIME(x)`, for driving the connection to SUSPENDED |
+
+## The integration tier
+
+`uts/rest/integration/<name>.md` becomes `test/uts/rest/integration/<name>_test.py` and
+runs against the real Ably sandbox — eleven specifications, 76 tests. There is no mock
+and no `test_options`: the client reaches the network. `test/uts/README.md` covers the
+same ground for someone reading the suite; this is what someone writing a test needs.
+
+What differs from the mock-backed tiers:
+
+- **Nothing sits in front of the client.** No `install_mock`, no captured request to
+  assert on, no way to make the server answer a chosen way. A spec point that can only
+  be shown through a stubbed response belongs in the unit tier.
+- **One sandbox app serves the whole session**, standing in for `BEFORE ALL TESTS`.
+  So every channel name, client id and device id takes a `random_id()` suffix, and
+  anything a test registers it removes in a `finally`.
+- **Waits are wall-clock**, the inverse of the unit tier's rule. See Timers below.
+- **The per-test timeout is 120 seconds**, set by the package's own `conftest.py`, not
+  the 30 `pyproject.toml` gives the rest of the suite.
+
+| Name | Is |
+|---|---|
+| `sandbox` fixture, in `rest/integration/conftest.py` | a specification's `app_config`. Session-scoped: provisioned once from the vendored `assets/test-app-setup.json` and deleted afterwards |
+| `sandbox.key(i)` | `app_config.keys[i]`, carrying `key_str`, `key_name`, `key_secret` and `capability`. The index means what it means in a spec — 0 full access, 1 push admin, 2 per-channel capabilities, 3 subscribe-only, 4 revocable tokens. `sandbox.key_str` (the full-access key) and `sandbox.app_id` are shorthands |
+| `use_binary_protocol` fixture | runs the test once per protocol. **Only a spec carrying a `## Protocol Variants` section takes it** — `publish`, `history`, `presence`, `batch_presence`, `mutable_messages`. A test that does not take it runs json only, which is the clients' default here |
+| `sandbox_rest_client(key=None, **kwargs)` | `Rest(ClientOptions(key: api_key, endpoint: "nonprod:sandbox"))`. Registered for the same teardown as `rest_client`. Leave `key` out and pass `token=`, `auth_callback=` or `auth_url=` where the spec authenticates some other way |
+| `sandbox_realtime_client(key=None, **kwargs)` | the same for realtime, for the REST specs that need presence members or presence history a connection has to produce. Unlike `realtime_client` it keeps `auto_connect` and the fallback hosts at the **library** defaults |
+| `wall_clock_poll_until(condition, timeout=10.0, description='condition', interval=0.5)` | this tier's `poll_until`. Sleeps `interval` between attempts, takes a sync or async condition, and **returns whatever the condition answered with**, so a condition that fetches a page saves fetching it again |
+| `random_id(length=6)` | the specifications' `random_id()`, url-safe base64 over `secrets` bytes |
+| `fixture_cipher_params()` | the `CipherParams` the app setup encrypted the `client_encoded` presence fixture with. The asset holds key and IV base64; this decodes them |
+| `PRESENCE_FIXTURES_CHANNEL` | `'persisted:presence_fixtures'`, the channel the app setup pre-populates with members the presence specs read rather than write |
+| `generate_jwt(key_name, key_secret, ttl=3600000, client_id=None, capability=None, expires_at=None)` | the auth specification's `generate_jwt`. Signed HS256 here rather than pulling in a JWT library the locked environment does not carry |
+| `extract_key_name(api_key)` / `extract_key_secret(api_key)` | the two halves of `app_id.key_id:secret` |
+
+`sandbox_rest_client` and `sandbox_realtime_client` are in `test.uts.helpers.client`
+alongside the mock-backed constructors; everything else is in `test.uts.helpers.sandbox`.
+
+```python
+# UTS: rest/integration/RSL2a/history-returns-messages-0
+async def test_rsl2a_history_returns_messages(sandbox, use_binary_protocol):
+    client = sandbox_rest_client(sandbox.key_str, use_binary_protocol=use_binary_protocol)
+    channel = client.channels.get('history-test-RSL2a-' + random_id())
+
+    await channel.publish(name='event1', data='data1')
+
+    async def one_message():
+        page = await channel.history()
+        return page if len(page.items) == 1 else None
+
+    history = await wall_clock_poll_until(one_message, description='the message to reach history')
+```
 
 ## Traps that cost the most time
 
@@ -477,19 +541,84 @@ Infrastructure Limitation. RTN23a via `send_to_client(HEARTBEAT_MESSAGE)` works.
   `log_handler` among them — and raise `TypeError` rather than being ignored. Check
   `ably/types/options.py` first.
 
+## Traps found while deriving the REST integration specs
+
+Each was established by measurement against the sandbox. Most of them produce a test
+that **passes while proving nothing**, rather than one that fails.
+
+- **Push admin filter parameters must be camelCase, and the server drops an
+  unrecognised query parameter rather than rejecting it.** Measured against one app:
+  `device_registrations.list(clientId=x)` returned 2, `list(client_id=x)` returned 3,
+  and the unfiltered list returned 3 — the snake_case filter was silently the whole
+  page. A test that asserts only that the row it just created is present therefore
+  passes with the filter doing nothing, so **a filtered list needs a control proving it
+  narrowed**: a decoy row under another id, or an unfiltered count to compare against.
+  The cause is that `list`, `list_channels` and `DeviceRegistrations.remove_where` hand
+  their dict to `format_params` positionally, and `format_params` camel-cases only its
+  own `**kw` (`ably/http/paginatedresult.py:18`).
+  `PushChannelSubscriptions.remove_where` is the one call that spreads
+  (`format_params(**params)`), so it does accept snake_case — do not generalise from it.
+- **A `PaginatedResult` is always truthy and defines no `__len__`.** So a poll
+  condition that answers with the page straight from `history()` or `list()` is
+  satisfied by the first empty one and the assertions then run against nothing. Return
+  `None` until the page holds what is wanted, and read `len(page.items)`. `has_next()`
+  is a method too, and a bound method is truthy whatever the page holds.
+- **Nothing is consistent immediately after a write.** History and presence lag a
+  publish or an enter, and device deletion is asynchronous — `remove_where` answers 204
+  while the rows are still listed. Any count that follows a write goes through
+  `wall_clock_poll_until`; a fixed sleep either flakes or spends the budget.
+- **`Message.timestamp` is a raw int of milliseconds, `PresenceMessage.timestamp` is a
+  `datetime`.** `PresenceMessage.from_dict` converts and `Message` does not, so a
+  history time boundary is integer arithmetic, a presence one is not, and comparing the
+  two raises. Derive a boundary from server-assigned timestamps rather than from a
+  client-side `now()`, which can land inside the same millisecond as the messages.
+- **A channel captures its cipher and its protocol when it is constructed**, and
+  `Channels.get` caches by name. A cipher passed on a later `get` reaches
+  `channel.cipher` but never `channel.presence`, which snapshotted it in
+  `Presence.__init__` (`ably/types/presence.py:207`). Pass the cipher on the **first**
+  `get` for that client.
+- **A fresh sandbox app has no stats.** A spec guarding its assertions on there being
+  stats to read is vacuous against a new app — the guarded branch never runs and the
+  test asserts nothing. Inject an interval first through the sandbox's own
+  `POST /stats`, as `time_stats_test.py`'s `app_with_stats` fixture does.
+- **An Ably JWT's lifetime is read as `exp - iat`, and a negative one is rejected 40003
+  before expiry is ever considered.** An already-expired JWT cannot be made by leaving
+  `iat` at now and putting `exp` in the past; that is a malformed token, not an expired
+  one, and a renewal test would be exercising the wrong rejection. `generate_jwt`
+  backdates `iat` by `ttl` when given `expires_at`, for exactly this.
+- **`enter_client` fails on an anonymous connection.** The server answers basic auth
+  with `clientId: "*"`, `Auth._configure_client_id` records that as validated while
+  leaving the client id `None` (`ably/rest/auth.py:335`), and `can_assume_client_id`
+  then refuses every id with 40012. Pass `client_id='*'` to `sandbox_realtime_client`.
+  Await CONNECTED before entering, too — an enter on a CONNECTING connection is queued.
+- **Waits here are wall-clock, the inverse of the unit tier's rule.** `poll_until`
+  yields to the event loop, which against a real server spins a core on a network wait.
+  Use `wall_clock_poll_until`, and no `FakeClock`. `writing-derived-tests.md` has a
+  section on this ("Integration timeouts are wall-clock").
+
 ## Timers
 
-The realtime client has a timer seam; the REST client does not.
-`ably/http/http.py` calls `time.time()` directly. Where a REST spec calls
-`enable_fake_timers()` / `ADVANCE_TIME(ms)`, prefer short real timeouts driven by client
-options (`fallback_retry_timeout=100`), which is what the specs themselves do. The global
-pytest timeout is 30 seconds, so keep waits well under it.
+Three regimes; pick by tier.
 
-On a realtime client, prefer a short real interval through a client option
+**REST unit.** No clock seam reaches it: `TestOptions(timer=...)` is read by the
+realtime connection alone, and `ably/http/http.py` calls `time.time()` directly. Where
+a REST spec calls `enable_fake_timers()` / `ADVANCE_TIME(ms)`, drive it with short real
+timeouts through client options (`fallback_retry_timeout=100`), which is what the specs
+themselves do.
+
+**Realtime unit.** The `timer` seam exists, and `realtime_client(mock, clock=clock)`
+installs a `FakeClock` on it. Still prefer a short real interval through a client option
 (`realtime_request_timeout`, `disconnected_retry_timeout`, `suspended_retry_timeout`,
 `channel_retry_timeout`) or through `connected_message(maxIdleInterval=...)`, and reach
 for `FakeClock` only for `connection_state_ttl`, which no option sets and whose default
 costs 120 real seconds. See the fake-time section of `test/uts/deviations.md`.
+
+**REST integration.** Real time, deliberately. There is no seam to install in front of
+a server the tests exist to talk to, and shortening a timeout would only make the tier
+flaky. Poll with `wall_clock_poll_until` rather than sleeping a guess.
+
+The pytest timeout is 30 seconds for the suite and 120 for `rest/integration`, so keep
+waits well under whichever applies.
 
 ## Deviations
 
@@ -539,7 +668,8 @@ the reasoning. The next reader will otherwise reach the same first conclusion.
 
 ```bash
 uv run --frozen --extra crypto --extra dev ruff check ably/ test/
-uv run --frozen --extra crypto --extra dev pytest test/uts -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/helpers -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration -q
 RUN_DEVIATIONS=1 uv run --frozen --extra crypto --extra dev pytest test/uts -q
 ```
 
@@ -547,8 +677,13 @@ RUN_DEVIATIONS=1 uv run --frozen --extra crypto --extra dev pytest test/uts -q
 environment's cutoff — and `--extra dev` carries pytest. Line length is 115. If
 `uv.lock` changes, `git checkout -- uv.lock`.
 
-The first two must pass. The third is the check that the deviations record is still
-true: **every gated test must fail when enabled**, so gated + unimplementable under the
-third run must equal the skip count under the second, and nothing may pass under both
-behaviours. The expected counts are in the header of `test/uts/deviations.md`; update
-them from a measured run rather than copying them forward.
+The second command is the offline tiers, which need no network. The third provisions a
+sandbox app and does; `pytest test/uts -q` runs both together, so run the tiers
+separately when only one is in question. All three must pass.
+
+The fourth is the check that the deviations record is still true, across both tiers:
+**every gated test must fail when enabled**, so gated + unimplementable under it must
+equal the skip count under the other runs, and nothing may pass under both behaviours.
+It reaches the network for the same reason the third does. The expected counts are in
+the header of the deviations record; update them from a measured run rather than
+copying them forward.
