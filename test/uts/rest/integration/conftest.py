@@ -52,7 +52,7 @@ def use_binary_protocol(request):
 
         client = sandbox_rest_client(api_key, use_binary_protocol=use_binary_protocol)
 
-    Only a test that asks for it is parametrised. The six specifications
+    Only a test that asks for it is parametrised. The seven specifications
     without that section are json only, and their clients take the JSON default
     `sandbox_rest_client` already applies.
     """
