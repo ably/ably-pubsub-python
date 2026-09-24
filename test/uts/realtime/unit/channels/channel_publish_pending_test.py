@@ -126,7 +126,7 @@ async def test_rtn7e_pending_fail_closed():
 # `ConnectionManager.on_error` -> `enact_state_change`
 # (`ably/realtime/connectionmanager.py:477`), which never calls
 # `fail_queued_messages`. The message stays pending and the publish never resolves.
-# See deviations-channels-publish.md.
+# See deviations.md.
 @deviation
 async def test_rtn7e_pending_fail_failed():
     channel_name = f'test-RTN7e-failed-{random_id()}'
@@ -197,7 +197,7 @@ async def test_rtn7e_multiple_pending_fail():
 # DEVIATION RTN7e: as for `pending-fail-failed-2`, nothing fails the pending message when
 # a connection-level ERROR drives the connection to FAILED, so no error reaches the
 # publish at all — let alone the one that caused the state change. The connection's own
-# `error_reason` does carry it. See deviations-channels-publish.md.
+# `error_reason` does carry it. See deviations.md.
 @deviation
 async def test_rtn7e_error_represents_reason():
     channel_name = f'test-RTN7e-error-reason-{random_id()}'
@@ -458,7 +458,7 @@ async def test_rtn19a2_new_serial_failed_resume():
     # NOTE: the specification's assertion cannot distinguish the two behaviours it is
     # written to separate — the original serials are already 0 and 1, so a resend that
     # kept them and a resend that drew fresh ones from a reset counter look identical.
-    # See deviations-channels-publish.md; what ably-python actually does is resend the
+    # See deviations.md; what ably-python actually does is resend the
     # message dictionary unchanged, serial included.
     second_transport_messages = [m for m in captured_messages if m['connection'] == 2]
     assert len(second_transport_messages) == 2

@@ -16,7 +16,7 @@ the RTL19a test, which is about the base64 step, base64-encodes its payloads.
 Where a message's encoding ends at `vcdiff` there is no `utf-8` step to turn the delta
 result back into text, so the SDK delivers bytes and the assertions below are written
 against bytes where the specification writes a string literal. See
-[deviations-channels-messages.md](../../../deviations-channels-messages.md).
+[deviations.md](../../../deviations.md).
 """
 
 import base64

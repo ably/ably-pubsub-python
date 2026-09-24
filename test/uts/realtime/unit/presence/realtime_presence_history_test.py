@@ -9,7 +9,7 @@ same observables as the derived REST tests in
 for the channel setup the specification asks for.
 
 `RealtimePresence` has no `history` at all, so both tests are gated; see
-test/uts/deviations-presence-rest.md.
+test/uts/deviations.md.
 """
 
 import uuid

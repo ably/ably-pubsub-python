@@ -45,7 +45,7 @@ async def test_rtc12_constructor_string_detection():
     # NOTE: the spec refers this test to `uts/test/realtime/unit/client/client_options.md`
     # for RSC1/RSC1a/RSC1c. No such file exists in the specification repository, and
     # neither do derived RSC1 tests, so the three cases the spec lists in its own body
-    # are what is asserted here. See deviations-client.md.
+    # are what is asserted here. See deviations.md.
     mock_ws = succeeding_mock()
 
     # An API key string carries a `:` and selects basic auth
@@ -152,7 +152,7 @@ async def test_rtc17_client_id_attribute():
 
 # UTS: realtime/unit/RTC1a/echo-messages-option-0
 # DEVIATION: ably-python has no `echo_messages` option and sends no `echo` query
-# parameter. See deviations-client.md.
+# parameter. See deviations.md.
 @deviation
 async def test_rtc1a_echo_messages_option():
     # RTC1a_1: echoMessages defaults to true
@@ -207,7 +207,7 @@ async def test_rtc1b_auto_connect_option():
 
 # UTS: realtime/unit/RTC1c/recover-option-0
 # DEVIATION: the `recover` option is stored and never read, so no `recover` query
-# parameter is ever sent. See deviations-client.md.
+# parameter is ever sent. See deviations.md.
 @deviation
 async def test_rtc1c_recover_option():
     recovery_key = encode_recovery_key('previous-connection-key', 5, {'channel1': 'serial1'})

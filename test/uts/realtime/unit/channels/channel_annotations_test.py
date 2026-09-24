@@ -12,7 +12,7 @@ suite derives one test per Test ID.
 
 `RealtimeChannelOptions(attachOnSubscribe: false)` does not exist in ably-python and
 `annotations.subscribe` always attaches, so the tests that use it attach first instead;
-see [deviations-channels-messages.md](../../../deviations-channels-messages.md).
+see [deviations.md](../../../deviations.md).
 """
 
 import asyncio

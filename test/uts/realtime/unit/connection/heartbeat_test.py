@@ -61,7 +61,7 @@ PING_FRAMES_SKIP = (
     '`WebSocketTransport` cannot see one: a frame from `send_ping_frame()` reaches no '
     'library code and cannot reset the idle timer. ably-python is an RTN23a platform, '
     'and the specification says the RTN23b tests do not apply to one. '
-    'See deviations-connection-liveness.md.')
+    'See deviations.md.')
 
 HEARTBEATS_BOUNCE_SKIP = (
     'RTN23c applies to a client whose own code may be suspended while the transport '
@@ -69,7 +69,7 @@ HEARTBEATS_BOUNCE_SKIP = (
     'specification scopes to browser builds. ably-python has no such build, so there is '
     'no configuration of it under which `heartbeats=bounce` is the value to send. That '
     'it sends no `heartbeats` parameter at all is recorded against RTN23a. '
-    'See deviations-connection-liveness.md.')
+    'See deviations.md.')
 
 
 def liveness_client(mock_websocket, **kwargs):

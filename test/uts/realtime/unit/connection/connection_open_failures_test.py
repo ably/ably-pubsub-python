@@ -182,7 +182,7 @@ async def test_rtn14d_retry_recoverable_failure():
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     clock = FakeClock()
-    # DEVIATION: see deviations-connection-failures.md. A refused connection reaches
+    # DEVIATION: see deviations.md. A refused connection reaches
     # no failure path of its own, so the first attempt ends on the transition timer
     # rather than at once, and the test advances to it
     client = realtime_client(mock_ws, clock=clock, key='appId.keyId:keySecret',

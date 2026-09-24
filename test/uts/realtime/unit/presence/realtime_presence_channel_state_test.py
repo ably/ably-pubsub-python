@@ -42,6 +42,7 @@ from test.uts.helpers.mock_websocket import (
     connected_message,
     detached_message,
 )
+from test.uts.helpers.presence import present_member, sync_message
 
 CONNECTED_MESSAGE = connected_message('conn-1', connectionKey='connection-key')
 
@@ -52,26 +53,6 @@ OPERATION_TIMEOUT = 2.0
 
 def random_id():
     return uuid.uuid4().hex[:8]
-
-
-def present_member(client_id, connection_id, id, **fields):
-    return {
-        'action': PresenceAction.PRESENT,
-        'clientId': client_id,
-        'connectionId': connection_id,
-        'id': id,
-        'timestamp': 100,
-        **fields,
-    }
-
-
-def sync_message(channel_name, channel_serial, presence):
-    return {
-        'action': int(ProtocolMessageAction.SYNC),
-        'channel': channel_name,
-        'channelSerial': channel_serial,
-        'presence': presence,
-    }
 
 
 def presence_actions(protocol_message):

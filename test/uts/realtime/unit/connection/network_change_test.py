@@ -11,7 +11,7 @@ NETWORK_LISTENER_SKIP = (
     'network connectivity listener interface for a mock to stand in for, so there is '
     'nothing to install and no event to simulate. The specification itself lists Python '
     'as a platform where RTN20 may not apply and says such SDKs should skip these tests. '
-    'See deviations-connection-failures.md.')
+    'See deviations.md.')
 
 
 # UTS: realtime/unit/RTN20a/network-loss-connected-disconnects-0

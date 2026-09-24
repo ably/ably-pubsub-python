@@ -106,7 +106,7 @@ async def advance_until_suspended(client, clock, step=2000, limit=80):
     `Defaults.connection_state_ttl` (120000) directly
     (`ably/realtime/connectionmanager.py:745`), so reaching SUSPENDED takes the
     full two minutes of notional time. See
-    [deviations-channels-publish.md](../../../deviations-channels-publish.md).
+    [deviations.md](../../../deviations.md).
     """
     for _ in range(limit):
         await clock.advance(step)
@@ -640,8 +640,7 @@ async def test_rtl6c2_queued_messages_order():
 # SPEC ERROR RTL6i1: an object payload is asserted to travel unstringified. RSL4c3 and
 # RSL4d3, which RTL6a defers to, both require it to be stringified and carry
 # `encoding: "json"` — which is what ably-python sends. The same fault is recorded for
-# `rest/unit/channel/publish.md:129` in deviations.md; see
-# deviations-channels-publish.md. Fix the specification first.
+# `rest/unit/channel/publish.md:129` in deviations.md. Fix the specification first.
 @spec_error
 async def test_rtl6i1_publish_message_object():
     channel_name = f'test-RTL6i1-obj-{random_id()}'

@@ -8,60 +8,11 @@ emit, or null when the incoming message is stale. `ably/realtime/presencemap.py`
 bool instead and leaves the emission to `RealtimePresence.set_presence()`, so "IS NOT null"
 is read as "returned True" and the emission assertions are made against a subscriber of a
 `RealtimePresence` driven directly with the same messages. See
-test/uts/deviations-presence-maps.md.
+test/uts/deviations.md.
 """
 
-from types import SimpleNamespace
-
-from ably.realtime.presence import RealtimePresence
-from ably.realtime.presencemap import PresenceMap
-from ably.types.presence import PresenceAction, PresenceMessage
-
-PRESENCE_EVENT_NAMES = ('absent', 'present', 'enter', 'leave', 'update')
-
-
-def presence_map():
-    """The specification's `PresenceMap()`: the map keyed by memberKey (TP3h)."""
-    return PresenceMap(member_key_fn=lambda msg: msg.member_key)
-
-
-def presence_message(action, client_id, connection_id, id, timestamp, data=None):
-    """A `PresenceMessage` as the specification's test steps construct one."""
-    return PresenceMessage(
-        action=action,
-        client_id=client_id,
-        connection_id=connection_id,
-        id=id,
-        timestamp=timestamp,
-        data=data,
-    )
-
-
-def subscribed_presence(connection_id='conn-1'):
-    """A `RealtimePresence` over a stub channel, with every presence event recorded.
-
-    Returns the presence object and the list of `(event_name, message)` pairs its
-    subscribers receive. One listener is registered per event name because
-    `EventEmitter` keys its wrappers on the listener alone.
-    """
-    channel = SimpleNamespace(
-        name='presence-map-test',
-        ably=SimpleNamespace(
-            connection=SimpleNamespace(
-                connection_manager=SimpleNamespace(connection_id=connection_id),
-            ),
-        ),
-    )
-    presence = RealtimePresence(channel)
-    events = []
-
-    for event_name in PRESENCE_EVENT_NAMES:
-        def listener(message, event_name=event_name):
-            events.append((event_name, message))
-
-        presence._subscriptions.on(event_name, listener)
-
-    return presence, events
+from ably.types.presence import PresenceAction
+from test.uts.helpers.presence import presence_map, presence_message, subscribed_presence
 
 
 # UTS: realtime/unit/RTP2/basic-put-and-get-0
@@ -185,7 +136,7 @@ def test_rtp2h2a_leave_during_sync_stores_absent():
     # RTP2h2b allows no LEAVE event here, so the specification expects `remove()` to
     # answer null. `remove()` reports the ABSENT store the same way it reports a
     # deletion, and `set_presence` emits on the strength of it; see
-    # test/uts/deviations-presence-maps.md and
+    # test/uts/deviations.md and
     # test_rtp2h2a_leave_during_sync_absent_cleanup in presence_sync_test.py.
     assert emitted is True
 

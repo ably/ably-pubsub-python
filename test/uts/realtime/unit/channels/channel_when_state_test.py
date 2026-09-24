@@ -45,7 +45,7 @@ def when_state(channel, state):
     RTL25 puts `whenState` on RealtimeChannel, mirroring `Connection#whenState`
     (RTN26). ably-python has `Connection._when_state` but nothing on
     RealtimeChannel, so this raises AttributeError. See
-    deviations-channels-state.md
+    deviations.md
     """
     return channel.when_state(state)
 

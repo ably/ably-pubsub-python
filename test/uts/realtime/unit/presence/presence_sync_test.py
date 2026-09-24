@@ -7,35 +7,14 @@ The specification's `endSync()` answers with the synthesized LEAVE events.
 members and `RealtimePresence.set_presence()` builds the LEAVE events from them, so a
 test reading only the count and the clientId works through `end_sync_leaves()` below,
 while a test reading the LEAVE itself drives a `RealtimePresence` with the same
-messages. See test/uts/deviations-presence-maps.md.
+messages. See test/uts/deviations.md.
 """
 
 from datetime import datetime, timezone
-from types import SimpleNamespace
 
-from ably.realtime.presence import RealtimePresence
-from ably.realtime.presencemap import PresenceMap
-from ably.types.presence import PresenceAction, PresenceMessage
+from ably.types.presence import PresenceAction
 from test.uts.helpers.deviations import deviation
-
-PRESENCE_EVENT_NAMES = ('absent', 'present', 'enter', 'leave', 'update')
-
-
-def presence_map():
-    """The specification's `PresenceMap()`: the map keyed by memberKey (TP3h)."""
-    return PresenceMap(member_key_fn=lambda msg: msg.member_key)
-
-
-def presence_message(action, client_id, connection_id, id, timestamp, data=None):
-    """A `PresenceMessage` as the specification's test steps construct one."""
-    return PresenceMessage(
-        action=action,
-        client_id=client_id,
-        connection_id=connection_id,
-        id=id,
-        timestamp=timestamp,
-        data=data,
-    )
+from test.uts.helpers.presence import presence_map, presence_message, subscribed_presence
 
 
 def end_sync_leaves(members):
@@ -46,33 +25,6 @@ def end_sync_leaves(members):
     """
     residual, absent = members.end_sync()
     return residual + absent
-
-
-def subscribed_presence(connection_id='conn-1'):
-    """A `RealtimePresence` over a stub channel, with every presence event recorded.
-
-    Returns the presence object and the list of `(event_name, message)` pairs its
-    subscribers receive. One listener is registered per event name because
-    `EventEmitter` keys its wrappers on the listener alone.
-    """
-    channel = SimpleNamespace(
-        name='presence-sync-test',
-        ably=SimpleNamespace(
-            connection=SimpleNamespace(
-                connection_manager=SimpleNamespace(connection_id=connection_id),
-            ),
-        ),
-    )
-    presence = RealtimePresence(channel)
-    events = []
-
-    for event_name in PRESENCE_EVENT_NAMES:
-        def listener(message, event_name=event_name):
-            events.append((event_name, message))
-
-        presence._subscriptions.on(event_name, listener)
-
-    return presence, events
 
 
 def leaves(events):
@@ -200,7 +152,7 @@ def test_rtp18a_new_sync_discards_previous():
     # A new sequence identifier starts a fresh sync before the first one ended.
     # `start_sync` while a sync is running keeps the first sync's residual set rather
     # than re-snapshotting the map, which this test cannot tell apart because the
-    # second sync delivers every member; see test/uts/deviations-presence-maps.md.
+    # second sync delivers every member; see test/uts/deviations.md.
     members.start_sync()
 
     members.put(presence_message(PresenceAction.PRESENT, 'alice', 'c1', 'c1:2:0', 300))

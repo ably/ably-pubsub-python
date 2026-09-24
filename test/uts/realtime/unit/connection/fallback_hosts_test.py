@@ -3,7 +3,7 @@
 Spec points: RTN17, RTN17e, RTN17f, RTN17f1, RTN17g, RTN17h, RTN17i, RTN17j
 
 Two adaptations run through the whole file, both recorded in
-deviations-connection-liveness.md.
+deviations.md.
 
 `ConnectionManager.check_connection` issues the RTN17j connectivity check with a
 synchronous module-level `httpx.get`, which neither the client's HTTP layer nor

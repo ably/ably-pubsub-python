@@ -202,7 +202,7 @@ async def test_rtn13b_ping_error_suspended():
     # The specification fails the attempt with a refused connection; ably-python
     # catches only a websocket error or a name resolution failure, so a refused
     # one produces no state change until the transition timer ends it. See
-    # deviations-connection-liveness.md
+    # deviations.md
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_dns_error())
     # A retry timeout past `connectionStateTtl` leaves the suspend timer as the
     # only thing the advance below fires

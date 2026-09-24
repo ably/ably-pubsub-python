@@ -23,7 +23,6 @@ from ably.realtime.connection import ConnectionState
 from ably.transport.websockettransport import ProtocolMessageAction
 from ably.types.channelstate import ChannelState
 from ably.types.flags import Flag
-from ably.types.presence import PresenceAction
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
@@ -33,6 +32,7 @@ from test.uts.helpers.client import (
 )
 from test.uts.helpers.clock import FakeClock, advance_to_connection_state, settle
 from test.uts.helpers.mock_websocket import MockWebSocket, attached_message, connected_message
+from test.uts.helpers.presence import present_member, sync_message
 
 CONNECTED_MESSAGE = connected_message('conn-1', connectionKey='connection-key')
 
@@ -43,26 +43,6 @@ OPERATION_TIMEOUT = 2.0
 
 def random_id():
     return uuid.uuid4().hex[:8]
-
-
-def present_member(client_id, connection_id, id, **fields):
-    return {
-        'action': PresenceAction.PRESENT,
-        'clientId': client_id,
-        'connectionId': connection_id,
-        'id': id,
-        'timestamp': 100,
-        **fields,
-    }
-
-
-def sync_message(channel_name, channel_serial, presence):
-    return {
-        'action': int(ProtocolMessageAction.SYNC),
-        'channel': channel_name,
-        'channelSerial': channel_serial,
-        'presence': presence,
-    }
 
 
 def attaching_server(mock_ws, channel_name, has_presence=True, then=None):

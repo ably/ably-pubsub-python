@@ -127,7 +127,7 @@ async def test_rtc7_disconnected_retry_timeout():
             # and socket.gaierror, so a refused connection is left to the transition
             # timer and takes `realtime_request_timeout` to surface; a DNS failure
             # fails fast and reaches the retry logic the same way. See
-            # deviations-client.md.
+            # deviations.md.
             conn.respond_with_dns_error()
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
@@ -175,7 +175,7 @@ async def test_rtc7_default_timeouts_applied():
     # DEVIATION: the spec asserts httpOpenTimeout == 4000 and httpRequestTimeout ==
     # 10000 on the options. ably-python leaves both unset on the options and holds the
     # defaults on the HTTP layer, in seconds rather than milliseconds. See
-    # deviations-client.md.
+    # deviations.md.
     assert client.options.http_open_timeout is None
     assert client.options.http_request_timeout is None
     assert client.http.http_open_timeout == 4

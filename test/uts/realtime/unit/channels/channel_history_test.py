@@ -7,7 +7,7 @@ its own, so its Test ID becomes one test driving an `AblyRealtime` over the HTTP
 and asserting the core observable of the derived REST suite.
 
 The two RTL10b tests cover `untilAttach`, which ably-python does not implement; see
-[deviations-channels-messages.md](../../../deviations-channels-messages.md).
+[deviations.md](../../../deviations.md).
 """
 
 import uuid

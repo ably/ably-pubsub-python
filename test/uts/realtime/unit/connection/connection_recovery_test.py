@@ -7,7 +7,7 @@ RTN16 connection recovery is absent from ably-python: `recover` is a client
 option with a property and a setter but is read nowhere in the library, there is
 no `recover` connect parameter and no recovery key to create or decode. Every
 test here but the malformed-key one is therefore gated; see
-deviations-connection-liveness.md.
+deviations.md.
 """
 
 import asyncio

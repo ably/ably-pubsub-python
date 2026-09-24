@@ -116,7 +116,7 @@ async def test_rtp8a_enter_sends_presence_enter():
 
     # RTP8c asks for the clientId to be left out of the PresenceMessage, the
     # connection's own being implied. This SDK resolves the connection's clientId
-    # and sends it; see deviations-presence-core.md.
+    # and sends it; see deviations.md.
     assert captured_presence[0]['presence'][0]['clientId'] == 'my-client'
 
 
@@ -277,7 +277,7 @@ async def test_rtp9a_update_sends_presence_update():
     assert captured_presence[0]['presence'][0]['data'] == 'new-status'
 
     # RTP9d asks for the clientId to be left out; this SDK sends the connection's
-    # own clientId. See deviations-presence-core.md.
+    # own clientId. See deviations.md.
     assert captured_presence[0]['presence'][0]['clientId'] == 'my-client'
 
 
@@ -300,7 +300,7 @@ async def test_rtp10a_leave_sends_presence_leave():
     assert captured_presence[0]['presence'][0]['action'] == PresenceAction.LEAVE
 
     # RTP10c asks for the clientId to be left out; this SDK sends the connection's
-    # own clientId. See deviations-presence-core.md.
+    # own clientId. See deviations.md.
     assert captured_presence[0]['presence'][0]['clientId'] == 'my-client'
 
 
@@ -502,7 +502,7 @@ async def test_rtp16c_presence_errors_other_states():
     # A DETACHED received while ATTACHING moves the channel to SUSPENDED rather than
     # the DETACHED the specification expects, with no reason attached, so `attach()`
     # raises `None`. Both are recorded against the channel specifications; see
-    # test/uts/deviations-channels-attach.md.
+    # test/uts/deviations.md.
     with pytest.raises(TypeError):
         await channel.attach()
     assert channel.state == ChannelState.SUSPENDED

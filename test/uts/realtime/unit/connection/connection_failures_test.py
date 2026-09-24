@@ -50,7 +50,7 @@ async def test_rtn15h1_token_error_no_renew():
 
     assert client.connection.state == ConnectionState.FAILED
     assert client.connection.error_reason is not None
-    # DEVIATION: see deviations-connection-failures.md. The specification asserts the
+    # DEVIATION: see deviations.md. The specification asserts the
     # DISCONNECTED message's own 40142/401; ably-python reports the failed renewal
     # instead, which RSA4a2 gives as 40171
     assert client.connection.error_reason.code == 40171

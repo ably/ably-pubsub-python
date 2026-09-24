@@ -131,7 +131,7 @@ async def test_rtl2d_state_change_object_structure():
     # TH5 has the change carry the event that generated it; ably-python's
     # ChannelStateChange is (previous, current, resumed, reason), so the event is
     # read from the key the listener is registered against. See
-    # deviations-channels-state.md
+    # deviations.md
     captured = capture_last(channel, ChannelState.ATTACHING)
 
     client.connect()

@@ -7,61 +7,18 @@ with `client_id` as its key function - `RealtimePresence._my_members`
 (`ably/realtime/presence.py:79-81`). RTP17b's filtering of synthesized LEAVE events lives
 one level up, in `RealtimePresence.set_presence()`, which the specification's
 implementation note permits; the test for it therefore drives a `RealtimePresence`. See
-test/uts/deviations-presence-maps.md.
+test/uts/deviations.md.
 """
 
-from types import SimpleNamespace
-
-from ably.realtime.presence import RealtimePresence
 from ably.realtime.presencemap import PresenceMap
-from ably.types.presence import PresenceAction, PresenceMessage
+from ably.types.presence import PresenceAction
 from test.uts.helpers.deviations import deviation
-
-PRESENCE_EVENT_NAMES = ('absent', 'present', 'enter', 'leave', 'update')
+from test.uts.helpers.presence import presence_message, subscribed_presence
 
 
 def local_presence_map():
     """The specification's `LocalPresenceMap()`: the RTP17 map keyed by clientId."""
     return PresenceMap(member_key_fn=lambda msg: msg.client_id)
-
-
-def presence_message(action, client_id, connection_id, id, timestamp, data=None):
-    """A `PresenceMessage` as the specification's test steps construct one."""
-    return PresenceMessage(
-        action=action,
-        client_id=client_id,
-        connection_id=connection_id,
-        id=id,
-        timestamp=timestamp,
-        data=data,
-    )
-
-
-def subscribed_presence(connection_id='conn-1'):
-    """A `RealtimePresence` over a stub channel, with every presence event recorded.
-
-    Returns the presence object and the list of `(event_name, message)` pairs its
-    subscribers receive. One listener is registered per event name because
-    `EventEmitter` keys its wrappers on the listener alone.
-    """
-    channel = SimpleNamespace(
-        name='local-presence-map-test',
-        ably=SimpleNamespace(
-            connection=SimpleNamespace(
-                connection_manager=SimpleNamespace(connection_id=connection_id),
-            ),
-        ),
-    )
-    presence = RealtimePresence(channel)
-    events = []
-
-    for event_name in PRESENCE_EVENT_NAMES:
-        def listener(message, event_name=event_name):
-            events.append((event_name, message))
-
-        presence._subscriptions.on(event_name, listener)
-
-    return presence, events
 
 
 # UTS: realtime/unit/RTP17h/keyed-by-clientid-0
