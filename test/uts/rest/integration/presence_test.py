@@ -156,8 +156,7 @@ async def test_rsp4_history_returns_events(sandbox, use_binary_protocol):
     await realtime_channel.presence.enter('entered')
     await realtime_channel.presence.update('updated')
     await realtime_channel.presence.leave('left')
-    # NOTE: the spec closes the realtime client here. The suite's autouse
-    # teardown closes every client it built, after the assertions have run.
+    await realtime.close()
 
     rest_channel = client.channels.get(channel_name)
 
@@ -214,6 +213,10 @@ async def test_rsp4b2_history_direction_forwards(sandbox, use_binary_protocol):
     await realtime_channel.presence.enter('first')
     await realtime_channel.presence.update('second')
     await realtime_channel.presence.update('third')
+    # The close synthesizes a LEAVE, which becomes the newest event and so the one
+    # the backwards read below lands on. The server gives it the member's last data,
+    # so the assertion holds either way; see deviations.md.
+    await realtime.close()
 
     rest_channel = client.channels.get(channel_name)
     await wall_clock_poll_until(
