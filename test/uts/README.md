@@ -192,6 +192,64 @@ Tests in this package are given 300 seconds each: a cold cache downloads the bin
 before the first of them runs, and a specification that provokes a timeout sits through
 the delay it asked the proxy for.
 
+`realtime/integration/` runs against the same sandbox over a real WebSocket — twenty
+specifications, thirteen of them straight to the sandbox and seven under `proxy/`. It
+provisions an app of its own, which arrives as the `realtime_sandbox` fixture, so that a
+realtime test entering presence or publishing to a channel cannot be seen by a REST test
+reading the same channel name. The app carries the same `key(i)`, `key_str` and `app_id`
+members the `sandbox` fixture does.
+
+```python
+async def test_rtl7a_subscribe_all_messages(realtime_sandbox):
+    client = sandbox_realtime_client(realtime_sandbox.key_str)
+    channel = client.channels.get('test-rtl7a-' + random_id())
+```
+
+Five specifications carry a `## Protocol Variants` section — `channel_history`,
+`channels/channel_publish`, `delta_decoding`, `mutable_messages` and `presence_lifecycle` —
+and take the tier's own `use_binary_protocol` fixture, passing it to every client they
+build. The other fifteen are json only.
+
+The connections are real, so the waits are wall-clock here too.
+`await_connection_state(client, state, timeout)` and `await_channel_state(channel, state,
+timeout)` are the specifications' `AWAIT_STATE`, and ten seconds is the figure the
+specifications give for reaching CONNECTED over a network, against the five those helpers
+default to for a mock. A state the client passes through in a millisecond cannot be waited
+for after the fact — DISCONNECTED after a drop from CONNECTED is one, the retry being a
+`loop.call_soon` — so a test that needs it registers a `connection.on(...)` recorder before
+connecting and waits on the recorded list.
+
+Tests here are given 120 seconds each, from the package's own `conftest.py`, as in the REST
+integration tier.
+
+`realtime/integration/proxy/` puts the same pinned `uts-proxy` between the client and the
+sandbox, with the same `proxy_control` and `proxy_session` fixtures and the same two
+environment variables, `UTS_PROXY_LOCAL_PATH` and `UTS_PROXY_CONTROL_URL`, that
+[helpers/proxy.py](helpers/proxy.py) documents. What these specifications fault is the
+WebSocket rather than an HTTP request — a frame suppressed, replaced or injected, a socket
+closed, an upgrade refused — and the event log is read for the frames that crossed:
+
+```python
+async def test_rtn15a_disconnect_triggers_resume(realtime_sandbox, proxy_session):
+    session = await proxy_session(rules=[{
+        'match': {'type': 'delay_after_ws_connect', 'delayMs': 1000},
+        'action': {'type': 'close'},
+        'times': 1,
+    }])
+    client = sandbox_realtime_client(
+        auth_callback=jwt_auth_callback(realtime_sandbox.key_str),
+        endpoint='localhost', port=session.proxy_port, tls=False,
+        use_binary_protocol=False, auto_connect=False)
+```
+
+`endpoint='localhost'` disables the fallback hosts by itself (REC2c2), so every attempt
+lands on the one session port and appears in the one event log. A realtime connection
+carries its credentials in the WebSocket's query string, so a plain `key=` does work over
+the session; the modules here sign an Ably JWT locally instead, through a file-local
+`jwt_auth_callback` built on `generate_jwt`, because it costs no round trip and so adds
+nothing to the log a test is counting. Tests in this package are given 300 seconds each,
+as in the REST proxy package.
+
 ## Running
 
 ```
@@ -204,10 +262,12 @@ The offline tiers alone, which need no network:
 uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/helpers -q
 ```
 
-The integration tier alone, which provisions a sandbox app and needs network access:
+Either integration tier alone, each of which provisions a sandbox app and needs network
+access:
 
 ```
 uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/realtime/integration -q
 ```
 
 `--frozen` is required: without it dependency resolution reaches past the

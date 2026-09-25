@@ -32,12 +32,15 @@ and `uts/rest/integration/history.md` becomes `test/uts/rest/integration/history
 Every directory needs an `__init__.py`, as `test` is a package.
 
 There are two kinds of tier. `rest/unit` and `realtime/unit` serve every request from a
-mock and reach no network; `rest/integration` runs against the real Ably sandbox and has
-no mock at all. See **The integration tier** below.
+mock and reach no network; `rest/integration` and `realtime/integration` run against the
+real Ably sandbox and have no mock at all. See **The integration tier** below.
 
 `test/uts/rest/unit/time_test.py` is the reference example for REST unit,
-`test/uts/realtime/unit/connection/auto_connect_test.py` for realtime, and
-`test/uts/rest/integration/history_test.py` for integration. Follow their shape.
+`test/uts/realtime/unit/connection/auto_connect_test.py` for realtime unit,
+`test/uts/rest/integration/history_test.py` for REST integration and
+`test/uts/realtime/integration/channels/channel_publish_test.py` for realtime
+integration — two clients, protocol variants, a state wait and a `connection_id` reader,
+which is most of what a realtime integration module needs. Follow their shape.
 
 ## Anatomy of a derived test
 
@@ -287,8 +290,10 @@ All in `test.uts.helpers.clock`.
 
 ## The integration tier
 
-`uts/rest/integration/<name>.md` becomes `test/uts/rest/integration/<name>_test.py` and
-runs against the real Ably sandbox — twelve specifications, 84 tests, one of them the
+`uts/rest/integration/<name>.md` becomes `test/uts/rest/integration/<name>_test.py`, and
+`uts/realtime/integration/<name>.md` becomes
+`test/uts/realtime/integration/<name>_test.py`. Both run against the real Ably sandbox —
+twelve REST specifications, 84 tests, and twenty realtime ones, 73 tests, each tier with a
 proxy package the section below covers. There is no mock and no `test_options`: the
 client reaches the network. `test/uts/README.md` covers the same ground for someone
 reading the suite; this is what someone writing a test needs.
@@ -298,9 +303,11 @@ What differs from the mock-backed tiers:
 - **Nothing sits in front of the client.** No `install_mock`, no captured request to
   assert on, no way to make the server answer a chosen way. A spec point that can only
   be shown through a stubbed response belongs in the unit tier.
-- **One sandbox app serves the whole session**, standing in for `BEFORE ALL TESTS`.
-  So every channel name, client id and device id takes a `random_id()` suffix, and
-  anything a test registers it removes in a `finally`.
+- **One sandbox app serves each tier**, standing in for `BEFORE ALL TESTS` — `sandbox`
+  for REST, `realtime_sandbox` for realtime, provisioned separately so that neither
+  tier's channels, presence members or devices are visible to the other. Within a tier
+  the app is shared, so every channel name, client id and device id takes a
+  `random_id()` suffix, and anything a test registers it removes in a `finally`.
 - **Waits are wall-clock**, the inverse of the unit tier's rule. See Timers below.
 - **The per-test timeout is 120 seconds**, set by the package's own `conftest.py`, not
   the 30 `pyproject.toml` gives the rest of the suite.
@@ -308,8 +315,10 @@ What differs from the mock-backed tiers:
 | Name | Is |
 |---|---|
 | `sandbox` fixture, in `rest/integration/conftest.py` | a specification's `app_config`. Session-scoped: provisioned once from the vendored `assets/test-app-setup.json` and deleted afterwards |
+| `realtime_sandbox` fixture, in `realtime/integration/conftest.py` | the same for the realtime tier, and a separate app. Same `key(i)`, `key_str` and `app_id` |
 | `sandbox.key(i)` | `app_config.keys[i]`, carrying `key_str`, `key_name`, `key_secret` and `capability`. The index means what it means in a spec — 0 full access, 1 push admin, 2 per-channel capabilities, 3 subscribe-only, 4 revocable tokens. `sandbox.key_str` (the full-access key) and `sandbox.app_id` are shorthands |
-| `use_binary_protocol` fixture | runs the test once per protocol. **Only a spec carrying a `## Protocol Variants` section takes it** — `publish`, `history`, `presence`, `batch_presence`, `mutable_messages`. A test that does not take it runs json only, which is the clients' default here |
+| `use_binary_protocol` fixture | runs the test once per protocol; each tier's `conftest.py` defines its own. **Only a spec carrying a `## Protocol Variants` section takes it** — in REST `publish`, `history`, `presence`, `batch_presence`, `mutable_messages`; in realtime `channel_history`, `channels/channel_publish`, `delta_decoding`, `mutable_messages`, `presence_lifecycle`. A test that does not take it runs json only, which is the clients' default here |
+| `await_connection_state(client, state, timeout=5)`, `await_channel_state(channel, state, timeout=5)` | the specifications' `AWAIT_STATE`. Pass `timeout=10` in this tier: five is the budget a mock-backed test needs, and `channel_history_test.md` spells out ten for a connect that opens a real socket |
 | `sandbox_rest_client(key=None, **kwargs)` | `Rest(ClientOptions(key: api_key, endpoint: "nonprod:sandbox"))`. Registered for the same teardown as `rest_client`. Leave `key` out and pass `token=`, `auth_callback=` or `auth_url=` where the spec authenticates some other way |
 | `sandbox_realtime_client(key=None, **kwargs)` | the same for realtime, for the REST specs that need presence members or presence history a connection has to produce. Unlike `realtime_client` it keeps `auto_connect` and the fallback hosts at the **library** defaults |
 | `wall_clock_poll_until(condition, timeout=10.0, description='condition', interval=0.5)` | this tier's `poll_until`. Sleeps `interval` between attempts, takes a sync or async condition, and **returns whatever the condition answered with**, so a condition that fetches a page saves fetching it again |
@@ -340,7 +349,8 @@ async def test_rsl2a_history_returns_messages(sandbox, use_binary_protocol):
 ## The proxy tier
 
 `uts/rest/integration/proxy/<name>.md` becomes
-`test/uts/rest/integration/proxy/<name>_test.py`, and routes its traffic through
+`test/uts/rest/integration/proxy/<name>_test.py` and `uts/realtime/integration/proxy/<name>.md`
+becomes `test/uts/realtime/integration/proxy/<name>_test.py`, and each routes its traffic through
 [ably/uts-proxy](https://github.com/ably/uts-proxy) on the way to the sandbox. The
 proxy binds a port per session, takes plain HTTP on it, speaks TLS onwards, applies the
 session's rules and records what crosses it. `uts/docs/proxy.md` governs the tier and
@@ -353,7 +363,19 @@ What differs from the rest of the integration tier:
   `port=session.proxy_port`, `tls=False`, `use_binary_protocol=False`. `endpoint` and
   `port` set the primary host, and `fallback_hosts=['localhost']` sets the fallback to
   the same session, so both attempts land in one event log. Leave `fallback_hosts` out
-  where the spec does: `endpoint='localhost'` disables fallbacks by itself (REC2c2).
+  where the spec does: `endpoint='localhost'` disables fallbacks by itself (REC2c2). A
+  realtime client takes the same four and adds `auto_connect=False`, so that a state
+  recorder can be registered before the connection opens.
+- **The event log's field names are the proxy's, not the specification's.** `ws_connect`
+  carries `queryParams`. `ws_frame` carries `direction` — `server_to_client` or
+  `client_to_server` — a `message` whose `action` is an **integer**, and `ruleMatched`
+  holding the rule's `comment` string verbatim. `ws_disconnect` carries `initiator`. A
+  `replace`d frame is logged as the frame the server sent, not as the replacement, and a
+  `suppress`ed frame is logged too, so both are still countable. An imperative
+  `trigger_action` appears as an `action` event followed by the `ws_frame` it produced.
+  A specification writing `e.type == "ws_frame_to_server"` or `action == "MESSAGE"` is
+  reading fields that do not exist: derive against the real names, through a filter
+  defined once at the top of the file, and record the drift in `deviations.md`.
 - **Authentication is a callback.** A plain connection cannot carry basic auth, so
   every client takes `auth_callback=`; see the traps below.
 - **A fault is a rule, and everything else passes through.** `times: 1` faults the
@@ -735,6 +757,57 @@ Established against the real proxy and the real sandbox while deriving
   unit is wrong. The test is written as the specification has it and gated with
   `@deviation`; `test/uts/deviations.md` carries the entry.
 
+## Traps found while deriving the realtime integration tier
+
+Each was established against the sandbox, or against the sandbox behind `uts-proxy`.
+
+- **`RealtimeChannel.publish()` takes name and data positionally only.**
+  `publish(name='x', data='y')` raises `ValueError: publish() expects either (name, data)
+  or a message object or array of messages` before anything reaches the server
+  (`ably/realtime/channel.py:394`), where `RestChannel.publish()` accepts the keyword
+  form. The specifications write the keyword form throughout, so every realtime publish
+  is translated positionally.
+- **A binary payload comes back as `bytearray`, not `bytes`**, under both protocols. It
+  compares equal to the `bytes` that was published, so only the type assertion is
+  affected: `ASSERT data IS Binary` has to read `isinstance(data, (bytes, bytearray))`.
+- **DISCONNECTED is transient after a drop from CONNECTED.** The retry is a
+  `loop.call_soon`, not a timer, so DISCONNECTED and CONNECTING land in the same
+  millisecond and `await_connection_state(client, DISCONNECTED)` is a coin toss. Register
+  a `connection.on(...)` recorder before connecting and wait on the recorded list, which
+  is also what a specification reading `state_changes` wants.
+- **An `AWAIT_STATE` for a state the channel already holds asserts nothing** — it returns
+  at once. `channel_faults.md`'s RTL13a and RTL3d both re-attach an already-attached
+  channel, so both are taken on the recorded sequence instead: ATTACHING followed by
+  ATTACHED, which is what their `CONTAINS_IN_ORDER` assertion checks anyway.
+- **`refuse_connection` through the proxy is a caught failure**, unlike the mock tier's
+  `respond_with_refused`. The proxy answers the upgrade with HTTP 502, `websockets`
+  raises, and the SDK reports `40000/400 'Error opening websocket connection: server
+  rejected WebSocket connection: HTTP 502'` at once. No timeout shortening is needed.
+- **`realtime_request_timeout` is milliseconds at the client option**, and `Timer`
+  divides by 1000, so a specification's `realtimeRequestTimeout: 3000` maps straight
+  across. That is the opposite of `http_request_timeout`, which the REST proxy tier found
+  is applied as seconds; the defect does not generalise, so do not carry it over.
+- **The proxy's event timestamps are RFC 3339 with a variable number of fractional
+  digits.** Comparing them as strings is wrong, and `datetime.fromisoformat` will not
+  take the trailing `Z` on Python 3.9. Order the log by position rather than by timestamp
+  wherever that will do.
+- **A locally signed Ably JWT is the cheapest credential for a proxy test.** It costs no
+  round trip, so nothing extra lands in the event log beside the frames a test counts.
+  `test/uts/helpers/sandbox.py`'s `generate_jwt` signs one, and each proxy module wraps it
+  in a small `jwt_auth_callback` of its own.
+- **`wall_clock_poll_until`'s `description` is evaluated eagerly**, so it cannot report
+  state a test accumulated while waiting. `connection_resume_test.py` wraps it to re-raise
+  with the recorded states appended, which is what makes its timeouts self-explanatory;
+  copy that wherever the wait is on a state machine.
+- **Server-initiated reauth is fully implemented.** Injecting `{'action': 17}` on a live
+  connection re-invokes the authCallback, leaves the state CONNECTED and the connectionId
+  unchanged, and the sandbox answers with a second CONNECTED — frame actions `[4, 17, 4]`.
+  A test written expecting a disturbance will not find one.
+- **`close` and `disconnect` are indistinguishable to the client.** Both give
+  CONNECTING → CONNECTED → DISCONNECTED → CONNECTING → CONNECTED in about 1.2 s.
+  `disconnect` leaves `error_reason` set to "no close frame received or sent" and `close`
+  leaves it `None`, which is the only way to tell them apart from inside the SDK.
+
 ## Timers
 
 Three regimes; pick by tier.
@@ -752,12 +825,16 @@ installs a `FakeClock` on it. Still prefer a short real interval through a clien
 for `FakeClock` only for `connection_state_ttl`, which no option sets and whose default
 costs 120 real seconds. See the fake-time section of `test/uts/deviations.md`.
 
-**REST integration.** Real time, deliberately. There is no seam to install in front of
-a server the tests exist to talk to, and shortening a timeout would only make the tier
-flaky. Poll with `wall_clock_poll_until` rather than sleeping a guess.
+**Integration, REST and realtime.** Real time, deliberately. There is no seam to install
+in front of a server the tests exist to talk to, and shortening a timeout would only make
+the tier flaky. Poll with `wall_clock_poll_until` rather than sleeping a guess, and wait on
+states with `await_connection_state` / `await_channel_state`. Where a specification sets
+`realtimeRequestTimeout`, `disconnectedRetryTimeout` or `suspendedRetryTimeout`, pass it
+through as the client option of the same name: those drive real timers against a real
+server, and they are milliseconds on both sides.
 
-The pytest timeout is 30 seconds for the suite, 120 for `rest/integration` and 300 for
-`rest/integration/proxy`, so keep waits well under whichever applies.
+The pytest timeout is 30 seconds for the suite, 120 for each integration tier and 300 for
+the `proxy` package inside each, so keep waits well under whichever applies.
 
 ## Deviations
 
@@ -808,7 +885,7 @@ the reasoning. The next reader will otherwise reach the same first conclusion.
 ```bash
 uv run --frozen --extra crypto --extra dev ruff check ably/ test/
 uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/helpers -q
-uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration test/uts/realtime/integration -q
 RUN_DEVIATIONS=1 uv run --frozen --extra crypto --extra dev pytest test/uts -q
 ```
 
@@ -816,9 +893,10 @@ RUN_DEVIATIONS=1 uv run --frozen --extra crypto --extra dev pytest test/uts -q
 environment's cutoff — and `--extra dev` carries pytest. Line length is 115. If
 `uv.lock` changes, `git checkout -- uv.lock`.
 
-The second command is the offline tiers, which need no network. The third provisions a
-sandbox app and does; `pytest test/uts -q` runs both together, so run the tiers
-separately when only one is in question. All three must pass.
+The second command is the offline tiers, which need no network. The third is the two
+integration tiers, each of which provisions a sandbox app of its own and does need the
+network; `pytest test/uts -q` runs everything together, so run the tiers separately when
+only one is in question. All three must pass.
 
 The fourth is the check that the deviations record is still true, across both tiers:
 **every gated test must fail when enabled**, so gated + unimplementable under it must
