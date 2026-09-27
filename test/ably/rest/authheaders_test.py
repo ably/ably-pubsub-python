@@ -7,7 +7,7 @@ from ably import AblyRest
 
 @pytest.fixture(scope='session', autouse=True)
 def test_app_setup():
-    # These requests are mocked; no sandbox application is needed.
+    """Avoid creating a sandbox application for these mocked requests."""
     yield
 
 
@@ -16,6 +16,7 @@ def test_app_setup():
 @pytest.mark.parametrize('override', [False, True])
 @respx.mock
 async def test_auth_headers_are_only_sent_to_auth_url(method, binary, override):
+    """Keep custom headers on the auth URL across methods, protocols, and overrides."""
     auth_url = 'https://auth.example.test/token'
     headers = {'Authorization': 'Bearer external-auth-token', 'X-Custom-Auth': 'custom-value'}
     options = {'auth_url': auth_url, 'auth_method': method, 'use_binary_protocol': binary}
