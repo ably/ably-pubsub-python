@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock, patch
 
 from ably.transport.websockettransport import WebSocketTransport
@@ -37,3 +38,33 @@ def test_websocket_url_defaults_to_wss_and_443():
 def test_websocket_url_defaults_to_ws_and_80_when_tls_disabled():
     url = _connect_url(tls=False)
     assert url == 'ws://example.com:80?format=json'
+
+
+# RTN12
+async def test_dispose_finishes_cancelled_tasks_before_returning():
+    transport = WebSocketTransport(MagicMock(), 'example.com', {'format': 'json'})
+    started = asyncio.Event()
+
+    async def read_loop():
+        started.set()
+        await asyncio.Event().wait()
+
+    transport.read_loop = asyncio.create_task(read_loop())
+    await started.wait()
+
+    await transport.dispose()
+
+    assert transport.read_loop.done()
+
+
+# RTN12
+async def test_dispose_called_from_the_read_loop_does_not_deadlock():
+    transport = WebSocketTransport(MagicMock(), 'example.com', {'format': 'json'})
+
+    async def read_loop():
+        await transport.dispose()
+
+    transport.read_loop = asyncio.create_task(read_loop())
+
+    await asyncio.wait_for(asyncio.gather(transport.read_loop, return_exceptions=True), timeout=1)
+    assert transport.read_loop.done()
