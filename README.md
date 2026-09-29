@@ -94,7 +94,20 @@ Read the [CONTRIBUTING.md](./CONTRIBUTING.md) guidelines to contribute to Ably.
 
 For help or technical support, visit Ably's [support page](https://ably.com/support) or [GitHub Issues](https://github.com/ably/ably-pubsub-python/issues) for community-reported bugs and discussions.
 
-### Full Realtime support unavailable
+### Feature support
 
-This SDK currently supports only [Ably REST](https://ably.com/docs/rest) and basic realtime message subscriptions. To access full [Ably Realtime](https://ably.com/docs/realtime) features in Python, consider using the [MQTT adapter](https://ably.com/docs/mqtt).
+This SDK supports the Ably Pub/Sub REST and Realtime APIs, including connection and channel lifecycle management, publishing and subscribing, presence, message history, message annotations, channel encryption, and token authentication with in-band re-authentication.
+
+The following features are not currently implemented:
+
+- [Connection recovery](https://ably.com/docs/connect/states) using the `recover` client option.
+- Message filtering on subscriptions, and derived channels.
+- Presence history, though [channel history](https://ably.com/docs/storage-history/history) is supported.
+- [Batch publish](https://ably.com/docs/messages/batch) and batch presence.
+- [Token revocation](https://ably.com/docs/auth/revocation).
+- [Push notification target](https://ably.com/docs/push) functionality, so a Python client cannot itself receive push notifications. The [push admin API](https://ably.com/docs/api/rest-sdk/push-admin) for registering and managing other devices is supported.
+- [LiveObjects](https://ably.com/docs/liveobjects).
+
+> [!NOTE]
+> [Delta compression](https://ably.com/docs/channels/options/deltas) requires the `vcdiff` extra (`pip install "ably[vcdiff]"`) and an `AblyVCDiffDecoder` instance passed to the client as `vcdiff_decoder`.
 
