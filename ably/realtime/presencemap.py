@@ -37,8 +37,9 @@ def _is_newer(item: PresenceMessage, existing: PresenceMessage) -> bool:
     Raises:
         ValueError: If message ids cannot be parsed for comparison
     """
-    # RTP2b1: if either is synthesized, compare by timestamp
-    if item.is_synthesized() or existing.is_synthesized():
+    # RTP2b1: if either is synthesized, compare by timestamp. A message without an id
+    # cannot be compared by msgSerial and index, so it takes the same path.
+    if item.is_synthesized() or existing.is_synthesized() or not item.id or not existing.id:
         # RTP2b1a: if equal, prefer the newly-arrived one (item)
         if item.timestamp is None and existing.timestamp is None:
             return True

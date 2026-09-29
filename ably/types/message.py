@@ -367,7 +367,7 @@ class Message(EncodeDataMixin):
 
     @staticmethod
     def __update_empty_fields(proto_msg: dict, msg: dict, msg_index: int):
-        if msg.get("id") is None or msg.get("id") == '':
+        if (msg.get("id") is None or msg.get("id") == '') and proto_msg.get('id'):
             msg['id'] = f"{proto_msg.get('id')}:{msg_index}"
         if msg.get("connectionId") is None or msg.get("connectionId") == '':
             msg['connectionId'] = proto_msg.get('connectionId')
