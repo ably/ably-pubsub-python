@@ -221,7 +221,6 @@ class Auth:
 
         response = await self.ably.http.post(
             token_path,
-            headers=auth_headers,
             body=token_request.to_dict(),
             skip_auth=True
         )
