@@ -452,7 +452,7 @@ class ConnectionManager(EventEmitter):
             else:
                 self.notify_state(ConnectionState.DISCONNECTED, exception)
         else:
-            log.warn("DISCONNECTED message received without error")
+            log.warning("DISCONNECTED message received without error")
 
     async def on_token_error(self, exception: AblyException) -> None:
         if self.__error_reason is None or not is_token_error(self.__error_reason):

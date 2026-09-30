@@ -107,8 +107,8 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-# Enable Pyflakes (F), pycodestyle (E, W), pep8-naming (N), isort (I), pyupgrade (UP), bugbear (B) and comprehensions (C4)
-select = ["E", "W", "F", "N", "I", "UP", "B", "C4"]
+# Enable Pyflakes (F), pycodestyle (E, W), pep8-naming (N), isort (I), pyupgrade (UP), bugbear (B), comprehensions (C4) and logging-warn (G010)
+select = ["E", "W", "F", "N", "I", "UP", "B", "C4", "G010"]
 ignore = [
   "N818",  # exception name should end in 'Error'
   "UP026",  # mock -> unittest.mock (need mock package for Python 3.7 AsyncMock support)

@@ -1161,7 +1161,7 @@ the reason is plumbed through: a missing reason should give an `AblyException`, 
 An ATTACHED arriving while the channel is DETACHING or DETACHED must be answered with a new
 DETACH, the channel remaining in or returning to DETACHING. `_on_message` handles ATTACHED
 only for the ATTACHED (RTL12) and ATTACHING cases; every other state falls through to
-`log.warn("ATTACHED received while not attaching")` and nothing is sent. While DETACHING
+`log.warning("ATTACHED received while not attaching")` and nothing is sent. While DETACHING
 that leaves the detach to time out, so `detach()` raises "Channel detach timed out" and the
 channel returns to ATTACHED.
 
