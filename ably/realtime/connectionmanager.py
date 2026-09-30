@@ -775,6 +775,11 @@ class ConnectionManager(EventEmitter):
 
     def disconnect_transport(self) -> None:
         log.info('ConnectionManager.disconnect_transport()')
+        # A connect attempt still in flight is abandoned along with the transport it was
+        # opening, which reports neither 'connected' nor 'failed' once disposed. connect_base
+        # reaches here itself when it gives up, and is left to return.
+        if self.connect_base_task and self.connect_base_task is not asyncio.current_task():
+            self.connect_base_task.cancel()
         if self.transport:
             # RTN19a: Requeue pending messages before disposing transport
             self.requeue_pending_messages()

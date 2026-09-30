@@ -1904,7 +1904,7 @@ transition timer. Measured, with `fallback_hosts=[]` and `realtime_request_timeo
 | `asyncio.TimeoutError` (`respond_with_timeout`) | still CONNECTING | at t=1000 | 50003 / 504 |
 | `socket.gaierror` (`respond_with_dns_error`) | already DISCONNECTED | at t=0 | 40000 / 400, naming the cause |
 
-Three consequences:
+Two consequences:
 
 - A refused connection and a connect timeout are indistinguishable from each other *and*
   from a server that accepts the socket and says nothing. All three surface as the
@@ -1914,11 +1914,6 @@ Three consequences:
   tried for refused and for timeout, against six attempts — primary plus all five
   fallbacks — for a DNS error. RTN17d's fallback behaviour therefore cannot happen in
   practice.
-- **Every refused attempt leaks a task and a future.** `try_a_host`'s future
-  (`connectionmanager.py:646`) is never settled, so each attempt leaves a
-  `connect_base()` task awaiting it for good, printing `Task was destroyed but it is
-  pending!` at interpreter shutdown. A long-lived client reconnecting against a refusing
-  host leaks one per attempt.
 
 **Tests affected:** `test_rtn14d_retry_recoverable_failure` is the adapted test that pins
 it — it asserts that the refusal moves nothing, that DISCONNECTED arrives only when the
@@ -1930,14 +1925,13 @@ the fallback loop, each noted at the site: `test_rtn17f_fallback_on_error`,
 `test_rtn17h_fallback_domains_from_rec2`, `test_rtn17i_prefer_primary_domain`,
 `test_rtn17j_connectivity_check_before_fallback`, `test_rtn17e_http_uses_same_fallback`,
 `test_rtn13b_ping_error_suspended`, `test_rtn16g3_recovery_key_null_inactive`,
-`test_rtc7_disconnected_retry_timeout`. `test_rtn17g_empty_fallback_set_error` and
-`test_rtl6c4_fails_conn_suspended` keep `respond_with_refused()` deliberately — the first
-because it asserts that *no* fallback follows, the second because swapping it would silence
-the ten `Task was destroyed` lines that are the leak showing.
+`test_rtc7_disconnected_retry_timeout`. `test_rtn17g_empty_fallback_set_error` keeps
+`respond_with_refused()` deliberately, because it asserts that *no* fallback follows, and
+`test_rtl6c4_fails_conn_suspended` keeps it as the specification has it.
 
 **Status:** open bug. Widening the `except` to `(WebSocketException, OSError,
 asyncio.TimeoutError)` — or, better, emitting `failed` from a guard no exception type can
-escape — fixes all three consequences.
+escape — fixes both consequences.
 
 ### The connectivity check bypasses every seam and blocks the event loop
 
@@ -2561,12 +2555,10 @@ vanish.** RTN14d, RTN17d, RTN17e. `websockettransport.py:117` catches only
 `(WebSocketException, socket.gaierror)`, so a `ConnectionRefusedError` (an `OSError`) and an
 `asyncio.TimeoutError` never reach `_emit('failed')`, the future `try_host` awaits is never
 settled, and the attempt is ended only by the transition timer with a generic 50003/504.
-Three consequences: refused, timed-out and silently-accepted connections are
-indistinguishable; **the fallback loop is unreachable** for refused and timeout (measured:
-one attempt and no fallback tried, against six for a DNS error); and each attempt leaks a
-`connect_base()` task and its future (`connectionmanager.py:646`), printing `Task was
-destroyed but it is pending!` at shutdown. Widening the `except`, or emitting `failed` from a
-guard no exception can escape, fixes all three.
+Two consequences: refused, timed-out and silently-accepted connections are
+indistinguishable; and **the fallback loop is unreachable** for refused and timeout (measured:
+one attempt and no fallback tried, against six for a DNS error). Widening the `except`, or
+emitting `failed` from a guard no exception can escape, fixes both.
 `test/uts/realtime/unit/connection/connection_failures_test.py -k rtn14d` (this one is
 adapted, so it **passes** today and fails when the defect is fixed — read it as the pin, not
 the proof)
