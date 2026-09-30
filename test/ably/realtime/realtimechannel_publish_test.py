@@ -225,7 +225,9 @@ class TestRealtimeChannelPublish(BaseAsyncTestCase):
             return connection_manager.pending_message_queue.count() > 0
         await assert_waiter(check_pending, timeout=2)
 
-        # Force DISCONNECTED state
+        # Simulate loss of connection: dispose the transport, then force DISCONNECTED state
+        assert connection_manager.transport
+        await connection_manager.transport.dispose()
         connection_manager.notify_state(
             ConnectionState.DISCONNECTED,
             AblyException('Test disconnect', 400, 80003)
@@ -266,7 +268,9 @@ class TestRealtimeChannelPublish(BaseAsyncTestCase):
             return connection_manager.pending_message_queue.count() > 0
         await assert_waiter(check_pending, timeout=2)
 
-        # Force DISCONNECTED state
+        # Simulate loss of connection: dispose the transport, then force DISCONNECTED state
+        assert connection_manager.transport
+        await connection_manager.transport.dispose()
         connection_manager.notify_state(ConnectionState.DISCONNECTED, None)
 
         # Give time for state transition
