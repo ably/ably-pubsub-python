@@ -93,6 +93,13 @@ packages = ["ably"]
 [tool.pytest.ini_options]
 timeout = 30
 asyncio_mode = "auto"
+filterwarnings = [
+  # pytest-asyncio before 1.0 calls asyncio APIs that Python 3.14 deprecates;
+  # the releases that avoid them need Python 3.9 and pytest 8.2 or later
+  "ignore:'asyncio.iscoroutinefunction' is deprecated:DeprecationWarning:pytest_asyncio",
+  "ignore:'asyncio.get_event_loop_policy' is deprecated:DeprecationWarning:pytest_asyncio",
+  "ignore:'asyncio.set_event_loop_policy' is deprecated:DeprecationWarning:pytest_asyncio",
+]
 
 [[tool.uv.index]]
 name = "experimental"
