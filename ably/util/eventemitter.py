@@ -3,7 +3,7 @@ import logging
 
 from pyee.asyncio import AsyncIOEventEmitter
 
-from ably.util.helper import is_callable_or_coroutine
+from ably.util.helper import is_callable_or_coroutine, is_coroutine_function
 
 # pyee's event emitter doesn't support attaching a listener to all events
 # so to patch it, we create a wrapper which uses two event emitters, one
@@ -69,7 +69,7 @@ class EventEmitter:
         else:
             raise ValueError("EventEmitter.on(): invalid args")
 
-        if asyncio.iscoroutinefunction(listener):
+        if is_coroutine_function(listener):
             async def wrapped_listener(*args, **kwargs):
                 try:
                     await listener(*args, **kwargs)
@@ -114,7 +114,7 @@ class EventEmitter:
         else:
             raise ValueError("EventEmitter.on(): invalid args")
 
-        if asyncio.iscoroutinefunction(listener):
+        if is_coroutine_function(listener):
             async def wrapped_listener(*args, **kwargs):
                 try:
                     await listener(*args, **kwargs)
