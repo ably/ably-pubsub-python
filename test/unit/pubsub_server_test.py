@@ -154,3 +154,10 @@ class TestPrototypes:
 
     def test_sync_prototype_is_exported(self):
         assert 'PubSubHttpClient' in server_sync.__all__
+
+
+class TestPublicTypes:
+    # update_message() takes a Message, so callers need a public way to build one
+    def test_message_is_exported(self):
+        assert 'Message' in server.__all__
+        assert 'Message' in server_sync.__all__

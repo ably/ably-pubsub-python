@@ -189,7 +189,7 @@ async def test_a_pending_connection_carries_the_headers_the_client_sent():
 
     headers = mock.connection_attempts[0].headers
     assert 'ably-agent' in headers
-    assert 'ably-python' in headers['Ably-Agent']
+    assert 'ably-pubsub-python' in headers['Ably-Agent']
 
 
 async def test_the_protocol_follows_use_binary_protocol():

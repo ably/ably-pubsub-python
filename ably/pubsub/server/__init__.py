@@ -33,7 +33,7 @@ from ably.pubsub.types.channelmode import ChannelMode
 from ably.pubsub.types.channeloptions import ChannelOptions
 from ably.pubsub.types.channelsubscription import PushChannelSubscription
 from ably.pubsub.types.device import DeviceDetails
-from ably.pubsub.types.message import MessageAction, MessageVersion
+from ably.pubsub.types.message import Message, MessageAction, MessageVersion
 from ably.pubsub.types.operations import MessageOperation, PublishResult, UpdateDeleteResult
 from ably.pubsub.types.options import Options, VCDiffDecoder
 from ably.pubsub.types.tokendetails import TokenDetails
@@ -257,6 +257,7 @@ __all__ = [
     'HttpChannels',
     'HttpPaginatedResponse',
     'IncompatibleClientIdException',
+    'Message',
     'MessageAction',
     'MessageOperation',
     'MessageVersion',

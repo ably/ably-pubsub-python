@@ -52,7 +52,8 @@ counterpart. The packages beneath them are internal and free to move.
 ### Clients are built by factories
 
 `AblyRest` and `AblyRealtime` are internal in 4.0.0 and raise `TypeError` if
-constructed directly. Build clients through the factories instead, which take the same arguments:
+constructed directly. Build clients through the factories instead, which take the same options
+as keyword arguments. The API key is no longer accepted positionally, so pass it as `key=`:
 
 Example 3.x code:
 ```python

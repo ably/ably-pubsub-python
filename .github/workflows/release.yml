@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/ably
+      url: https://pypi.org/p/ably-pubsub-server
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
@@ -94,7 +94,7 @@ jobs:
       - name: Read VERSION_NAME from dist/
         id: version
         run: |
-          VERSION_NAME=$(basename dist/ably-*.tar.gz | sed -E 's/^ably-([^-]+)\.tar\.gz$/\1/')
+          VERSION_NAME=$(basename dist/ably_pubsub_server-*.tar.gz | sed -E 's/^ably_pubsub_server-([^-]+)\.tar\.gz$/\1/')
           echo "version=$VERSION_NAME" >> $GITHUB_OUTPUT
 
       - name: Compare version with tag
@@ -118,7 +118,7 @@ jobs:
 
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/ably
+      url: https://test.pypi.org/p/ably-pubsub-server
 
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing

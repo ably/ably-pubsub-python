@@ -84,7 +84,7 @@ The following code connects to Ably's realtime messaging service, subscribes to 
 from ably.pubsub.server import create_realtime_client
 
 # Initialize Ably Realtime client
-async with create_realtime_client('your-ably-api-key', client_id='me') as realtime_client:
+async with create_realtime_client(key='your-ably-api-key', client_id='me') as realtime_client:
     # Wait for connection to be established
     await realtime_client.connection.once_async('connected')
     print('Connected to Ably')
