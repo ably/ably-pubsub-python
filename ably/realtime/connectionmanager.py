@@ -452,7 +452,7 @@ class ConnectionManager(EventEmitter):
             else:
                 self.notify_state(ConnectionState.DISCONNECTED, exception)
         else:
-            log.warn("DISCONNECTED message received without error")
+            log.warning("DISCONNECTED message received without error")
 
     async def on_token_error(self, exception: AblyException) -> None:
         if self.__error_reason is None or not is_token_error(self.__error_reason):
@@ -775,6 +775,11 @@ class ConnectionManager(EventEmitter):
 
     def disconnect_transport(self) -> None:
         log.info('ConnectionManager.disconnect_transport()')
+        # A connect attempt still in flight is abandoned along with the transport it was
+        # opening, which reports neither 'connected' nor 'failed' once disposed. connect_base
+        # reaches here itself when it gives up, and is left to return.
+        if self.connect_base_task and self.connect_base_task is not asyncio.current_task():
+            self.connect_base_task.cancel()
         if self.transport:
             # RTN19a: Requeue pending messages before disposing transport
             self.requeue_pending_messages()
