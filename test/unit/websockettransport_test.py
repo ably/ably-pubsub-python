@@ -54,7 +54,7 @@ async def test_dispose_finishes_cancelled_tasks_before_returning():
 
     await transport.dispose()
 
-    assert transport.read_loop.done()
+    assert transport.read_loop.cancelled()
 
 
 # RTN12
@@ -66,5 +66,7 @@ async def test_dispose_called_from_the_read_loop_does_not_deadlock():
 
     transport.read_loop = asyncio.create_task(read_loop())
 
-    await asyncio.wait_for(asyncio.gather(transport.read_loop, return_exceptions=True), timeout=1)
-    assert transport.read_loop.done()
+    done, pending = await asyncio.wait({transport.read_loop}, timeout=1)
+
+    assert not pending
+    assert transport.read_loop.cancelled()
