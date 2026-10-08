@@ -2,28 +2,16 @@
 
 Spec points: RSC24, BAR2, BGR2, BGF2
 
-NOTE: ably-python has no batch API. `DefaultPubSubHttpClient` exposes no `batch_presence`, and the package
-defines neither `BatchResult`/`BatchPresenceResponse` nor `BatchPresenceSuccessResult`/
-`BatchPresenceFailureResult`; the word "batch" appears nowhere under `ably/`. Every test in
-this file therefore departs from the specification and is gated behind `RUN_DEVIATIONS`.
-Each carries the assertion the spec calls for, written against the name ably-python would
-use once RSC24 is implemented, so that dropping the `@deviation` marker is the only change
-needed when it is. Today a batch presence query has to be hand-rolled by the caller through
-`client.request('GET', '/presence', version=..., params={'channels': ...})`, which returns
-an `HttpPaginatedResponse` of raw dicts rather than decoded `PresenceMessage`s, and which
-does not raise on an error status.
-
-Counts are read as `success_count` / `failure_count`, the snake_case spelling of BAR2a and
-BAR2b, and a success result is told apart from a failure result by which attributes it
-carries rather than by `isinstance`, since neither class exists to name.
+The specification's `BatchPresenceResponse` is ably-python's `BatchResult`, whose counts are
+read as `success_count` / `failure_count`, the snake_case spelling of BAR2a and BAR2b.
 """
 
 import pytest
 
+from ably.pubsub.types.batch import BatchPresenceFailureResult, BatchPresenceSuccessResult
 from ably.pubsub.types.presence import PresenceAction
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 
@@ -40,7 +28,6 @@ def respond_with(status, body):
 
 
 # UTS: rest/unit/RSC24/get-presence-channels-param-0
-@deviation
 async def test_rsc24_batch_presence_get_presence_channels_param():
     captured_requests = []
     mock_http = MockHttpClient(
@@ -65,7 +52,6 @@ async def test_rsc24_batch_presence_get_presence_channels_param():
 
 
 # UTS: rest/unit/RSC24/single-channel-param-0
-@deviation
 async def test_rsc24_batch_presence_single_channel_param():
     captured_requests = []
     mock_http = MockHttpClient(
@@ -86,7 +72,6 @@ async def test_rsc24_batch_presence_single_channel_param():
 
 
 # UTS: rest/unit/RSC24/special-chars-comma-joined-0
-@deviation
 async def test_rsc24_batch_presence_special_chars_comma_joined():
     captured_requests = []
     mock_http = MockHttpClient(
@@ -108,7 +93,6 @@ async def test_rsc24_batch_presence_special_chars_comma_joined():
 
 
 # UTS: rest/unit/BAR2/mixed-success-failure-counts-0
-@deviation
 async def test_bar2_batch_presence_mixed_success_failure_counts():
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
@@ -136,7 +120,6 @@ async def test_bar2_batch_presence_mixed_success_failure_counts():
 
 
 # UTS: rest/unit/BAR2/all-success-counts-0
-@deviation
 async def test_bar2_batch_presence_all_success_counts():
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
@@ -159,7 +142,6 @@ async def test_bar2_batch_presence_all_success_counts():
 
 
 # UTS: rest/unit/BAR2/all-failure-counts-0
-@deviation
 async def test_bar2_batch_presence_all_failure_counts():
     error = {'code': 40160, 'statusCode': 401, 'message': 'Not permitted'}
     mock_http = MockHttpClient(
@@ -183,7 +165,6 @@ async def test_bar2_batch_presence_all_failure_counts():
 
 
 # UTS: rest/unit/BGR2/success-with-members-0
-@deviation
 async def test_bgr2_batch_presence_success_with_members():
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
@@ -222,7 +203,7 @@ async def test_bgr2_batch_presence_success_with_members():
     assert len(result.results) == 1
 
     success = result.results[0]
-    assert getattr(success, 'presence', None) is not None
+    assert isinstance(success, BatchPresenceSuccessResult)
     assert success.channel == 'my-channel'
     assert len(success.presence) == 2
 
@@ -237,7 +218,6 @@ async def test_bgr2_batch_presence_success_with_members():
 
 
 # UTS: rest/unit/BGR2/success-empty-presence-0
-@deviation
 async def test_bgr2_batch_presence_success_empty_presence():
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
@@ -254,13 +234,12 @@ async def test_bgr2_batch_presence_success_empty_presence():
     result = await client.batch_presence(['empty-channel'])
 
     success = result.results[0]
-    assert getattr(success, 'presence', None) is not None
+    assert isinstance(success, BatchPresenceSuccessResult)
     assert success.channel == 'empty-channel'
     assert len(success.presence) == 0
 
 
 # UTS: rest/unit/BGF2/failure-error-details-0
-@deviation
 async def test_bgf2_batch_presence_failure_error_details():
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
@@ -286,7 +265,8 @@ async def test_bgf2_batch_presence_failure_error_details():
     assert len(result.results) == 1
 
     failure = result.results[0]
-    assert getattr(failure, 'error', None) is not None
+    assert isinstance(failure, BatchPresenceFailureResult)
+    assert isinstance(failure.error, AblyException)
     assert failure.channel == 'restricted-channel'
     assert failure.error.code == 40160
     assert failure.error.status_code == 401
@@ -294,7 +274,6 @@ async def test_bgf2_batch_presence_failure_error_details():
 
 
 # UTS: rest/unit/RSC24/mixed-success-failure-results-0
-@deviation
 async def test_rsc24_batch_presence_mixed_success_failure_results():
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
@@ -329,18 +308,17 @@ async def test_rsc24_batch_presence_mixed_success_failure_results():
     assert result.failure_count == 1
     assert len(result.results) == 2
 
-    assert getattr(result.results[0], 'presence', None) is not None
+    assert isinstance(result.results[0], BatchPresenceSuccessResult)
     assert result.results[0].channel == 'allowed-channel'
     assert len(result.results[0].presence) == 1
     assert result.results[0].presence[0].client_id == 'user-1'
 
-    assert getattr(result.results[1], 'error', None) is not None
+    assert isinstance(result.results[1], BatchPresenceFailureResult)
     assert result.results[1].channel == 'restricted-channel'
     assert result.results[1].error.code == 40160
 
 
 # UTS: rest/unit/RSC24/server-error-propagated-0
-@deviation
 async def test_rsc24_batch_presence_server_error_propagated():
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
@@ -358,7 +336,6 @@ async def test_rsc24_batch_presence_server_error_propagated():
 
 
 # UTS: rest/unit/RSC24/auth-error-propagated-0
-@deviation
 async def test_rsc24_batch_presence_auth_error_propagated():
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
@@ -376,7 +353,6 @@ async def test_rsc24_batch_presence_auth_error_propagated():
 
 
 # UTS: rest/unit/RSC24/uses-configured-auth-0
-@deviation
 async def test_rsc24_batch_presence_uses_configured_auth():
     captured_requests = []
     mock_http = MockHttpClient(

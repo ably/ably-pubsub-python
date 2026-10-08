@@ -2,38 +2,26 @@
 
 Spec points: RSC24, BGR2, BGF2
 
-DEVIATION: ably-python has no batch API. `DefaultPubSubHttpClient` exposes no `batch_presence`, and
-the package defines neither `BatchResult` nor `BatchPresenceSuccessResult` /
-`BatchPresenceFailureResult`; the word "batch" appears nowhere under `ably/`. Every
-test here therefore departs from the specification and is gated behind
-RUN_DEVIATIONS, against the same spelling
-[test/uts/rest/unit/batch_presence_test.py](../unit/batch_presence_test.py) gates on —
-`client.batch_presence([...])` giving a result with `success_count`, `failure_count`
-and `results` — so that dropping the marker is the only change either tier needs when
-RSC24 lands.
+The server returns the `successCount` / `failureCount` / `results` envelope the
+specification describes, with `code` 40160 and `statusCode` 401 for a channel the key
+has no capability for. Two details of the server's responses are recorded beside the
+assertions they bear on — the `presence` key the server omits for an empty channel, and
+the presence members a closed connection takes with it.
 
-The setup halves are real, and the responses they assert against were confirmed by
-hand through `client.request('GET', '/presence', params={'channels': ...})` against
-the sandbox: the server does return the `successCount` / `failureCount` / `results`
-envelope the specification describes, with `code` 40160 and `statusCode` 401 for a
-channel the key has no capability for. Two details of that confirmation are recorded
-beside the assertions they bear on — the `presence` key the server omits for an empty
-channel, and the presence members a closed connection takes with it.
-
-See [deviations.md](../../deviations.md): the gating under *Failing Tests* ->
-*Unimplemented features*, the omitted `presence` key and the closed connection under
-*UTS Spec Errors*, and `enterClient` on an anonymous connection under *Failing Tests* ->
-*Auth*.
+See [deviations.md](../../deviations.md): the omitted `presence` key and the closed
+connection under *UTS Spec Errors*, and `enterClient` on an anonymous connection under
+*Failing Tests* -> *Auth*.
 """
 
 from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.batch import BatchPresenceFailureResult, BatchPresenceSuccessResult
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_connection_state,
     sandbox_realtime_client,
     sandbox_rest_client,
     wall_clock_poll_until,
 )
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import random_id
 
 
@@ -43,20 +31,6 @@ def result_for(result, channel_name):
         if entry.channel == channel_name:
             return entry
     raise AssertionError(f'No batch result for channel {channel_name!r}')
-
-
-def is_success_result(entry):
-    """The specifications' `entry IS BatchPresenceSuccessResult`.
-
-    Neither result class exists to name, so a success is told apart from a failure by
-    which attribute it carries, as the unit tier does.
-    """
-    return getattr(entry, 'presence', None) is not None
-
-
-def is_failure_result(entry):
-    """The specifications' `entry IS BatchPresenceFailureResult`."""
-    return getattr(entry, 'error', None) is not None
 
 
 def member_for(entry, client_id):
@@ -96,7 +70,6 @@ async def enter_members(realtime, channel_name, members):
     return channel
 
 
-@deviation
 # UTS: rest/integration/RSC24/batch-presence-multiple-channels-0
 async def test_rsc24_batch_presence_multiple_channels(sandbox, use_binary_protocol):
     channel_a_name = 'batch-presence-a-' + random_id()
@@ -119,7 +92,7 @@ async def test_rsc24_batch_presence_multiple_channels(sandbox, use_binary_protoc
     result_a = result_for(result, channel_a_name)
     result_b = result_for(result, channel_b_name)
 
-    assert is_success_result(result_a)
+    assert isinstance(result_a, BatchPresenceSuccessResult)
     assert len(result_a.presence) == 2
     client_ids_a = [member.client_id for member in result_a.presence]
     assert 'user-1' in client_ids_a
@@ -127,13 +100,12 @@ async def test_rsc24_batch_presence_multiple_channels(sandbox, use_binary_protoc
 
     assert member_for(result_a, 'user-1').data == 'data-a1'
 
-    assert is_success_result(result_b)
+    assert isinstance(result_b, BatchPresenceSuccessResult)
     assert len(result_b.presence) == 1
     assert result_b.presence[0].client_id == 'user-3'
     assert result_b.presence[0].data == 'data-b1'
 
 
-@deviation
 # UTS: rest/integration/RSC24/restricted-key-channel-failure-1
 async def test_rsc24_restricted_key_channel_failure(sandbox, use_binary_protocol):
     # The specification hard-codes "channel6" as the channel `keys[2]` is allowed. The
@@ -165,7 +137,7 @@ async def test_rsc24_restricted_key_channel_failure(sandbox, use_binary_protocol
     async def one_member_on_the_allowed_channel():
         result = await restricted_rest.batch_presence([allowed_channel, denied_channel])
         success = result_for(result, allowed_channel)
-        return result if is_success_result(success) and len(success.presence) == 1 else None
+        return result if isinstance(success, BatchPresenceSuccessResult) and len(success.presence) == 1 else None
 
     result = await wall_clock_poll_until(
         one_member_on_the_allowed_channel,
@@ -178,16 +150,16 @@ async def test_rsc24_restricted_key_channel_failure(sandbox, use_binary_protocol
     success = result_for(result, allowed_channel)
     failure = result_for(result, denied_channel)
 
-    assert is_success_result(success)
+    assert isinstance(success, BatchPresenceSuccessResult)
     assert len(success.presence) == 1
     assert success.presence[0].client_id == 'member-1'
 
-    assert is_failure_result(failure)
+    assert isinstance(failure, BatchPresenceFailureResult)
+    assert isinstance(failure.error, AblyException)
     assert failure.error.code == 40160
     assert failure.error.status_code == 401
 
 
-@deviation
 # UTS: rest/integration/RSC24/empty-channel-presence-2
 async def test_rsc24_empty_channel_presence(sandbox, use_binary_protocol):
     empty_channel = 'batch-empty-' + random_id()
@@ -210,9 +182,9 @@ async def test_rsc24_empty_channel_presence(sandbox, use_binary_protocol):
     # The server counts the empty channel a success and leaves `presence` out of its
     # result altogether rather than sending `[]`, so an implementation of BGR2 has to
     # default the field for the specification's assertion to hold.
-    assert is_success_result(empty_result)
+    assert isinstance(empty_result, BatchPresenceSuccessResult)
     assert len(empty_result.presence) == 0
 
-    assert is_success_result(populated_result)
+    assert isinstance(populated_result, BatchPresenceSuccessResult)
     assert len(populated_result.presence) == 1
     assert populated_result.presence[0].client_id == 'someone'
