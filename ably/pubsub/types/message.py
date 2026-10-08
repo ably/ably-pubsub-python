@@ -1,4 +1,6 @@
+import base64
 import logging
+import os
 from enum import IntEnum
 
 from ably.pubsub.types.mixins import DeltaExtras, EncodeDataMixin
@@ -389,6 +391,14 @@ class Message(EncodeDataMixin):
             for presence_msg in presence_messages:
                 Message.__update_empty_fields(proto_msg, presence_msg, msg_index)
                 msg_index = msg_index + 1
+
+
+def assign_idempotent_ids(messages):
+    """Gives every message a library-generated id, unless one of them already has an id (RSL1k1)."""
+    if all(message.id is None for message in messages):
+        base_id = base64.urlsafe_b64encode(os.urandom(12)).decode()
+        for serial, message in enumerate(messages):
+            message.id = f'{base_id}:{serial}'
 
 
 def make_message_response_handler(cipher):

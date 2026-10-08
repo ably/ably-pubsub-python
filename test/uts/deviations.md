@@ -31,8 +31,8 @@ Variants` section and run every one of their tests twice, once per protocol, and
 `rest/unit` tests are parametrized over a table of fixtures the specification gives
 inline. That turns 1141 derived tests into 1234 pytest cases.
 
-Of **1132 Test IDs, derived as 1141 tests and run as 1234 pytest cases**: 904 Test IDs
-(913 tests, 1001 cases) pass, 213 (213 tests, 218 cases) are gated behind
+Of **1132 Test IDs, derived as 1141 tests and run as 1234 pytest cases**: 947 Test IDs
+(956 tests, 1047 cases) pass, 170 (170 tests, 172 cases) are gated behind
 `RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs, and one parametrized test, have a gated part and a passing part,
 and are counted with the gated. Every gated test has been confirmed to fail when
@@ -40,18 +40,18 @@ enabled, so none of them passes under both behaviours. 494 of the Test IDs come 
 `uts/rest/unit` (503 tests, 536 cases), 481 from `uts/realtime/unit` (481, 481), 84
 from `uts/rest/integration` (84, 122) and 73 from `uts/realtime/integration` (73, 95); 8
 of the REST integration ids (8, 8) and 30 of the realtime ones (30, 30) come from the
-`proxy` package within each. Of the gated Test IDs 122 are REST and 91 realtime, which is
-126 REST cases and 92 realtime.
-A further 122 pytest cases under `helpers/` cover the mock infrastructure itself and are
+`proxy` package within each. Of the gated Test IDs 79 are REST and 91 realtime, which is
+80 REST cases and 92 realtime.
+A further 130 pytest cases under `helpers/` cover the mock infrastructure itself and are
 not derived from a specification.
 
-The 203 gated Test IDs that record SDK non-compliance — 203 tests, 208 cases — reduce to
-**71 distinct root causes**, 27 on the REST side and 44 on the realtime side. Three further
+The 159 gated Test IDs that record SDK non-compliance — 159 tests, 161 cases — reduce to
+**70 distinct root causes**, 26 on the REST side and 44 on the realtime side. Three further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
 synthesized LEAVE timestamps), or is worked around in the setup of every test that
 would otherwise trip over it (`enterClient` on an anonymous connection), so the file
-carries **74 SDK root causes** in all. The remaining 10 gated Test IDs are
+carries **73 SDK root causes** in all. The remaining 10 gated Test IDs are
 specification faults, and reduce to 7.
 
 Entries closed by a fix are removed rather than kept as history; `git log` holds that.
@@ -131,6 +131,7 @@ Raised upstream:
 | [#552](https://github.com/ably/specification/issues/552) | `proxy/connection_resume.md`: a status code neither SDK returns, a proxy substitution that does not exist, and event-log fields the proxy does not emit |
 | [#553](https://github.com/ably/specification/issues/553) | A heartbeat-starvation test that closes the socket thirteen seconds inside the idle window |
 | [#554](https://github.com/ably/specification/issues/554) | Two sections provoking one server response, leaving the revoked-key point uncovered |
+| [#559](https://github.com/ably/specification/issues/559) | Batch publish and token revocation fixtures in the response format the server sends below protocol version 3 |
 
 `#527` also carries a comment on the realtime wire-format assertions, `#532` one on the
 same housekeeping categories in `realtime/unit`, and
@@ -271,16 +272,36 @@ file, and the protocol, which fix LEAVE at 3 and UPDATE at 4. The closing note o
 
 `batch_presence.md` states that with `X-Ably-Version >= 3` the server returns a
 `BatchResult` envelope "for all batch responses" and calls the plain array legacy.
-Every mock in `batch_publish.md` uses the plain array. `features.md` RSC22b backs
-`batch_publish.md` — "the response will still be an array" — so `batch_presence.md`'s
-claim is the one to revisit. `revoke_tokens.md` has the same internal split:
-`RSA17c_1` and `TRS2_1` stub a bare array while asserting envelope fields.
+Every mock in `batch_publish.md` uses the plain array, and its RSC22_Headers1 pins
+`X-Ably-Version: 2`: `batch_publish.md` is written against the legacy protocol, and
+`batch_presence.md` is the one that matches the server ably-python talks to. Measured
+against the sandbox, `POST /messages` answers:
 
-`batch_publish.md` RSC22_Headers1 also pins `X-Ably-Version: 2` and
-`Content-Type: application/json`; CSV2b templates the version, the sibling spec says
-">= 3", and the binary protocol default makes the content type msgpack.
+| `X-Ably-Version` | Every channel succeeds | Any channel fails |
+|---|---|---|
+| 5 | 201 with an array holding one `{successCount, failureCount, results}` envelope per spec | the same, 201 |
+| 2, or none | 201 with one flat array of `{channel, messageId}` across every spec | 400 with error 40020, and the flat array, failures included, as `batchResponse` |
 
-The revocation half of that split is settled by the server. `POST
+A spec sent as a bare object is answered like an array of one: an array holding a single
+envelope. That is the array RSC22b means when it says the response "will still be an array"
+and the single-spec overload "will have to extract the element" — an array of
+`BatchResult`s, one per spec, rather than of per-channel results. `GET /presence` follows the
+same split by version, answering a mixed batch with 200 and the envelope at version 5 and
+with 400/40020 and `batchResponse` at version 2. The legacy shape carries no `serials`
+either; `batch_publish.md`'s mocks add them to it.
+
+ably-python sends version 5, so every `batch_publish.md` mock is corrected to the envelope,
+through `batch_result()` in `rest/unit/batch_publish_test.py`, and the assertions stand as
+written: they read `result.results[...]`, the layout BAR2c gives the envelope. RSC22_Headers1's
+two pins are corrected beside them — CSV2b templates the version, which ably-python sends as
+5, and the binary protocol default (TO3f) makes the content type msgpack, as
+[#527](https://github.com/ably/specification/issues/527) records for the unit specs that
+read a body without pinning the protocol. The envelope disagreement is filed as
+[#559](https://github.com/ably/specification/issues/559), together with the two
+`revoke_tokens.md` mocks below.
+
+`revoke_tokens.md` has the same internal split: `RSA17c_1` and `TRS2_1` stub a bare array
+while asserting envelope fields. The revocation half is settled by the server too. `POST
 /keys/{keyName}/revokeTokens` with `X-Ably-Version: 5` answers 201 with the
 `{successCount, failureCount, results}` envelope `revoke_tokens.md`'s "Server Response
 Format" section describes, for a mixed success/failure batch as well as an all-success
@@ -773,9 +794,6 @@ Filed as [#554](https://github.com/ably/specification/issues/554).
 | `message_encoding.md`, `msgpack_interop.md`, `annotations.md` | Six sections carry no Test ID; ids were inferred by sibling convention |
 | `publish.md`, `rest_presence.md`, `message_encoding.md`, `history.md`, `idempotency.md` | All point at `/Users/paddy/data/worknew/dev/dart-experiments/...` for the mock contract |
 | `revoke_tokens.md` | The all-success Setup blocks stub HTTP 200 with a plain array, the shape the file's own "Server Response Format" section calls legacy and says no current SDK sees. The `BatchResult` envelope and HTTP 201 that section prescribes appear only in the mixed and all-failure blocks |
-| `publish.md` (integration) | The `Spec points:` header reads RSL1d, RSL1l1, RSL1m4, RSL1n, and the file carries a fifth section, `## RSL1k5 - Idempotent publish with client-supplied IDs`, with its own Test ID. The section is sound; only the header is short. Same housekeeping class as [#532](https://github.com/ably/specification/issues/532) |
-| `auth.md` (integration) | RSC10's expired-JWT fixture is `generate_jwt(expires_at: now() - 5_seconds)`, naming `exp` and leaving `iat` open. Ably reads a JWT's lifetime as `exp - iat` and rejects a negative one with 400/40003 "Invalid value for ttl" before it considers expiry, so `iat` at now produces a token that fails the wrong way and never reaches the 40140–40149 renewal path the test is about. Backdating `iat` past `exp` gives the already-expired token the test wants, answered 401/40142. An SDK signing its own Ably JWT has to choose, so the fixture should say which |
-| `batch_presence.md` | BGR2 says a channel with no members "returns a success result with an empty `presence` array", and the unit tier's mocks all send `'presence': []`. The server sends no `presence` key at all, so an implementation has to default the field for the assertion to hold. The derived test asserts the specification's `length == 0`, with the wire shape in a comment |
 | `publish.md` (integration) | The `Spec points:` header reads RSL1d, RSL1l1, RSL1m4, RSL1n, and the file carries a fifth section, `## RSL1k5 - Idempotent publish with client-supplied IDs`, with its own Test ID. The section is sound; only the header is short. `auth.md` (integration) has the same shape: its header reads RSA4, RSA8 and it carries `## RSC10` with its own Test ID. Same housekeeping class as [#532](https://github.com/ably/specification/issues/532); filed as [#550](https://github.com/ably/specification/issues/550) |
 | `auth.md` (integration) | RSC10's expired-JWT fixture is `generate_jwt(expires_at: now() - 5_seconds)`, naming `exp` and leaving `iat` open. Ably reads a JWT's lifetime as `exp - iat` and rejects a negative one with 400/40003 "Invalid value for ttl" before it considers expiry, so `iat` at now produces a token that fails the wrong way and never reaches the 40140–40149 renewal path the test is about. Backdating `iat` past `exp` gives the already-expired token the test wants, answered 401/40142. An SDK signing its own Ably JWT has to choose, so the fixture should say which. Filed as [#550](https://github.com/ably/specification/issues/550) |
 | `batch_presence.md` | The restricted-key setup's comment reads "only has access to \"batch-allowed\" channel" while the setup fixes `allowed_channel = "channel6"`; `batch-allowed` appears nowhere in the file. Filed with [#548](https://github.com/ably/specification/issues/548), whose fix replaces the same lines |
@@ -792,8 +810,8 @@ Nothing to fix here, only something to build. Each row is one feature, and the c
 the number of gated Test IDs that fall with it, with the pytest case count beside it
 where the two differ.
 
-Five of these rows are gated at both tiers. `batchPresence`, `Auth#revokeTokens`, the
-`PushChannel` surface and the `clientId` filter on `RestPresence#get` each carry
+Four of these rows are gated at both tiers. `Auth#revokeTokens`, the `PushChannel` surface
+and the `clientId` filter on `RestPresence#get` each carry
 `uts/rest/integration` tests as well as unit ones, and connection recovery carries two
 `uts/realtime/integration` ones; all are written against the spelling the unit tier
 already gates on, so both tiers go green together when the API lands. Those
@@ -801,17 +819,15 @@ integration tests do all their real work first — the sandbox app, the channels
 presence members entered over a realtime connection, the registered device and the
 issued token are all real, and each test reaches the missing call before it fails, so the
 assertions either side of it are known to hold against real server responses. The
-`batch_presence` and `push_channels` files were additionally run against throwaway shims
-— a `batch_presence` forwarding to `GET /presence`, and a `PushChannel` posting and
-deleting `/push/channelSubscriptions` with `X-Ably-DeviceToken` — and pass in full
-against them. The two recovery tests are a different shape: there is no missing call for
+`push_channels` file was additionally run against a throwaway shim — a `PushChannel`
+posting and deleting `/push/channelSubscriptions` with `X-Ably-DeviceToken` — and passes in
+full against it. The two recovery tests are a different shape: there is no missing call for
 them to reach, so each runs end to end against the sandbox through `uts-proxy` and fails
 on the `recover` parameter the connection never sends.
 
 | Spec points | Missing | Test IDs |
 |---|---|---|
-| RSC22, RSC24, BSP2, BPR2, BPF2, BAR2, BGR2, BGF2 | `batchPublish` and `batchPresence`, and all six result types. `grep -rn batch ably/` finds nothing | 44 (47 cases) |
-| RSA17, RSA17b–g, BAR2, TRS2, TRF2 | `Auth#revokeTokens`, `TokenRevocationTargetSpecifier`, `BatchResult`. Gated against `auth.revoke_tokens(targets, issued_before=, allow_reauth_margin=)` returning `success_count` / `failure_count` / `results`, with `target` / `issued_before` / `applies_at` / `error` per result. RSA17d is the one case that needs no server at all — a token-authenticated client must refuse locally with 40162/401 — so it can be satisfied before any of the wire work | 21 |
+| RSA17, RSA17b–g, BAR2, TRS2, TRF2 | `Auth#revokeTokens`, `TokenRevocationTargetSpecifier` and the two token revocation result types; the `BatchResult` they would arrive in is the batch API's. Gated against `auth.revoke_tokens(targets, issued_before=, allow_reauth_margin=)` returning `success_count` / `failure_count` / `results`, with `target` / `issued_before` / `applies_at` / `error` per result. RSA17d is the one case that needs no server at all — a token-authenticated client must refuse locally with 40162/401 — so it can be satisfied before any of the wire work | 21 |
 | RSH7, RSH7a–e, RSH6, RSH8 | `PushChannel`: `channel.push`, `client.device`, `LocalDevice`. The push *admin* surface (RSH1) does exist | 12 |
 | RTN16, RTN16f–k, RTC1c (TO3i) | Connection recovery, entire. `recover` is in the `Options` signature, stored, and given a property and a setter (`options.py:30,111,193,196`), and read nowhere. No `Connection#createRecoveryKey`, no `recover` connect parameter, no recovery-key decoding. Measured through the proxy: a client built with a valid `recover=` opened a `ws_connect` whose query parameters were `{'accessToken': …, 'v': '5'}` — no `recover` — and was given a fresh `connectionId`. RTN16l is otherwise fully compliant, taking the proxy's `recovery-failed-new-id`, `recovery-failed-new-key` and error 80008 and staying CONNECTED; only the absent parameter fails it | 8 |
 | RTL22, RTL22a–d, MFI1, MFI2a–e | `MessageFilter`. `RealtimeChannel.subscribe` (`channel.py:262-273`) accepts only a `str` or a callable, and there is no filter type of any shape to spell. Each test builds its filter through the module's `message_filter()` helper, which is the one place to repoint when the type lands | 5 |
@@ -3217,9 +3233,10 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 217 failures and 15 skips with the variable set, and
-232 skips and 1124 passes without it, the 1124 being 1002 derived cases and 122
-`helpers/` ones.
+it. As of this writing that is 172 failures and 15 skips with the variable set, and
+187 skips and 1177 passes without it, the 1177 being 1047 derived cases and 130
+`helpers/` ones. Those figures need the `submodules` checkout CI makes: without it, three
+`rest/unit/encoding` tests that read the ably-common fixtures skip as well.
 
 The other two counts are measured from the source rather than from a run. The number of
 **derived tests** is the number of `# UTS:` comments, 1141. The number of **Test IDs** is
