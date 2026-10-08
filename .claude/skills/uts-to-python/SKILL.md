@@ -533,11 +533,11 @@ The template has one.
 **10. A refused connection and a connect timeout are indistinguishable, and skip the
 fallback loop.** `ws_connect` catches only `WebSocketException` and `socket.gaierror`,
 so `ConnectionRefusedError` and `asyncio.TimeoutError` never reach `_emit('failed')`:
-the attempt hangs until the transition timer fires with a generic 50003/504, and each
-one leaks a `connect_base` task. `respond_with_dns_error()` is the only fast, caught
-failure — 40000/400 with the real cause — so **prefer it** whenever you just need "the
-connect failed", and note the substitution at the site. Keep
-`realtime_request_timeout` short in any test that does wait a refusal out.
+the attempt hangs until the transition timer fires with a generic 50003/504.
+`respond_with_dns_error()` is the only fast, caught failure — 40000/400 with the real
+cause — so **prefer it** whenever you just need "the connect failed", and note the
+substitution at the site. Keep `realtime_request_timeout` short in any test that does
+wait a refusal out.
 
 **11. Keep the fallback hosts empty** unless the spec is about them.
 `check_connection()` is a module-level, **synchronous** `httpx.get` that no seam
@@ -585,11 +585,9 @@ side.
 `client.connection.connection_details.connection_key`.
 `client.connection.connection_details` and `connection.error_reason` **are** public.
 
-**19. Two noisy-but-harmless teardown messages.** `Task exception was never retrieved`
+**19. A noisy-but-harmless teardown message.** `Task exception was never retrieved`
 for a client whose connect failed — `WebSocketTransport.send` raises a bare
-`Exception()` when `self.websocket is None`. And `Task was destroyed but it is
-pending!`, one per refused attempt, which is trap 10's leak showing. Neither is a
-failure; do not chase them.
+`Exception()` when `self.websocket is None`. It is not a failure; do not chase it.
 
 **20. A channel needs a SUSPENDED *connection* to reach SUSPENDED.**
 `_propagate_connection_interruption` fires only for CLOSING/CLOSED/FAILED/SUSPENDED, so

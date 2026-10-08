@@ -144,12 +144,9 @@ class FakeClock:
 
     @staticmethod
     async def __invoke(callback):
-        if asyncio.iscoroutinefunction(callback):
-            await callback()
-        else:
-            result = callback()
-            if inspect.isawaitable(result):
-                await result
+        result = callback()
+        if inspect.isawaitable(result):
+            await result
 
 
 async def advance_to_connection_state(client, clock, state, step, limit=60):

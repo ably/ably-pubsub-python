@@ -11,6 +11,11 @@ import msgpack
 
 from ably.util.exceptions import AblyException
 
+# asyncio.iscoroutinefunction() also recognises callables carrying this marker,
+# such as AsyncMock from the `mock` package (and from unittest.mock on older
+# Pythons) and callables marked by asgiref before Python 3.12
+_is_coroutine_marker = getattr(asyncio.coroutines, '_is_coroutine', None)
+
 
 def get_random_id():
     # get random string of letters and digits
@@ -19,8 +24,15 @@ def get_random_id():
     return random_id
 
 
+def is_coroutine_function(value):
+    """Whether `value` is a coroutine function, recognising what asyncio.iscoroutinefunction() does."""
+    if inspect.iscoroutinefunction(value):
+        return True
+    return _is_coroutine_marker is not None and getattr(value, '_is_coroutine', None) is _is_coroutine_marker
+
+
 def is_callable_or_coroutine(value):
-    return asyncio.iscoroutinefunction(value) or inspect.isfunction(value) or inspect.ismethod(value)
+    return is_coroutine_function(value) or inspect.isfunction(value) or inspect.ismethod(value)
 
 
 def unix_time_ms():
@@ -67,7 +79,7 @@ class Timer:
 
     async def _job(self):
         await asyncio.sleep(self._timeout / 1000)
-        if asyncio.iscoroutinefunction(self._callback):
+        if is_coroutine_function(self._callback):
             await self._callback()
         else:
             self._callback()

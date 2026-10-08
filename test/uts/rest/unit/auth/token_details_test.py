@@ -12,7 +12,7 @@ from ably.types.capability import Capability
 from ably.types.tokendetails import TokenDetails
 from ably.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
+from test.uts.helpers.deviations import deviation, spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 # `channels.get(name).status()` walks status.occupancy.metrics unguarded, so the
@@ -211,14 +211,11 @@ async def test_rsa16c_updated_after_authorize():
 
 
 # UTS: rest/unit/RSA16c/updated-after-expiry-renewal-2
-@deviation
+# The spec demands local expiry detection, which features.md RSA4b1 makes optional and
+# conditional on a clock offset persisted from the Ably service, and this setup never
+# establishes one; see deviations.md.
+@spec_error
 async def test_rsa16c_updated_after_expiry_renewal():
-    # DEVIATION: ably-python gates its RSA4b1 local expiry check on having a server
-    # time offset (`Auth.token_details_has_expired` returns False while
-    # `Auth.time_offset` is unset, and `reauth_if_expired` skips the check too). A
-    # client authenticating through an authCallback never obtains that offset, so an
-    # expired token is reused indefinitely and no renewal is initiated.
-    #
     # NOTE: the spec drives this with a TestClock advanced past the token's expiry.
     # ably-python has no clock seam, so the callback backdates `expires` instead,
     # which leaves the token expired under the real clock from the second request on.
@@ -354,12 +351,11 @@ async def test_rsa16d_null_after_invalidation():
 
 
 # UTS: rest/unit/RSA16d/null-after-switch-to-basic-3
-@deviation
+# The spec expects authorize() to switch the client to basic auth, where features.md RSA10a
+# has it ensure token auth for all future requests and RSA10e has it use a provided key to
+# obtain a new token; see deviations.md.
+@spec_error
 async def test_rsa16d_null_after_switch_to_basic():
-    # DEVIATION: `Auth._ensure_valid_auth_credentials` sets the auth mechanism to TOKEN
-    # unconditionally and `AuthOptions.replace` drops `use_token_auth` entirely, so
-    # authorizing with a key and `use_token_auth=False` requests a token from the key
-    # instead of switching the client to basic auth. tokenDetails stays populated.
     async def auth_callback(params):
         return TokenDetails(token='my-token', expires=now() + 3600000)
 

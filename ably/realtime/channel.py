@@ -728,7 +728,7 @@ class RealtimeChannel(EventEmitter, Channel):
             elif self.state == ChannelState.ATTACHING:
                 self._notify_state(ChannelState.ATTACHED, resumed=resumed, has_presence=has_presence)
             else:
-                log.warn("RealtimeChannel._on_message(): ATTACHED received while not attaching")
+                log.warning("RealtimeChannel._on_message(): ATTACHED received while not attaching")
         elif action == ProtocolMessageAction.DETACHED:
             if self.state == ChannelState.DETACHING:
                 self._notify_state(ChannelState.DETACHED)
