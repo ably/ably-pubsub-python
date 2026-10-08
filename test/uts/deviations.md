@@ -131,6 +131,7 @@ Raised upstream:
 | [#552](https://github.com/ably/specification/issues/552) | `proxy/connection_resume.md`: a status code neither SDK returns, a proxy substitution that does not exist, and event-log fields the proxy does not emit |
 | [#553](https://github.com/ably/specification/issues/553) | A heartbeat-starvation test that closes the socket thirteen seconds inside the idle window |
 | [#554](https://github.com/ably/specification/issues/554) | Two sections provoking one server response, leaving the revoked-key point uncovered |
+| [#559](https://github.com/ably/specification/issues/559) | Batch publish and token revocation fixtures in the response format the server sends below protocol version 3 |
 
 `#527` also carries a comment on the realtime wire-format assertions, `#532` one on the
 same housekeeping categories in `realtime/unit`, and
@@ -295,7 +296,9 @@ written: they read `result.results[...]`, the layout BAR2c gives the envelope. R
 two pins are corrected beside them — CSV2b templates the version, which ably-python sends as
 5, and the binary protocol default (TO3f) makes the content type msgpack, as
 [#527](https://github.com/ably/specification/issues/527) records for the unit specs that
-read a body without pinning the protocol. The envelope disagreement itself is not filed yet.
+read a body without pinning the protocol. The envelope disagreement is filed as
+[#559](https://github.com/ably/specification/issues/559), together with the two
+`revoke_tokens.md` mocks below.
 
 `revoke_tokens.md` has the same internal split: `RSA17c_1` and `TRS2_1` stub a bare array
 while asserting envelope fields. The revocation half is settled by the server too. `POST
