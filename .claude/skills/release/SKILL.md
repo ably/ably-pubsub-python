@@ -17,7 +17,7 @@ Then perform these steps in order:
 1. Run `git checkout -b release/NEW_VERSION`
 2. Replace `OLD_VERSION` with `NEW_VERSION` in all of the following files:
     - `pyproject.toml` — the `version` property
-    - `ably/__init__.py` — lib_version value
+    - `ably/pubsub/version.py` — lib_version value
       3.Run `uv sync` to update `uv.lock` file
 4. Commit all files together with message: `chore: bump version to NEW_VERSION`
 3. Fetch merged PRs since the last release tag using:

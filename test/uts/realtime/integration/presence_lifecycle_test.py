@@ -22,8 +22,8 @@ Two adaptations, both of them root causes already recorded in
 
 import asyncio
 
-from ably.realtime.connection import ConnectionState
-from ably.types.presence import PresenceAction
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.presence import PresenceAction
 from test.uts.helpers.client import (
     await_connection_state,
     sandbox_realtime_client,

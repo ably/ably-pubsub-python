@@ -18,15 +18,15 @@ implementation, so they read the message store over HTTP and see it only once it
 consistent; the two polls below are the specification's `poll_until_success` around them.
 """
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.realtime.connection import ConnectionState
-from ably.types.annotation import Annotation, AnnotationAction
-from ably.types.channelmode import ChannelMode
-from ably.types.channeloptions import ChannelOptions
-from ably.types.channelstate import ChannelState
-from ably.types.message import Message, MessageAction
-from ably.types.operations import MessageOperation, UpdateDeleteResult
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.request.paginatedresult import PaginatedResult
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.channelmode import ChannelMode
+from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.message import Message, MessageAction
+from ably.pubsub.types.operations import MessageOperation, UpdateDeleteResult
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,

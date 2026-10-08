@@ -12,9 +12,9 @@ with the clock reading exactly the time the timer was due, so the measurement is
 exact rather than sampled.
 """
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.deviations import deviation

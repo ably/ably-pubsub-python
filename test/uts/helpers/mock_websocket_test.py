@@ -12,8 +12,8 @@ import json
 import msgpack
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import FakeClock
 from test.uts.helpers.mock_http import MockHttpClient
@@ -189,7 +189,7 @@ async def test_a_pending_connection_carries_the_headers_the_client_sent():
 
     headers = mock.connection_attempts[0].headers
     assert 'ably-agent' in headers
-    assert 'ably-python' in headers['Ably-Agent']
+    assert 'ably-pubsub-python' in headers['Ably-Agent']
 
 
 async def test_the_protocol_follows_use_binary_protocol():

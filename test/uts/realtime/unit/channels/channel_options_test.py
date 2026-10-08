@@ -15,13 +15,13 @@ from urllib.parse import parse_qs
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelmode import ChannelMode
-from ably.types.channeloptions import ChannelOptions
-from ably.types.channelstate import ChannelState
-from ably.util.crypto import get_default_params
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelmode import ChannelMode
+from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.util.crypto import get_default_params
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,
@@ -106,7 +106,7 @@ async def test_tb2d_options_with_modes():
 async def test_tb3_with_cipher_key():
     # DEVIATION: TB3's `withCipherKey` constructor is absent from `ChannelOptions`
     # (`ably/types/channeloptions.py`), which takes a `CipherParams` and offers no factory
-    # that builds one from a key. `ably.util.crypto.get_default_params({'key': key})` is the
+    # that builds one from a key. `ably.pubsub.util.crypto.get_default_params({'key': key})` is the
     # nearest equivalent, and it is not on ChannelOptions.
     options = ChannelOptions.with_cipher_key(CIPHER_KEY)
 
@@ -261,7 +261,7 @@ async def test_rts5a_creates_derived_channel():
     # `DeriveOptions`. `Channels.__getattr__` (`ably/rest/channel.py:408`) answers any
     # unknown attribute with a channel of that name, so the call raises
     # `TypeError: 'RealtimeChannel' object is not callable` rather than AttributeError.
-    from ably import DeriveOptions
+    from ably.pubsub.server import DeriveOptions
 
     base_channel_name = 'test-RTS5a'
     client = realtime_client()
@@ -278,7 +278,7 @@ async def test_rts5a_creates_derived_channel():
 @deviation
 async def test_rts5a1_filter_base64_encoded():
     # DEVIATION: derived channels are absent; see the RTS5a test.
-    from ably import DeriveOptions
+    from ably.pubsub.server import DeriveOptions
 
     base_channel_name = 'test-RTS5a1'
     client = realtime_client()
@@ -296,7 +296,7 @@ async def test_rts5a1_filter_base64_encoded():
 @deviation
 async def test_rts5a2_derived_with_params():
     # DEVIATION: derived channels are absent; see the RTS5a test.
-    from ably import DeriveOptions
+    from ably.pubsub.server import DeriveOptions
 
     base_channel_name = 'test-RTS5a2'
     client = realtime_client()
@@ -323,7 +323,7 @@ async def test_rts5a2_derived_with_params():
 async def test_rts5_get_derived_with_options():
     # DEVIATION: derived channels are absent; see the RTS5a test. `attachOnSubscribe` is
     # absent too; see the TB4 test.
-    from ably import DeriveOptions
+    from ably.pubsub.server import DeriveOptions
 
     base_channel_name = 'test-RTS5'
     client = realtime_client()
@@ -341,7 +341,7 @@ async def test_rts5_get_derived_with_options():
 @deviation
 async def test_do2a_filter_attribute():
     # DEVIATION: `DeriveOptions` is absent from the library, so the import fails.
-    from ably import DeriveOptions
+    from ably.pubsub.server import DeriveOptions
 
     derive_options = DeriveOptions(filter="name == 'event' && data.count > 10")
 

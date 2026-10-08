@@ -15,7 +15,7 @@ before it returns, so the UPDATE it provokes has already been delivered to a lis
 registered beforehand by the time the call completes. The reauth test needs no settle.
 """
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt, random_id

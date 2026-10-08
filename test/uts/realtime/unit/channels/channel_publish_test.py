@@ -15,7 +15,7 @@ words not to acknowledge a message, it is left unacknowledged and the publish is
 as a task.
 
 `RealtimeChannel.publish()` takes its arguments positionally; the keyword form the
-specifications write, which `RestChannel.publish()` does accept, raises `ValueError` here.
+specifications write, which `HttpChannel.publish()` does accept, raises `ValueError` here.
 """
 
 import asyncio
@@ -25,12 +25,12 @@ import uuid
 import msgpack
 import pytest
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.message import Message
-from ably.types.operations import PublishResult
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.operations import PublishResult
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,

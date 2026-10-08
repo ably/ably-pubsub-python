@@ -15,10 +15,10 @@ about the re-entry under test.
 import asyncio
 import uuid
 
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.types.flags import Flag
-from ably.types.presence import PresenceAction
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.flags import Flag
+from ably.pubsub.types.presence import PresenceAction
 from test.uts.helpers.client import await_channel_state, connected_client, poll_until
 from test.uts.helpers.clock import settle
 from test.uts.helpers.deviations import deviation

@@ -12,7 +12,7 @@ messages. See test/uts/deviations.md.
 
 from datetime import datetime, timezone
 
-from ably.types.presence import PresenceAction
+from ably.pubsub.types.presence import PresenceAction
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.presence import presence_map, presence_message, subscribed_presence
 

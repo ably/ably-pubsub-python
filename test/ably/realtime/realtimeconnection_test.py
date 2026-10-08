@@ -11,10 +11,10 @@ except ImportError:
     # websockets 14 and earlier fallback
     from websockets.server import serve as ws_serve
 
-from ably.realtime.connection import ConnectionEvent, ConnectionState
-from ably.transport.defaults import Defaults
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionEvent, ConnectionState
+from ably.pubsub.transport.defaults import Defaults
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.util.exceptions import AblyException
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 
@@ -67,7 +67,7 @@ class WsProxy:
 
     @property
     def endpoint(self) -> str:
-        """Host to pass to AblyRealtime (combine with tls=False and port=self.port)."""
+        """Host to pass to DefaultPubSubRealtimeClient (combine with tls=False and port=self.port)."""
         return "127.0.0.1"
 
     async def __aenter__(self):

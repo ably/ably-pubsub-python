@@ -26,8 +26,8 @@ client's basic auth would be refused; RTN14b is the exception and authenticates 
 callback, because renewing a token is what it is about.
 """
 
-from ably import AblyRest
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.server import create_http_client
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import contains_in_order
@@ -99,7 +99,7 @@ def token_auth_callback(api_key):
     again; the token arrives over a connection the proxy never sees.
     """
     async def auth_callback(params):
-        inner_rest = AblyRest(key=api_key, endpoint=SANDBOX_ENDPOINT)
+        inner_rest = create_http_client(key=api_key, endpoint=SANDBOX_ENDPOINT)
         try:
             return await inner_rest.auth.request_token()
         finally:

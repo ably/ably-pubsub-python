@@ -9,8 +9,8 @@ import time
 import msgpack
 import pytest
 
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient

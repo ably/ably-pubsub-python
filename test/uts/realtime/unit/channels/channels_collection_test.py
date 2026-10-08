@@ -11,11 +11,11 @@ does not define creates a channel of that name (`Channels.__getattr__` in
 
 import asyncio
 
-from ably.realtime.channel import Channels as RealtimeChannels
-from ably.realtime.channel import RealtimeChannel
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
+from ably.pubsub.realtime.channel import Channels as RealtimeChannels
+from ably.pubsub.realtime.channel import RealtimeChannel
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import (

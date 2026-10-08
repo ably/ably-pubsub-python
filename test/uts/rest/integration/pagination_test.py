@@ -3,8 +3,8 @@
 Spec points: TG1, TG2, TG3, TG4, TG5
 """
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.message import Message
+from ably.pubsub.request.paginatedresult import PaginatedResult
+from ably.pubsub.types.message import Message
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 

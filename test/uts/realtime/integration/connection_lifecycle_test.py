@@ -16,7 +16,7 @@ the sequence on the recording, which is what the specification's two consecutive
 
 import re
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client
 
 # The waits the specification's `Integration Test Notes` give each leg: auth plus transport

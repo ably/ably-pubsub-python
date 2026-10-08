@@ -19,8 +19,8 @@ take no `use_binary_protocol`; the proxy reads text frames in any case.
 
 import pytest
 
-from ably import AblyRest
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import create_http_client
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import SANDBOX_ENDPOINT, random_id
@@ -44,7 +44,7 @@ def token_auth_callback(api_key):
     it: the token arrives over a connection the proxy never sees.
     """
     async def auth_callback(params):
-        inner_rest = AblyRest(key=api_key, endpoint=SANDBOX_ENDPOINT)
+        inner_rest = create_http_client(key=api_key, endpoint=SANDBOX_ENDPOINT)
         try:
             return await inner_rest.auth.request_token()
         finally:

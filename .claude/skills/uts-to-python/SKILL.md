@@ -728,7 +728,7 @@ Established against the real proxy and the real sandbox while deriving
   asks for a token through a client pointed at the session puts a request in front of
   the waiting rule and an extra `http_request` in the log, which breaks every
   assertion that counts requests exactly (`== 1` for RSC15l's 4xx test, `>= 2` for the
-  fallback ones). Build an inner `AblyRest(key=api_key, endpoint=SANDBOX_ENDPOINT)`,
+  fallback ones). Build an inner `create_http_client(key=api_key, endpoint=SANDBOX_ENDPOINT)`,
   request the token through that, and close it.
 - **`http_response` events carry no `path`.** They have `status` and `ruleMatched`
   only, so "the injected response fired" is read off the response events **in order**

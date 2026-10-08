@@ -11,7 +11,7 @@ in the CONNECTED message and is honoured.
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import (
     await_connection_state,
     poll_until,

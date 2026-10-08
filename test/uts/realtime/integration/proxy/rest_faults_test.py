@@ -25,10 +25,10 @@ proxy tier requires in any case.
 
 import pytest
 
-from ably import AblyRest
-from ably.realtime.connection import ConnectionState
-from ably.types.channelstate import ChannelState
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.server import create_http_client
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,
@@ -67,7 +67,7 @@ def token_auth_callback(api_key, invocations=None):
     async def auth_callback(params):
         if invocations is not None:
             invocations.append(params)
-        inner_rest = AblyRest(key=api_key, endpoint=SANDBOX_ENDPOINT)
+        inner_rest = create_http_client(key=api_key, endpoint=SANDBOX_ENDPOINT)
         try:
             return await inner_rest.auth.request_token()
         finally:

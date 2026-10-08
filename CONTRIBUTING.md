@@ -40,7 +40,7 @@ The release process must include the following steps:
 
 1. Ensure that all work intended for this release has landed to `main`
 2. Create a release branch named like `release/2.0.1`
-3. Add a commit to bump the version number, updating [`pyproject.toml`](./pyproject.toml) and [`ably/__init__.py`](./ably/__init__.py)
+3. Add a commit to bump the version number, updating [`pyproject.toml`](./pyproject.toml) and [`ably/pubsub/version.py`](./ably/pubsub/version.py)
 4. Run [`github_changelog_generator`](https://github.com/github-changelog-generator/github-changelog-generator) to automate the update of the [CHANGELOG](./CHANGELOG.md). This may require some manual intervention, both in terms of how the command is run and how the change log file is modified. Your mileage may vary:
    - The command you will need to run will look something like this: `github_changelog_generator -u ably -p ably-pubsub-python --since-tag v2.0.0 --output delta.md --token $GITHUB_TOKEN_WITH_REPO_ACCESS`. Generate token [here](https://github.com/settings/tokens/new?description=GitHub%20Changelog%20Generator%20token).
    - Using the command above, `--output delta.md` writes changes made after `--since-tag` to a new file

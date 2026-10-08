@@ -5,8 +5,8 @@ Spec points: RSL1d, RSL1k5, RSL1l1, RSL1m4, RSL1n
 
 import pytest
 
-from ably.types.message import Message
-from ably.util.exceptions import AblyException
+from ably.pubsub.types.message import Message
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 

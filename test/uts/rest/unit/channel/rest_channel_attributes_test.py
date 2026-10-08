@@ -4,8 +4,8 @@ Spec points: RSL7, RSL8, RSL8a, RSL9, CHD2, CHD2a, CHD2b, CHS2, CHS2a, CHS2b,
 CHO2, CHO2a, CHM2, CHM2a, CHM2b, CHM2c, CHM2d, CHM2e, CHM2f, CHM2g, CHM2h
 """
 
-from ably.types.channeldetails import ChannelDetails
-from ably.types.channeloptions import ChannelOptions
+from ably.pubsub.types.channeldetails import ChannelDetails
+from ably.pubsub.types.channeloptions import ChannelOptions
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient

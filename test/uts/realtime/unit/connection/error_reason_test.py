@@ -3,8 +3,8 @@
 Spec points: RTN25
 """
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.mock_websocket import MockWebSocket, connected_message

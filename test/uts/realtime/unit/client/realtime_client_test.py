@@ -8,13 +8,13 @@ import json
 
 import pytest
 
-from ably.realtime.channel import Channels, RealtimeChannel
-from ably.realtime.connection import Connection, ConnectionState
-from ably.rest.auth import Auth
-from ably.rest.push import Push, PushAdmin
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.util.exceptions import AblyException
-from ably.util.helper import get_random_id
+from ably.pubsub.http.auth import Auth
+from ably.pubsub.http.push import Push, PushAdmin
+from ably.pubsub.realtime.channel import Channels, RealtimeChannel
+from ably.pubsub.realtime.connection import Connection, ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.util.exceptions import AblyException
+from ably.pubsub.util.helper import get_random_id
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import settle
 from test.uts.helpers.deviations import deviation
@@ -144,7 +144,7 @@ async def test_rtc17_client_id_attribute():
     assert client.client_id == 'explicit-client-id'
 
     # DEVIATION: the spec asserts `client.clientId == client.auth.clientId`.
-    # `AblyRealtime.client_id` reads the client options, while `Auth.client_id` is
+    # `DefaultPubSubRealtimeClient.client_id` reads the client options, while `Auth.client_id` is
     # held at None for a realtime client until the server confirms one in a CONNECTED
     # message, so the two disagree before the connection is established.
     assert client.auth.client_id is None

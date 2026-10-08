@@ -1,13 +1,13 @@
 import httpx
 import pytest
 
-from ably import AblyRest
-from ably.types.testoptions import TestOptions
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import create_http_client
+from ably.pubsub.types.testoptions import TestOptions
+from ably.pubsub.util.exceptions import AblyException
 
 
 def test_http_get_rest_hosts_works_when_fallback_realtime_host_is_set():
-    ably = AblyRest(token="foo")
+    ably = create_http_client(token="foo")
     ably.options.fallback_host = ably.options.get_hosts()[0]
     # Should not raise TypeError
     hosts = ably.http.get_hosts()
@@ -16,7 +16,7 @@ def test_http_get_rest_hosts_works_when_fallback_realtime_host_is_set():
 
 
 def test_http_get_rest_hosts_works_when_fallback_realtime_host_is_not_set():
-    ably = AblyRest(token="foo")
+    ably = create_http_client(token="foo")
     ably.options.fallback_host = None
     # Should not raise TypeError
     hosts = ably.http.get_hosts()
@@ -36,7 +36,7 @@ class RecordingTransport(httpx.AsyncBaseTransport):
 
 async def test_http_sends_requests_through_an_injected_transport():
     transport = RecordingTransport(lambda request: httpx.Response(200, json=[1500000000000]))
-    ably = AblyRest(token="foo", _test_options=TestOptions(http_transport=transport))
+    ably = create_http_client(token="foo", _test_options=TestOptions(http_transport=transport))
 
     server_time = await ably.time()
 
@@ -52,7 +52,7 @@ async def test_http_surfaces_transport_connection_errors():
         raise httpx.ConnectError("connection refused", request=request)
 
     transport = RecordingTransport(refuse)
-    ably = AblyRest(token="foo", _test_options=TestOptions(http_transport=transport))
+    ably = create_http_client(token="foo", _test_options=TestOptions(http_transport=transport))
 
     with pytest.raises(AblyException):
         await ably.time()
@@ -63,7 +63,7 @@ async def test_http_surfaces_transport_connection_errors():
 
 
 def test_http_uses_a_network_transport_without_test_options():
-    ably = AblyRest(token="foo")
+    ably = create_http_client(token="foo")
     assert isinstance(ably.http._Http__client._transport, httpx.AsyncHTTPTransport)
 
 
@@ -74,8 +74,8 @@ async def test_auth_url_requests_go_through_the_client_http_layer():
         return httpx.Response(200, json=[1500000000000])
 
     transport = RecordingTransport(respond)
-    ably = AblyRest(auth_url='https://auth.example.com/token',
-                    _test_options=TestOptions(http_transport=transport))
+    ably = create_http_client(auth_url='https://auth.example.com/token',
+                              _test_options=TestOptions(http_transport=transport))
 
     await ably.auth.authorize()
 

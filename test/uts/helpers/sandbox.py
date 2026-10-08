@@ -4,7 +4,7 @@ Every integration specification opens with the same `BEFORE ALL TESTS` block:
 POST the canonical app setup body to the sandbox, take the keys out of the
 response, and DELETE the app when the tests are done.
 
-Provisioning goes over plain `httpx` rather than through `AblyRest`. It is
+Provisioning goes over plain `httpx` rather than through `DefaultPubSubHttpClient`. It is
 infrastructure, and a client that cannot form a request would otherwise look
 like a broken fixture rather than a failing test.
 
@@ -80,7 +80,7 @@ def fixture_cipher_params():
     key and the IV base64-encoded, which is not what `CipherParams` wants: it
     takes them as raw bytes and derives the key length from the key.
     """
-    from ably.util.crypto import CipherParams
+    from ably.pubsub.util.crypto import CipherParams
 
     return CipherParams(
         algorithm=CIPHER_FIXTURE['algorithm'],

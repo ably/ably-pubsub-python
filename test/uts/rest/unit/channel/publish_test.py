@@ -8,8 +8,8 @@ import uuid
 import msgpack
 import pytest
 
-from ably.types.message import Message
-from ably.util.exceptions import AblyException
+from ably.pubsub.types.message import Message
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation, spec_error
 from test.uts.helpers.mock_http import MockHttpClient

@@ -17,8 +17,8 @@ import time
 
 import pytest
 
-from ably.transport.defaults import Defaults
-from ably.util.exceptions import AblyException
+from ably.pubsub.transport.defaults import Defaults
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import sandbox_rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt, random_id

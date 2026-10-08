@@ -17,7 +17,7 @@ ITEMS = [
 # UTS: realtime/unit/RTC9/request-proxies-rest-0
 async def test_rtc9_request_proxies_rest():
     # The specification directs uts/rest/unit/request.md (RSC19) at a realtime client
-    # in place of a REST one. `AblyRealtime` subclasses `AblyRest`, so the same HTTP
+    # in place of a REST one. `DefaultPubSubRealtimeClient` subclasses `DefaultPubSubHttpClient`, so the same HTTP
     # mock serves it, and this mirrors that suite's `RSC19f/supports-http-methods-0`
     # and `RSC19d/response-items-decoded-5`.
     captured_requests = []

@@ -15,7 +15,7 @@ reads the value off the connection manager. See
 case, so `TokenParams(clientId: x)` is `{'client_id': x}`.
 """
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client, sandbox_rest_client
 from test.uts.helpers.sandbox import random_id
 

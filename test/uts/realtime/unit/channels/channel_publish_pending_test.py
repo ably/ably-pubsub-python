@@ -15,11 +15,11 @@ import asyncio
 
 import pytest
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.operations import PublishResult
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.operations import PublishResult
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     STATE_TIMEOUT,
     await_channel_state,

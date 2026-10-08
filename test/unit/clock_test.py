@@ -1,10 +1,10 @@
 import httpx
 import pytest
 
-from ably import AblyRest
-from ably.types.testoptions import TestOptions
-from ably.util.clock import Clock
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import create_http_client
+from ably.pubsub.types.testoptions import TestOptions
+from ably.pubsub.util.clock import Clock
+from ably.pubsub.util.exceptions import AblyException
 
 # A plausible wall-clock reading for a fake to start from, so that a time taken
 # against it looks like a real one.
@@ -56,12 +56,12 @@ class RecordingTransport(httpx.AsyncBaseTransport):
 
 
 def test_auth_timestamps_from_the_injected_clock():
-    ably = AblyRest(key='name:secret', _test_options=TestOptions(clock=FakeClock(1_500_000_000_000)))
+    ably = create_http_client(key='name:secret', _test_options=TestOptions(clock=FakeClock(1_500_000_000_000)))
     assert ably.auth._timestamp() == 1_500_000_000_000
 
 
 def test_a_client_without_test_options_reads_the_real_clock():
-    ably = AblyRest(token='foo')
+    ably = create_http_client(token='foo')
     assert isinstance(ably.auth._Auth__clock, Clock)
     assert isinstance(ably.http._Http__clock, Clock)
 
@@ -70,8 +70,8 @@ async def test_the_cached_fallback_host_expires_on_the_clock():
     # RSC15f: the cache lasts fallback_retry_timeout milliseconds
     clock = FakeClock()
     transport = RecordingTransport()
-    ably = AblyRest(token='foo', fallback_retry_timeout=2000,
-                    _test_options=TestOptions(http_transport=transport, clock=clock))
+    ably = create_http_client(token='foo', fallback_retry_timeout=2000,
+                              _test_options=TestOptions(http_transport=transport, clock=clock))
     primary = ably.options.get_host()
     transport.refusing = (primary,)
 
@@ -96,7 +96,7 @@ async def test_every_host_is_tried_while_the_retry_budget_lasts():
     # A second of clock time per reading, against the default 15 second budget
     clock = FakeClock(step_ms=1000)
     transport = RecordingTransport()
-    ably = AblyRest(token='foo', _test_options=TestOptions(http_transport=transport, clock=clock))
+    ably = create_http_client(token='foo', _test_options=TestOptions(http_transport=transport, clock=clock))
     hosts = ably.http.get_hosts()
     transport.refusing = tuple(hosts)
 
@@ -112,8 +112,8 @@ async def test_retrying_stops_once_the_retry_budget_is_spent():
     # RSC15l: http_max_retry_duration is seconds where the clock is milliseconds
     clock = FakeClock(step_ms=1000)
     transport = RecordingTransport()
-    ably = AblyRest(token='foo', http_max_retry_duration=0.5,
-                    _test_options=TestOptions(http_transport=transport, clock=clock))
+    ably = create_http_client(token='foo', http_max_retry_duration=0.5,
+                              _test_options=TestOptions(http_transport=transport, clock=clock))
     transport.refusing = tuple(ably.http.get_hosts())
 
     with pytest.raises(AblyException):

@@ -4,11 +4,11 @@ Spec points: RSH7a, RSH7b, RSH7c, RSH7d
 
 DEVIATION: ably-python implements neither the PushChannel interface (RSH7, the `push`
 field on a channel) nor LocalDevice (RSH8). `ably/rest/channel.py` gives a channel no
-`push`, `AblyRest` no `device`, and `ably/types/device.py` defines only `DeviceDetails`.
+`push`, `DefaultPubSubHttpClient` no `device`, and `ably/types/device.py` defines only `DeviceDetails`.
 Both tests here therefore depart from the specification and are gated behind
 RUN_DEVIATIONS, against the same spelling
 [test/uts/rest/unit/push/push_channels_test.py](../unit/push/push_channels_test.py)
-gates on — `ably.types.device.LocalDevice`, `client.device` and
+gates on — `ably.pubsub.types.device.LocalDevice`, `client.device` and
 `channel.push.subscribe_device()` and friends — so that dropping the marker is the only
 change either tier needs when RSH7 lands.
 
@@ -31,7 +31,7 @@ See [deviations.md](../../deviations.md): the gating under *Failing Tests* ->
 Errors*.
 """
 
-from ably import AblyException, DeviceDetails
+from ably.pubsub.server import AblyException, DeviceDetails
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import random_id
@@ -55,7 +55,7 @@ def set_local_device(client, device_id, device_identity_token=PLACEHOLDER_DEVICE
     The import is deliberately inside the call, so that a file-level import of a name
     that does not exist does not take the collection of the whole package down with it.
     """
-    from ably.types.device import LocalDevice
+    from ably.pubsub.types.device import LocalDevice
 
     client.device = LocalDevice(
         id=device_id,

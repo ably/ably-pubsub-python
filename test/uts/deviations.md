@@ -75,7 +75,7 @@ from the specification text, so that correcting the specification is all it take
 it pass, and it is marked `@spec_error` — a skip gated on `RUN_DEVIATIONS`, the same gate
 `@deviation` uses, with a reason naming the specification rather than the SDK. The suite
 stays green, a real regression still shows, and the failure is one environment variable
-away. Each is filed upstream, in the issues named below. Ten tests are gated
+away. Each is filed upstream, in the issues named below. Eleven tests are gated
 this way:
 
 | Test | Spec error |
@@ -90,6 +90,7 @@ this way:
 | `test_rsp4_history_pagination` | RSP4 - wire action 4 asserted to be LEAVE |
 | `test_tp3_presence_to_json` | TP3 - an outgoing action asserted as the string `"enter"` |
 | `test_tp3_null_attributes_omitted` | TP3 - the same outgoing string assertion |
+| `test_rsc7d_ably_agent_header_format` | RSC7d - a library-name pattern that rejects hyphens |
 
 Where instead only a specification's *fixture*, *setup* or *label* is at fault, the
 assertion it carries still stands. Those tests keep the corrected fixture (or the
@@ -139,7 +140,7 @@ RSA4c3 contradiction, since that issue is what decides it.
 `#547` to `#550` are the `uts/rest/integration` faults and `#551` to `#554` the
 `uts/realtime/integration` ones. Each of them is of the second kind — a fixture, a setup
 step or a header label — so the derived test keeps the corrected fixture and passes, and
-none of them is among the ten gated above.
+none of them is among the eleven gated above.
 
 Not every entry has an issue of its own: the URL-safe base64 alphabet is recorded below
 and not filed, because ably-python's own encoding settles the tests either way. Line
@@ -152,6 +153,15 @@ references in these entries are against `ably/specification@d9a04ca`.
 `token_renewal.md` and `authorize.md` stub `/time` as `{"time": N}`. The endpoint
 returns a one-element array, which is what `time.md` itself uses and what RSC16
 describes. Any SDK that indexes the array raises.
+
+### RSC7d's Agent pattern rejects a hyphenated library name
+
+`rest_client.md`'s `RSC7d/ably-agent-header-format-0` asserts that the `Ably-Agent`
+header matches `ably-[a-z]+/[0-9]+\.[0-9]+\.[0-9]+`. RSC7d1 asks only for a series of
+`key[/value]` entries that include the library's name and version, and puts no limit on
+the characters a key may hold. ably-python reports itself as `ably-pubsub-python/<version>`,
+which RSC7d1 allows and the pattern rejects. The test is gated with `@spec_error`. The
+fault is not filed upstream yet.
 
 ### Spec points are mislabelled across four specs
 

@@ -21,13 +21,13 @@ import uuid
 
 import pytest
 
-from ably.realtime.annotations import RealtimeAnnotations
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.annotation import Annotation, AnnotationAction
-from ably.types.channelstate import ChannelState
-from ably.types.flags import Flag
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.annotations import RealtimeAnnotations
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.flags import Flag
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client
 from test.uts.helpers.clock import settle
 from test.uts.helpers.mock_websocket import MockWebSocket, attached_message, connected_message
@@ -378,7 +378,7 @@ async def test_rtan4e_subscribe_warns_no_mode(caplog):
     mock_ws = annotating_mock(channel_name, flags=Flag.PUBLISH)
     channel = await attached_channel(mock_ws, channel_name)
 
-    with caplog.at_level('WARNING', logger='ably.realtime.annotations'):
+    with caplog.at_level('WARNING', logger='ably.pubsub.realtime.annotations'):
         await channel.annotations.subscribe(lambda annotation: None)
 
     warnings = [record.getMessage() for record in caplog.records if record.levelname == 'WARNING']
@@ -402,7 +402,7 @@ async def test_rtan4e1_no_warn_unattached(caplog):
 
     assert channel.state == ChannelState.INITIALIZED
 
-    with caplog.at_level('WARNING', logger='ably.realtime.annotations'):
+    with caplog.at_level('WARNING', logger='ably.pubsub.realtime.annotations'):
         subscribing = asyncio.ensure_future(channel.annotations.subscribe(lambda annotation: None))
         await poll_until(lambda: channel.state == ChannelState.ATTACHING,
                          description='the implicit attach is in flight')

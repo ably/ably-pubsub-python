@@ -1,5 +1,98 @@
 # Upgrade / Migration Guide
 
+## Version 3.x to 4.0.0
+
+The package is now published to PyPI as `ably-pubsub-server` rather than `ably`, and
+it installs into `ably.pubsub` rather than `ably`. Both `ably` and `ably.pubsub` are
+[namespace packages](https://peps.python.org/pep-0420/) shared with the other
+`ably-*` distributions, so neither exports anything of its own. The whole public
+API is reached through `ably.pubsub.server`.
+
+### Installation
+
+Example 3.x:
+```sh
+pip install ably
+```
+
+Example 4.0.0:
+```sh
+pip install ably-pubsub-server
+```
+
+### Imports
+
+Example 3.x code:
+```python
+from ably import AblyRealtime, AblyRest
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import create_http_client, create_realtime_client
+```
+
+The synchronous, HTTP-only flavour moves the same way:
+
+Example 3.x code:
+```python
+from ably.sync import AblyRestSync
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server.sync import create_http_client
+```
+
+Where 3.x left you reaching into submodules such as `ably.types.message` or
+`ably.http.paginatedresult`, import from `ably.pubsub.server` instead. It is
+the whole public API, and `ably.pubsub.server.sync` is its synchronous
+counterpart. The packages beneath them are internal and free to move.
+
+### Clients are built by factories
+
+`AblyRest` and `AblyRealtime` are internal in 4.0.0 and raise `TypeError` if
+constructed directly. Build clients through the factories instead, which take the same options
+as keyword arguments. The API key is no longer accepted positionally, so pass it as `key=`:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx')
+realtime = AblyRealtime(key='xxx')
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx')
+pubsub_realtime_client = create_realtime_client(key='xxx')
+```
+
+### Type annotations
+
+The client classes are internal, so annotate against the prototypes the
+factories are declared to return. Each is exported from the same module as the
+factory that returns it.
+
+Example 3.x code:
+```python
+from ably import AblyRealtime, AblyRest
+from ably.sync import AblyRestSync
+
+async def publish(client: AblyRest, name: str) -> None: ...
+async def subscribe(client: AblyRealtime, name: str) -> None: ...
+def publish_blocking(client: AblyRestSync, name: str) -> None: ...
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import PubSubHttpClient, PubSubRealtimeClient
+from ably.pubsub.server.sync import PubSubHttpClient as PubSubHttpClientSync
+
+async def publish(client: PubSubHttpClient, name: str) -> None: ...
+async def subscribe(client: PubSubRealtimeClient, name: str) -> None: ...
+def publish_blocking(client: PubSubHttpClientSync, name: str) -> None: ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

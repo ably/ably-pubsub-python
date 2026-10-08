@@ -8,10 +8,10 @@ shapes were written the same way in every file that needed them, so they live he
 
 from types import SimpleNamespace
 
-from ably.realtime.presence import RealtimePresence
-from ably.realtime.presencemap import PresenceMap
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.presence import PresenceAction, PresenceMessage
+from ably.pubsub.realtime.presence import RealtimePresence
+from ably.pubsub.realtime.presencemap import PresenceMap
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 
 #: The lowercase action names `RealtimePresence` emits its events under, which come
 #: from `PresenceAction._action_name` and exist only once `presence.py` is imported.

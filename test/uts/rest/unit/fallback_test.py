@@ -9,7 +9,7 @@ import asyncio
 
 import pytest
 
-from ably.util.exceptions import AblyException
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 

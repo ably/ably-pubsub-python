@@ -61,7 +61,7 @@ class FakeTimer:
 class FakeClock:
     """Records timers against a notional time which only `advance` moves.
 
-    `FakeClock` has the shape of `ably.util.clock.Clock`, so it can be passed
+    `FakeClock` has the shape of `ably.pubsub.util.clock.Clock`, so it can be passed
     straight to `TestOptions(clock=...)`. Nothing fires until a test asks for
     it, and every reading the client takes moves only when `advance` does.
     """

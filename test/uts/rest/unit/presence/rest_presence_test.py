@@ -11,10 +11,10 @@ from datetime import datetime
 import msgpack
 import pytest
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.presence import Presence, PresenceAction, PresenceMessage
-from ably.util.crypto import CipherParams
-from ably.util.exceptions import AblyException
+from ably.pubsub.request.paginatedresult import PaginatedResult
+from ably.pubsub.types.presence import Presence, PresenceAction, PresenceMessage
+from ably.pubsub.util.crypto import CipherParams
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation, spec_error
 from test.uts.helpers.mock_http import MockHttpClient

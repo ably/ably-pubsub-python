@@ -3,8 +3,8 @@
 Spec points: TM2a, TM2c, TM2f
 """
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from test.uts.helpers.client import (
     await_connection_state,
     poll_until,

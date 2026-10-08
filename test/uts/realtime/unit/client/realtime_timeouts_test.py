@@ -7,11 +7,11 @@ import asyncio
 
 import pytest
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.util.exceptions import AblyException
-from ably.util.helper import get_random_id
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.util.exceptions import AblyException
+from ably.pubsub.util.helper import get_random_id
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.mock_http import MockHttpClient

@@ -4,8 +4,8 @@ import asyncio
 import inspect
 import logging
 
-from ably import AblyRealtime, AblyRest
-from ably.types.testoptions import TestOptions
+from ably.pubsub.server import create_http_client, create_realtime_client
+from ably.pubsub.types.testoptions import TestOptions
 from test.uts.helpers.clock import settle
 from test.uts.helpers.sandbox import SANDBOX_ENDPOINT
 
@@ -41,7 +41,7 @@ def rest_client(mock_http, clock=None, **kwargs):
     if not any(option in kwargs for option in CREDENTIAL_OPTIONS):
         kwargs['key'] = DEFAULT_KEY
     test_options = TestOptions(http_transport=mock_http.as_transport(), clock=clock)
-    client = AblyRest(_test_options=test_options, **kwargs)
+    client = create_http_client(_test_options=test_options, **kwargs)
     __open_clients.append(client)
     return client
 
@@ -63,7 +63,7 @@ def realtime_client(mock_websocket=None, mock_http=None, clock=None, **kwargs):
         kwargs['key'] = DEFAULT_KEY
     kwargs.setdefault('auto_connect', False)
     kwargs.setdefault('fallback_hosts', [])
-    client = AblyRealtime(_test_options=TestOptions(
+    client = create_realtime_client(_test_options=TestOptions(
         http_transport=mock_http.as_transport() if mock_http is not None else None,
         websocket_connect=mock_websocket.as_connect() if mock_websocket is not None else None,
         clock=clock,
@@ -92,7 +92,7 @@ def sandbox_rest_client(key=None, **kwargs):
         kwargs['key'] = key
     kwargs.setdefault('endpoint', SANDBOX_ENDPOINT)
     kwargs.setdefault('use_binary_protocol', False)
-    client = AblyRest(**kwargs)
+    client = create_http_client(**kwargs)
     __open_clients.append(client)
     return client
 
@@ -112,7 +112,7 @@ def sandbox_realtime_client(key=None, **kwargs):
         kwargs['key'] = key
     kwargs.setdefault('endpoint', SANDBOX_ENDPOINT)
     kwargs.setdefault('use_binary_protocol', False)
-    client = AblyRealtime(**kwargs)
+    client = create_realtime_client(**kwargs)
     __open_clients.append(client)
     return client
 
@@ -274,7 +274,7 @@ async def connected_client(mock_websocket, **kwargs):
     Most channel specifications open this way, since a channel cannot attach
     until the connection carrying it is up.
     """
-    from ably.realtime.connection import ConnectionState
+    from ably.pubsub.realtime.connection import ConnectionState
     from test.uts.helpers.mock_websocket import CONNECTED_MESSAGE
 
     if mock_websocket.on_connection_attempt is None:
@@ -293,7 +293,7 @@ async def drop_transport(client, mock_websocket):
     specification expects to find it rather than reconnecting behind the
     assertions. Returns the connection states recorded along the way.
     """
-    from ably.realtime.connection import ConnectionState
+    from ably.pubsub.realtime.connection import ConnectionState
 
     states = []
 
@@ -316,7 +316,7 @@ async def reconnect_transport(client, mock_websocket, connected_message=None):
     Waiting on the connection state alone would be satisfied by the CONNECTED
     the client already holds, so this counts a fresh arrival.
     """
-    from ably.realtime.connection import ConnectionState
+    from ably.pubsub.realtime.connection import ConnectionState
     from test.uts.helpers.mock_websocket import CONNECTED_MESSAGE
 
     message = CONNECTED_MESSAGE if connected_message is None else connected_message
