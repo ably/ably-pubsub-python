@@ -24,20 +24,20 @@ One Test ID can become more than one derived test: five Test IDs in `rest/unit` 
 `error_types_test.py`, `fallback_test.py`, `rest_client_test.py` (two) and
 `paginated_result_test.py` — assert several independent things under a single id, and
 the derivation writes a function for each rather than one function with an unrelated
-second half. That turns 1132 Test IDs into 1141 derived tests. Going the other way, one
+second half. That turns 1133 Test IDs into 1142 derived tests. Going the other way, one
 derived test can become more than one case: five of the twelve `rest/integration`
 specifications and five of the twenty `realtime/integration` ones carry a `## Protocol
 Variants` section and run every one of their tests twice, once per protocol, and nine
 `rest/unit` tests are parametrized over a table of fixtures the specification gives
-inline. That turns 1141 derived tests into 1234 pytest cases.
+inline. That turns 1142 derived tests into 1235 pytest cases.
 
-Of **1132 Test IDs, derived as 1141 tests and run as 1234 pytest cases**: 907 Test IDs
-(916 tests, 1004 cases) pass, 210 (210 tests, 215 cases) are gated behind
+Of **1133 Test IDs, derived as 1142 tests and run as 1235 pytest cases**: 908 Test IDs
+(917 tests, 1005 cases) pass, 210 (210 tests, 215 cases) are gated behind
 `RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs, and one parametrized test, have a gated part and a passing part,
 and are counted with the gated. Every gated test has been confirmed to fail when
 enabled, so none of them passes under both behaviours. 494 of the Test IDs come from
-`uts/rest/unit` (503 tests, 536 cases), 481 from `uts/realtime/unit` (481, 481), 84
+`uts/rest/unit` (503 tests, 536 cases), 482 from `uts/realtime/unit` (482, 482), 84
 from `uts/rest/integration` (84, 122) and 73 from `uts/realtime/integration` (73, 95); 8
 of the REST integration ids (8, 8) and 30 of the realtime ones (30, 30) come from the
 `proxy` package within each. Of the gated Test IDs 119 are REST and 91 realtime, which is
@@ -424,7 +424,7 @@ the site.
 | RTL4b (`channel_attach.md`) | `channelRetryTimeout: 100` ("short timeout for testing"), then `AWAIT_STATE client.connection.state == suspended` | `channelRetryTimeout` governs channel retries, not the connection's suspend timer, which runs for `connectionStateTtl`. The test does not enable fake timers either, so on real time it would wait out two minutes. Derived with a `FakeClock`, passing the named option through unchanged |
 | RTP5f, RTL11 (`realtime_presence_channel_state.md`) | `simulate_disconnect()` then `AWAIT_STATE channel.state == suspended` | A transport drop reaches DISCONNECTED. RTL3c propagates SUSPENDED to channels only from a SUSPENDED *connection*, so the awaited state never arrives. RTP5f's own note ("e.g. connection transitions to SUSPENDED") says as much; the steps do not carry it out |
 | RTP5a (`realtime_presence_channel_state.md`) | detach, then `presence.get(waitForSync: false).length == 0` | RTP11e has `get` run the ensure-active-channel procedure for any state but SUSPENDED, so the read-back re-attaches the channel and the specification's own server then repopulates the very map being checked for emptiness. The derived test reads the two maps directly |
-| RTS3c1, RTL16a (`channel_options.md`), RTS4a (`channels_collection.md`) | `autoConnect: false`, no mock installed, `connect()` never called, then `AWAIT channel.attach()` and assert ATTACHED | RTL4b requires `attach()` to fail unless the connection is CONNECTING, CONNECTED or DISCONNECTED, and with no mock nothing would answer the ATTACH in any case. Derived with a mock that connects and answers each ATTACH. Upstream should give these three setups a mock, as the sibling sections of the same files do |
+| RTS3c1, RTL16a (`channel_options.md`) | `autoConnect: false`, no mock installed, `connect()` never called, then `AWAIT channel.attach()` and assert ATTACHED | RTL4b requires `attach()` to fail unless the connection is CONNECTING, CONNECTED or DISCONNECTED, and with no mock nothing would answer the ATTACH in any case. Derived with a mock that connects and answers each ATTACH. Upstream should give these setups a mock, as the sibling sections of the same file do |
 | RTS3c1 `error-reattach-modes-1` (`channel_options.md`) | `# Put channel in attaching state (implementation detail)` | The premise the test turns on is the one step it does not give, and the setup has no mock to reach ATTACHING with |
 
 ### Fixtures written against mock methods the contract does not define
@@ -1234,21 +1234,19 @@ exactly as one arriving while ATTACHED does.
 
 **Status:** open bug.
 
-#### `Channels.release` does not detach the channel — 1 test
+#### `Channels.release` removes a channel that is not INITIALIZED, DETACHED or FAILED — 1 test
 
-**Spec point:** RTS4a.
+**Spec points:** RTS4b, RTS4e.
 
-Release "detaches the channel and then releases the channel resource". `Channels.release`
-(`channel.py:1012-1026`) is `if name not in self.__all: return` followed by
-`del self.__all[name]`, and sends nothing. An attached channel is dropped from the
-collection while still attached in the Ably service, and the orphaned object stays in
-ATTACHED. It overrides the REST implementation, which is correct for REST, without adding
-the detach.
+RTS4e requires release to raise 90011/400 for a channel in any other state, and take no
+other action. `Channels.release` (`channel.py`) logs a deprecation warning and removes the
+channel, sending nothing, so an attached channel is dropped from the collection while still
+attached in the Ably service. RTS4b permits keeping the pre-6.3.0 release until the next
+major version provided that warning is logged.
 
-**Tests affected:** `test_rts4a_release_detaches_attached` — `assert 0 == 1` on the
-DETACH-message count.
+**Tests affected:** `test_rts4e_release_attached_fails` — `DID NOT RAISE`.
 
-**Status:** open bug.
+**Status:** permitted by RTS4b until the next major version, which raises 90011.
 
 #### A decode error other than 40018 has no channel-level handling — 2 tests, 3 cases
 
@@ -1822,7 +1820,7 @@ through an internal object to get at a value the specification makes public.
 | RTP2d1, RTP2h1a, and the `Interface Under Test` blocks of all three presence-map specs | `put(message) -> PresenceMessage?` and `remove(message) -> PresenceMessage?` | both return `bool` (`presencemap.py:111`, `:159`); the message to emit is the caller's own, which `set_presence` appends to `broadcast_messages` when the return is true. `IS NOT null` is read as `is True`. `put` stores a *copy* with the action rewritten to PRESENT and leaves the caller's message untouched, so RTP2d1's "emit the original action" falls out for free | all of `presence_map_test.py` |
 | RTP19, and the `Interface Under Test` block of `presence_sync.md` | `endSync() -> List<PresenceMessage>`, the synthesized LEAVEs | `end_sync()` returns `(residual, absent)` of the *stored* members; the synthesis lives one level up in `RealtimePresence.set_presence` (`presence.py:575-587`). Tests reading only counts and clientIds concatenate the two lists exactly as `set_presence` does; tests reading the LEAVE itself drive a `RealtimePresence` and assert on what its subscribers receive | 4 in `presence_sync_test.py` |
 | TB2, RTS3b, RTS3c, RTS3c1, RTL16 | `channel.options` as a `ChannelOptions` | a dict keyed by wire names, because `RealtimeChannel` passes `ChannelOptions.to_dict()` to the REST `Channel` constructor (`channel.py:84`). Assertions read `channel.options['params']['rewind']`. On `ChannelOptions` itself the cipher attribute is spelled `cipher`, not `cipherParams`. `set_options_without_reattach` replaces the stored mapping wholesale rather than merging, which `test_rts3c_options_updated_existing` pins | 5 |
-| RTS2, RTS4a | `channels.exists(name)`, `channels.names`, and an awaitable `release()` | `name in client.channels` (`Channels.__contains__`); the collection iterates over its channels rather than their names; `release` is synchronous. Genuinely idiomatic spelling rather than an absence — recorded only because of the `__getattr__` hazard noted below | 4 |
+| RTS2, RTS4c, RTS4d | `channels.exists(name)` and `channels.names` | `name in client.channels` (`Channels.__contains__`); the collection iterates over its channels rather than their names. Genuinely idiomatic spelling rather than an absence — recorded only because of the `__getattr__` hazard noted below | 5 |
 | RSH1b1, RSH1b2, RSH1b3, RSH1b4, RSH1b5, RSH1c3 | `DevicePushDetails`. The specification builds every device as `DeviceDetails(…, push: DevicePushDetails(recipient: {…}))`; ably-python has no such type | `DeviceDetails.__init__` takes `push` as a plain dict and stores it unchanged (`ably/types/device.py:10-40`), and `DeviceDetails.push` hands that dict back, so the tests read `{'recipient': {…}}` directly. The recipient's `transportType` is still validated against `DevicePushTransportType` in the constructor, which is the only part of `DevicePushDetails` carrying behaviour | the 7 in `push_admin_test.py` that register a device, through its `apns_device()` helper |
 
 **Status:** open bugs of the missing-API kind, not of the wrong-behaviour kind. Adding the
@@ -2663,11 +2661,12 @@ disconnect per RTN7e", which issue 1.2 above proves false. No gated test: the UT
 this cannot distinguish the behaviours (recorded under UTS Spec Errors), so the finding is
 the output.
 
-**3.9 `Channels.release` does not detach the channel.** RTS4a. `channel.py:1012-1026` deletes
-the entry and sends nothing, so the channel is dropped from the collection while still
+**3.9 `Channels.release` drops a channel that is still attached.** RTS4e. `Channels.release`
+deletes the entry and sends nothing, so the channel is dropped from the collection while still
 attached in the Ably service — the application goes on being billed for and delivered to a
-channel it believes it released.
-`test/uts/realtime/unit/channels/channels_collection_test.py -k rts4a_release_detaches_attached`
+channel it believes it released. RTS4b permits this until the next major version, with the
+deprecation warning it now logs; the next major version raises 90011 instead. Do not file.
+`test/uts/realtime/unit/channels/channels_collection_test.py -k rts4e_release_attached_fails`
 
 **3.10 The UPDATE event drops the CONNECTED message's error.** RTN24. `on_connected`
 (`connectionmanager.py:425-428`) builds the `ConnectionStateChange` without the `reason` it
@@ -3235,12 +3234,12 @@ gated and how many cannot run. Those numbers are the check that the file is stil
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
 it. As of this writing that is 215 failures and 15 skips with the variable set, and
-230 skips and 1134 passes without it, the 1134 being 1004 derived cases and 130
+230 skips and 1135 passes without it, the 1135 being 1005 derived cases and 130
 `helpers/` ones.
 
 The other two counts are measured from the source rather than from a run. The number of
-**derived tests** is the number of `# UTS:` comments, 1141. The number of **Test IDs** is
-the number of *distinct* ids in them, 1132 — not the same figure, because five ids in
+**derived tests** is the number of `# UTS:` comments, 1142. The number of **Test IDs** is
+the number of *distinct* ids in them, 1133 — not the same figure, because five ids in
 `rest/unit` are carried by more than one test function. Counting the comments and calling
 the result Test IDs is the easy mistake here, and it overstates the specification coverage
 by nine.
