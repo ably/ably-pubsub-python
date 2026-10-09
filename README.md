@@ -102,6 +102,52 @@ async with create_realtime_client(key='your-ably-api-key', client_id='me') as re
     await channel.publish('test-event', 'hello world')
 ```
 
+### LiveObjects
+
+LiveObjects keeps shared, mutable state on a channel: maps and counters that every client
+attached to it reads, updates and subscribes to. The channel needs the object modes, and
+`channel.object.get()` attaches it, waits for the objects to sync, and returns the root map.
+Values are read through a typed view of their path — `as_live_map()`, `as_live_counter()` or
+`as_primitive()` — and reads are synchronous; writes are awaited.
+
+```python
+from ably.pubsub.server import ChannelMode, ChannelOptions, LiveCounter, LiveMap, create_realtime_client
+
+async with create_realtime_client(key='your-ably-api-key') as realtime_client:
+    channel = realtime_client.channels.get(
+        'my-objects',
+        ChannelOptions(modes=[ChannelMode.OBJECT_SUBSCRIBE, ChannelMode.OBJECT_PUBLISH]),
+    )
+
+    # Attach, wait for the objects to sync, and get the root map
+    root = await channel.object.get()
+
+    # Create objects by setting them on the root
+    await root.set('visits', LiveCounter.create(0))
+    await root.set('profile', LiveMap.create({'name': 'Alice', 'theme': 'dark'}))
+
+    # Read through a typed view of the path
+    visits = root.get('visits').as_live_counter()
+    print(visits.value())                                     # 0.0
+    print(root.at('profile.name').as_primitive().value(str))  # Alice
+
+    # Subscribe to changes at a path
+    def on_change(event):
+        print(f'{event.object.path()} changed')
+
+    subscription = root.get('visits').subscribe(on_change)
+
+    # Mutate
+    await visits.increment(5)
+
+    # Batch several writes into a single message
+    async with root.get('profile').as_live_map().batch() as profile:
+        profile.set('name', 'Bob')
+        profile.remove('theme')
+
+    subscription.unsubscribe()
+```
+
 ## Releases
 
 The [CHANGELOG.md](https://github.com/ably/ably-pubsub-python/blob/main/CHANGELOG.md) contains details of the latest releases for this SDK. You can also view all Ably releases on [changelog.ably.com](https://changelog.ably.com).
