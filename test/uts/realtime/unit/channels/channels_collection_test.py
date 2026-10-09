@@ -1,6 +1,6 @@
 """Derived from uts/realtime/unit/channels/channels_collection.md in ably/specification.
 
-Spec points: RTS1, RTS2, RTS3a, RTS4a
+Spec points: RTS1, RTS2, RTS3a, RTS4c, RTS4d, RTS4e
 
 The specification's `channels.exists(name)` and `channels.names` are spelled
 `name in channels` and iteration over the collection in ably-python, and
@@ -11,12 +11,15 @@ does not define creates a channel of that name (`Channels.__getattr__` in
 
 import asyncio
 
+import pytest
+
 from ably.realtime.channel import Channels as RealtimeChannels
 from ably.realtime.channel import RealtimeChannel
 from ably.realtime.connection import ConnectionState
 from ably.transport.websockettransport import ProtocolMessageAction
 from ably.types.channelstate import ChannelState
-from test.uts.helpers.client import await_connection_state, poll_until, realtime_client
+from ably.util.exceptions import AblyException
+from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import (
     CONNECTED_MESSAGE,
@@ -119,37 +122,35 @@ async def test_rts3a_subscript_operator_channel():
     assert channel1.name == channel_name
 
 
-# UTS: realtime/unit/RTS4a/release-removes-channel-0
-async def test_rts4a_release_removes_channel():
-    channel_name = 'test-RTS4a'
+# UTS: realtime/unit/RTS4c/release-nonexistent-noop-0
+async def test_rts4c_release_nonexistent_noop():
+    channel_name = 'test-RTS4c-nonexistent'
     client = realtime_client()
 
-    client.channels.get(channel_name)
+    client.channels.release(channel_name)
+
+    assert (channel_name in client.channels) is False
+
+
+# UTS: realtime/unit/RTS4d/release-removes-channel-0
+async def test_rts4d_release_removes_channel():
+    channel_name = 'test-RTS4d'
+    client = realtime_client()
+
+    channel = client.channels.get(channel_name)
+    assert channel.state == ChannelState.INITIALIZED
     assert (channel_name in client.channels) is True
 
-    # `release` is synchronous here, so there is nothing to await
     client.channels.release(channel_name)
 
     assert (channel_name in client.channels) is False
 
 
-# UTS: realtime/unit/RTS4a/release-nonexistent-noop-1
-async def test_rts4a_release_nonexistent_noop():
-    channel_name = 'test-RTS4a-nonexistent'
-    client = realtime_client()
+async def connected_client(answer_detach):
+    """A connected client whose mock answers each ATTACH, and each DETACH if `answer_detach`.
 
-    client.channels.release(channel_name)
-
-    assert (channel_name in client.channels) is False
-
-
-# UTS: realtime/unit/RTS4a/release-detaches-attached-2
-@deviation
-async def test_rts4a_release_detaches_attached():
-    # DEVIATION: RTS4a has release detach the channel before dropping it.
-    # `Channels.release` (`ably/realtime/channel.py:1012`) only deletes the entry from
-    # its dict, so no DETACH is sent and the channel is left attached in the Ably service.
-    channel_name = 'test-RTS4a-attached'
+    Returns the client and the list of messages it sends.
+    """
     messages_from_client = []
 
     mock_ws = MockWebSocket(
@@ -159,33 +160,56 @@ async def test_rts4a_release_detaches_attached():
     def on_message_from_client(msg):
         messages_from_client.append(msg)
         if msg.get('action') == ProtocolMessageAction.ATTACH:
-            mock_ws.send_to_client(attached_message(channel_name))
-        elif msg.get('action') == ProtocolMessageAction.DETACH:
-            mock_ws.send_to_client(detached_message(channel_name))
+            mock_ws.send_to_client(attached_message(msg['channel']))
+        elif msg.get('action') == ProtocolMessageAction.DETACH and answer_detach:
+            mock_ws.send_to_client(detached_message(msg['channel']))
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(mock_ws)
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
+    return client, messages_from_client
 
+
+# UTS: realtime/unit/RTS4d/release-after-detach-1
+async def test_rts4d_release_after_detach():
+    channel_name = 'test-RTS4d-detached'
+    client, _ = await connected_client(answer_detach=True)
     channel = client.channels.get(channel_name)
+
+    await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)
+    await asyncio.wait_for(channel.detach(), OPERATION_TIMEOUT)
+    assert channel.state == ChannelState.DETACHED
+
+    client.channels.release(channel_name)
+
+    assert (channel_name in client.channels) is False
+
+
+# UTS: realtime/unit/RTS4e/release-attached-fails-0
+@deviation
+async def test_rts4e_release_attached_fails():
+    # DEVIATION: RTS4e has release raise 90011 for a channel that is not INITIALIZED,
+    # DETACHED or FAILED. RTS4b lets an SDK keep its pre-6.3.0 release until its next
+    # major version, provided it logs a deprecation warning, so `Channels.release`
+    # (`ably/realtime/channel.py`) warns and removes the channel.
+    channel_name = 'test-RTS4e-attached'
+    client, messages_from_client = await connected_client(answer_detach=False)
+    channel = client.channels.get(channel_name)
+
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)
     assert channel.state == ChannelState.ATTACHED
 
-    state_before_release = channel.state
+    with pytest.raises(AblyException) as exc_info:
+        client.channels.release(channel_name)
 
-    client.channels.release(channel_name)
-    # A release which detaches sends DETACH on a task, and the channel reaches
-    # DETACHED only once the mock's answer has been handled, which is several
-    # yields away rather than one
-    await poll_until(lambda: channel.state == ChannelState.DETACHED, OPERATION_TIMEOUT,
-                     'the released channel to detach')
-
-    assert state_before_release == ChannelState.ATTACHED
-    assert (channel_name in client.channels) is False
+    assert exc_info.value.code == 90011
+    assert exc_info.value.status_code == 400
+    assert channel.state == ChannelState.ATTACHED
+    assert (channel_name in client.channels) is True
+    assert client.channels.get(channel_name) is channel
     detach_messages = [m for m in messages_from_client if m.get('action') == ProtocolMessageAction.DETACH]
-    assert len(detach_messages) == 1
-    assert channel.state == ChannelState.DETACHED
+    assert len(detach_messages) == 0
 
 
 # UTS: realtime/unit/RTS3a/get-after-release-new-3
