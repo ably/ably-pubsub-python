@@ -11,15 +11,20 @@ from ably.pubsub.objects.liveobject import MAP_KEY_REMOVED, MAP_KEY_UPDATED, Liv
 from ably.pubsub.objects.objectmessage import (
     MapRemove,
     MapSet,
+    ObjectData,
+    ObjectMessage,
+    ObjectOperation,
     ObjectOperationAction,
     ObjectsMapEntry,
     ObjectsMapSemantics,
 )
+from ably.pubsub.objects.valuetypes import LiveCounter, LiveMap, evaluate, primitive_to_object_data, validate_key
 from ably.pubsub.util.clock import Clock
+from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.objectmessage import ObjectData, ObjectMessage, ObjectOperation
     from ably.pubsub.objects.objectspool import ObjectsPool
+    from ably.pubsub.objects.realtimeobject import RealtimeObject
     from ably.pubsub.objects.valuetypes import LiveMapValue
 
 log = logging.getLogger(__name__)
@@ -78,14 +83,42 @@ class InternalLiveMap(LiveObject):
         Raises AblyException 40003 for a key that is not a string and 40013 for a value of
         an unsupported type (RTLM20e1, RTLMV4b, RTLMV4c).
         """
-        raise NotImplementedError
+        validate_key(key)  # RTLM20e1
+        object_messages: list[ObjectMessage] = []
+        if isinstance(value, (LiveCounter, LiveMap)):
+            # RTLM20e7g1: the creates the blueprint evaluates to, its contents validated as it is (RTLMV4c)
+            server_time_ms = await self._publishing_realtime_object()._get_server_time_ms()
+            object_messages = evaluate(value, server_time_ms)
+            data = ObjectData(object_id=object_messages[-1].operation.object_id)  # RTLM20e7g2
+        else:
+            data = primitive_to_object_data(value)  # RTLM20e1, RTLM20e7b-RTLM20e7f
+
+        object_messages.append(ObjectMessage(operation=ObjectOperation(
+            action=ObjectOperationAction.MAP_SET,  # RTLM20e2
+            object_id=self.object_id,  # RTLM20e3
+            map_set=MapSet(key=key, value=data),  # RTLM20e6, RTLM20e7
+        )))
+        await self._publishing_realtime_object()._publish_and_apply(object_messages)  # RTLM20h1, RTLM20h2
 
     async def remove(self, key: str) -> None:
         """RTLM21: publishes a MAP_REMOVE through `RealtimeObject._publish_and_apply`.
 
         Raises AblyException 40003 for a key that is not a string (RTLM21e1).
         """
-        raise NotImplementedError
+        validate_key(key)  # RTLM21e1
+        realtime_object = self._publishing_realtime_object()
+        object_message = ObjectMessage(operation=ObjectOperation(
+            action=ObjectOperationAction.MAP_REMOVE,  # RTLM21e2
+            object_id=self.object_id,  # RTLM21e3
+            map_remove=MapRemove(key=key),  # RTLM21e5
+        ))
+        await realtime_object._publish_and_apply([object_message])  # RTLM21g
+
+    def _publishing_realtime_object(self) -> RealtimeObject:
+        realtime_object = self.realtime_object
+        if realtime_object is None:
+            raise AblyException('Unable to update a map that is not on a channel', 400, 40000)
+        return realtime_object
 
     def is_entry_tombstoned(self, entry: ObjectsMapEntry) -> bool:
         """RTLM14: whether `entry` is tombstoned, or references a tombstoned object in `pool`."""
