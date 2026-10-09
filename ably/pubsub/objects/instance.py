@@ -257,8 +257,14 @@ class LiveMapInstance(Instance):
         return self._value.object_id
 
     def batch(self) -> Batch[LiveMapBatchContext]:
-        """RTINS17: a block whose queued writes are published as one message when it exits."""
-        raise NotImplementedError
+        """RTINS17: a block whose queued writes are published as one message when it exits.
+
+        Entering checks the write preconditions (RTINS17b).
+        """
+        # Imported here, as the batch module builds on this one
+        from ably.pubsub.objects.batch import Batch, LiveMapBatchContext
+
+        return Batch(self._realtime_object, lambda: self._value, LiveMapBatchContext, f'object {self.id!r}')
 
     def entries(self) -> list[tuple[str, Instance]]:
         """RTINS6: `(key, instance)` for each entry of the map.
@@ -312,8 +318,14 @@ class LiveCounterInstance(Instance):
         return self._value.object_id
 
     def batch(self) -> Batch[LiveCounterBatchContext]:
-        """RTINS17: a block whose queued writes are published as one message when it exits."""
-        raise NotImplementedError
+        """RTINS17: a block whose queued writes are published as one message when it exits.
+
+        Entering checks the write preconditions (RTINS17b).
+        """
+        # Imported here, as the batch module builds on this one
+        from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext
+
+        return Batch(self._realtime_object, lambda: self._value, LiveCounterBatchContext, f'object {self.id!r}')
 
     def value(self) -> float:
         """RTINS4b: the wrapped counter's value."""
