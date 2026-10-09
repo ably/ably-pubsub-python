@@ -20,6 +20,9 @@ gh api 'repos/ably/specification/contents/uts/realtime/integration/<spec>.md' --
 gh api repos/ably/specification/contents/uts/docs/proxy.md --jq '.content' | base64 -d
 gh api 'repos/ably/specification/contents/uts/rest/integration/proxy/<spec>.md' --jq '.content' | base64 -d
 gh api 'repos/ably/specification/contents/uts/realtime/integration/proxy/<spec>.md' --jq '.content' | base64 -d
+gh api 'repos/ably/specification/contents/uts/objects/unit/<spec>.md' --jq '.content' | base64 -d
+gh api 'repos/ably/specification/contents/uts/objects/integration/<spec>.md' --jq '.content' | base64 -d
+gh api repos/ably/specification/contents/uts/objects/helpers/standard_test_pool.md --jq '.content' | base64 -d
 ```
 
 The realtime integration tier nests, so list a directory before fetching from it:
@@ -39,9 +42,10 @@ carries over as it stands: `channels/channel_publish_test.md` becomes
 `channels/channel_publish_test.py`. Every directory needs an `__init__.py`, as `test` is
 a package.
 
-There are two kinds of tier. `rest/unit` and `realtime/unit` serve every request from a
-mock and reach no network; `rest/integration` and `realtime/integration` run against the
-real Ably sandbox and have no mock at all. See **The integration tier** below.
+There are two kinds of tier. `rest/unit`, `realtime/unit` and `objects/unit` reach no
+network; `rest/integration`, `realtime/integration` and `objects/integration` run against
+the real Ably sandbox and have no mock at all. See **The integration tier** below, and
+**The objects tier** for LiveObjects.
 
 `test/uts/rest/unit/time_test.py` is the reference example for REST unit,
 `test/uts/realtime/unit/connection/auto_connect_test.py` for realtime unit,
@@ -450,6 +454,103 @@ async def test_rsc15l4_cloudfront_header_fallback(sandbox, proxy_session):
     assert len(http_requests(log, '/time')) >= 2
     assert http_responses(log)[0]['status'] == 403
 ```
+
+## The objects tier
+
+`uts/objects/unit/<name>.md` becomes `test/uts/objects/unit/<name>_test.py`, the integration
+specifications keep their `_test` suffix under `test/uts/objects/integration/`, and
+`integration/proxy/objects_faults.md` becomes
+`test/uts/objects/integration/proxy/objects_faults_test.py`. Seven unit specifications are
+pure and construct internal objects; the other eight drive `channel.object` over the mock
+websocket. Follow `internal_live_map_test.py` (pure), `path_object_mutations_test.py` (mock)
+and `objects_lifecycle_test.py` (integration). The integration package's own `conftest.py`
+provisions a separate app under the realtime tier's fixture name, `realtime_sandbox`, and
+all three of its specifications take `use_binary_protocol`. The package is
+`ably.pubsub.objects`; the public names are exported from `ably.pubsub.server`.
+
+**Translate the untyped API through the typed views** (LODR-061, the RTTS partition). The
+specifications call every method on one `PathObject` or `Instance` class; ably-python
+reaches a type's methods through its view:
+
+| Pseudocode | ably-python |
+|---|---|
+| `root.get("score").value()` | `root.get('score').as_live_counter().value()` |
+| `root.get("name").value()` | `root.get('name').as_primitive().value()` |
+| `pathObject.set("k", v)` | `await path_object.as_live_map().set('k', v)`; `root` is already a `LiveMapPathObject` |
+| untyped `value() == null` | `as_primitive().value() is None` **and** `as_live_counter().value() is None` |
+| `inst.id()` | `inst.id`, a property, as is `inst.type` |
+| `{ depth: n }` | `subscribe(listener, depth=n)`, keyword-only |
+
+Mutations are `async`; reads, navigation, views and `subscribe` are not. `entries()` yields
+tuples. A path's views never raise, and a write through the wrong one raises 92007, or 92005
+for a path that does not resolve; an `Instance`'s views raise 92007. A spelling difference is
+not a deviation. Where the partition makes a read unreachable — `value()` on a
+`LiveMapInstance` — assert the `type`, `not hasattr(...)` and the 92007, and cite S-5.
+
+**The pure tier adapts to five shapes**, defined in `deviations.md` and cited by label in the
+module docstring: S-1 `apply_operation` returns a boolean, so record updates with
+`capture_updates(obj)`; S-2 the sync state machine is a standalone `RealtimeObject()`'s
+(`_on_attached(has_objects)`, `_handle_object_sync_messages(msgs, channel_serial)`,
+`_sync_state`); S-3 `evaluate(vt, timestamp_ms)`; S-4 the retained create is
+`operation.resolved_counter_create` / `resolved_map_create`; S-5 above. Members of a public
+class that LODR-061 does not name carry a leading underscore (`channel.object._objects_pool`).
+
+`test/uts/objects/helpers/standard_test_pool.py` holds what the specifications share:
+`setup_synced_channel` (and `_no_ack`), `standard_mock_websocket`, `objects_client`,
+`objects_channel_options`, `objects_connected_message`, `objects_attached_message`, the
+`build_*` builders, `json_value`, `bytes_value`, `ack_serial`, `remote_serial`,
+`below_ack_serial`, `object_message(s)`, `capture_updates`, `build_public_object_message`,
+`assert_unchanged_after_quiescence`, `provision_objects_via_rest`, and the wire constants
+(`HAS_OBJECTS`, `OBJECT_SUBSCRIBE_FLAG`, `OBJECT_PUBLISH_FLAG`, `LWW`, the actions).
+`test/uts/README.md` says what each is.
+
+### Traps found while deriving and implementing the objects tier
+
+- **An injected frame is applied on the transport's read task, not by `send_to_client`.**
+  Read state only after a `poll_until` on its effect. A negative — "did not fire", "the echo
+  was not applied" — needs a positive control sent *behind* the message under test and
+  `assert_unchanged_after_quiescence`; an exact count after `poll_until(>= n)` needs
+  `await settle()` first; and a subscription made straight after a seeding message receives
+  the seed, so poll for the seed before subscribing. The specifications often skip all three,
+  and their negatives then pass whatever the SDK does.
+- **Process a re-sync ATTACHED before starting what it should hold back.** Send it, poll until
+  `channel.object._sync_state == ObjectsSyncState.SYNCING`, then start `get()` or the write as
+  a task; started earlier, it sees SYNCED and resolves at once.
+- **A mock ATTACHED grants no modes.** The standard one carries `HAS_OBJECTS` alone, which
+  empties `channel.modes`, and RTO2 then checks the modes the channel *requested* — so request
+  them with `objects_channel_options()` or `get()` raises 40024. Grant modes as `flags` bits,
+  never as the specifications' `modes: [...]`. An injected `flags: 128` at the integration tier
+  empties them the same way.
+- **A write resolves on its ACK.** The standard mock ACKs each OBJECT with
+  `ack_serial(msgSerial, i)`; under `setup_synced_channel_no_ack`, drive the write as a task.
+  Those serials land in `appliedOnAckSerials`, so never reuse one as an inbound serial, and
+  use `remote_serial(n)` for a remote write: a bare `'99'` sorts before `POOL_SERIAL` and is
+  stale.
+- **`json` values are JSON strings on the wire** (OD2g), so compare a captured
+  `mapSet.value.json` after `json.loads`; `bytes` are base64. Actions are
+  `ObjectOperationAction`, an `IntEnum`.
+- **Numbers decode to `float`.** Read them with `value(float)`; `value(int)` raises
+  `TypeError`, since `expected` must be exactly one of `str, float, bool, bytes, list, dict`.
+  Assert booleans with `is True`, since `True == 1`.
+- **Creating a `LiveCounter` or `LiveMap` reads `/time`.** `objects_client` answers it; a
+  client built any other way needs `mock_http=time_mock_http(clock)`.
+- **A tombstoned object reads null with no GC at all**, so a GC test asserts that the object
+  left `_objects_pool`. The GC interval, 300000 ms, is read when the first ATTACHED schedules
+  the timer on the client's clock: set `channel.object._gc_interval_ms` before `get()`.
+- **The public and internal `ObjectMessage` share a name.** Reach the public one as
+  `publicmessage.ObjectMessage`, from `ably.pubsub.objects`.
+- **Check that a test can fail.** Several objects specifications assert something that holds
+  with the behaviour removed. The derivation caught them by running each module against a
+  throwaway reference implementation with one fault injected; add the discriminating
+  assertion under `# UTS SPEC ERROR:` and record the fault.
+- **At the sandbox, the echo arrives before the ACK**, so RTO9a3's dedup is only reachable at
+  the mock tier, and **ACKs are paced at about one per 500 ms per connection**, so each
+  awaited write after the first can take half a second.
+- **Every objects channel gets an OBJECT_SYNC**, an empty one included, and a resumed
+  ATTACHED on an attached channel restarts the sync without a state change: wait on
+  `get()`, not on a channel state. A sync cursor can itself contain `:`.
+- **uts-proxy matches `action` as a string and names actions only up to AUTH**: OBJECT_SYNC
+  is `'20'`, OBJECT `'19'`. Its `delay` holds every later frame behind the delayed one.
 
 ## Traps that cost the most time
 
@@ -896,8 +997,8 @@ the reasoning. The next reader will otherwise reach the same first conclusion.
 
 ```bash
 uv run --frozen --extra crypto --extra dev ruff check ably/ test/
-uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/helpers -q
-uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration test/uts/realtime/integration -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/objects/unit test/uts/helpers test/uts/objects/helpers -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration test/uts/realtime/integration test/uts/objects/integration -q
 RUN_DEVIATIONS=1 uv run --frozen --extra crypto --extra dev pytest test/uts -q
 ```
 
