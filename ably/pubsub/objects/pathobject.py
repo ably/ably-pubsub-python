@@ -20,6 +20,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, overload
 
+from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext, LiveMapBatchContext
 from ably.pubsub.objects.instance import (
     Instance,
     compact_value,
@@ -32,7 +33,6 @@ from ably.pubsub.objects.livemap import InternalLiveMap
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext, LiveMapBatchContext
     from ably.pubsub.objects.enums import ValueType
     from ably.pubsub.objects.publicmessage import ObjectMessage
     from ably.pubsub.objects.realtimeobject import RealtimeObject
@@ -187,10 +187,10 @@ class LiveMapPathObject(PathObject):
     def batch(self) -> Batch[LiveMapBatchContext]:
         """RTPO20: a block whose queued writes are published as one message when it exits.
 
-        Entering raises AblyException 92007 if the path does not resolve to a live object
-        (RTPO20c).
+        Entering checks the write preconditions (RTPO20b) and raises AblyException 92007 if
+        the path does not resolve to a map (RTPO20c).
         """
-        raise NotImplementedError
+        return Batch(self._realtime_object, self._resolve, LiveMapBatchContext, f'path {self.path()!r}')
 
     def entries(self) -> list[tuple[str, PathObject]]:
         """RTPO9: `(key, path)` for each key of the map, or `[]`."""
@@ -237,8 +237,12 @@ class LiveCounterPathObject(PathObject):
     """RTTS6b: a path expected to resolve to a counter."""
 
     def batch(self) -> Batch[LiveCounterBatchContext]:
-        """RTPO20: a block whose queued writes are published as one message when it exits."""
-        raise NotImplementedError
+        """RTPO20: a block whose queued writes are published as one message when it exits.
+
+        Entering checks the write preconditions (RTPO20b) and raises AblyException 92007 if
+        the path does not resolve to a counter (RTPO20c).
+        """
+        return Batch(self._realtime_object, self._resolve, LiveCounterBatchContext, f'path {self.path()!r}')
 
     def value(self) -> float | None:
         """RTTS6b: the counter's value, or None if the path does not resolve to a counter."""
