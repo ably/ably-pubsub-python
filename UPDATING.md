@@ -93,6 +93,25 @@ async def subscribe(client: PubSubRealtimeClient, name: str) -> None: ...
 def publish_blocking(client: PubSubHttpClientSync, name: str) -> None: ...
 ```
 
+### Releasing a realtime channel requires it to be detached
+
+`channels.release(name)` on a realtime client now raises an `AblyException` with code 90011
+if the channel is in any state other than `INITIALIZED`, `DETACHED` or `FAILED`, and leaves the
+channel as it was. 3.x removed the channel from the collection whatever its state, which could
+leave it attached in the Ably service, and later 3.x releases log a deprecation warning when
+they do so. Detach the channel, and wait for that to complete, before releasing it:
+
+Example 3.x code:
+```python
+realtime.channels.release('my-channel')
+```
+
+Example 4.0.0 code:
+```python
+await pubsub_realtime_client.channels.get('my-channel').detach()
+pubsub_realtime_client.channels.release('my-channel')
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
