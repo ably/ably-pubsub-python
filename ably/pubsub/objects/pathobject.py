@@ -20,7 +20,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, overload
 
-from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext, LiveMapBatchContext
 from ably.pubsub.objects.instance import (
     Instance,
     compact_value,
@@ -30,11 +29,12 @@ from ably.pubsub.objects.instance import (
 )
 from ably.pubsub.objects.livecounter import InternalLiveCounter
 from ably.pubsub.objects.livemap import InternalLiveMap
+from ably.pubsub.objects.publicmessage import ObjectMessage
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
+    from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext, LiveMapBatchContext
     from ably.pubsub.objects.enums import ValueType
-    from ably.pubsub.objects.publicmessage import ObjectMessage
     from ably.pubsub.objects.realtimeobject import RealtimeObject
     from ably.pubsub.objects.subscription import Subscription
     from ably.pubsub.objects.valuetypes import LiveMapValue, Primitive, T
@@ -190,6 +190,9 @@ class LiveMapPathObject(PathObject):
         Entering checks the write preconditions (RTPO20b) and raises AblyException 92007 if
         the path does not resolve to a map (RTPO20c).
         """
+        # Imported here, as the batch module builds on the views
+        from ably.pubsub.objects.batch import Batch, LiveMapBatchContext
+
         return Batch(self._realtime_object, self._resolve, LiveMapBatchContext, f'path {self.path()!r}')
 
     def entries(self) -> list[tuple[str, PathObject]]:
@@ -242,6 +245,9 @@ class LiveCounterPathObject(PathObject):
         Entering checks the write preconditions (RTPO20b) and raises AblyException 92007 if
         the path does not resolve to a counter (RTPO20c).
         """
+        # Imported here, as the batch module builds on the views
+        from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext
+
         return Batch(self._realtime_object, self._resolve, LiveCounterBatchContext, f'path {self.path()!r}')
 
     def value(self) -> float | None:

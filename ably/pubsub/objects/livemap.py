@@ -18,7 +18,14 @@ from ably.pubsub.objects.objectmessage import (
     ObjectsMapEntry,
     ObjectsMapSemantics,
 )
-from ably.pubsub.objects.valuetypes import LiveCounter, LiveMap, evaluate, primitive_to_object_data, validate_key
+from ably.pubsub.objects.valuetypes import (
+    LiveCounter,
+    LiveMap,
+    evaluate,
+    primitive_to_object_data,
+    validate_key,
+    validate_value,
+)
 from ably.pubsub.util.clock import Clock
 from ably.pubsub.util.exceptions import AblyException
 
@@ -81,24 +88,13 @@ class InternalLiveMap(LiveObject):
         evaluates to, through `RealtimeObject._publish_and_apply`.
 
         Raises AblyException 40003 for a key that is not a string and 40013 for a value of
-        an unsupported type (RTLM20e1, RTLMV4b, RTLMV4c).
+        an unsupported type (RTLM20e1, RTLMV4b, RTLMV4c), before anything is requested or
+        published.
         """
         validate_key(key)  # RTLM20e1
-        object_messages: list[ObjectMessage] = []
-        if isinstance(value, (LiveCounter, LiveMap)):
-            # RTLM20e7g1: the creates the blueprint evaluates to, its contents validated as it is (RTLMV4c)
-            server_time_ms = await self._publishing_realtime_object()._get_server_time_ms()
-            object_messages = evaluate(value, server_time_ms)
-            data = ObjectData(object_id=object_messages[-1].operation.object_id)  # RTLM20e7g2
-        else:
-            data = primitive_to_object_data(value)  # RTLM20e1, RTLM20e7b-RTLM20e7f
-
-        object_messages.append(ObjectMessage(operation=ObjectOperation(
-            action=ObjectOperationAction.MAP_SET,  # RTLM20e2
-            object_id=self.object_id,  # RTLM20e3
-            map_set=MapSet(key=key, value=data),  # RTLM20e6, RTLM20e7
-        )))
-        await self._publishing_realtime_object()._publish_and_apply(object_messages)  # RTLM20h1, RTLM20h2
+        realtime_object = self._publishing_realtime_object()
+        object_messages = await map_set_messages(realtime_object, self.object_id, key, value)  # RTLM20e
+        await realtime_object._publish_and_apply(object_messages)  # RTLM20h1, RTLM20h2
 
     async def remove(self, key: str) -> None:
         """RTLM21: publishes a MAP_REMOVE through `RealtimeObject._publish_and_apply`.
@@ -107,12 +103,7 @@ class InternalLiveMap(LiveObject):
         """
         validate_key(key)  # RTLM21e1
         realtime_object = self._publishing_realtime_object()
-        object_message = ObjectMessage(operation=ObjectOperation(
-            action=ObjectOperationAction.MAP_REMOVE,  # RTLM21e2
-            object_id=self.object_id,  # RTLM21e3
-            map_remove=MapRemove(key=key),  # RTLM21e5
-        ))
-        await realtime_object._publish_and_apply([object_message])  # RTLM21g
+        await realtime_object._publish_and_apply([map_remove_message(self.object_id, key)])  # RTLM21g
 
     def _publishing_realtime_object(self) -> RealtimeObject:
         realtime_object = self.realtime_object
@@ -288,7 +279,8 @@ class InternalLiveMap(LiveObject):
     def apply_map_clear(self, serial: str | None, object_message: ObjectMessage) -> LiveMapUpdate:
         """RTLM24: applies a MAP_CLEAR."""
         if not serial:
-            # A MAP_CLEAR with no serial cannot be ordered against the map's entries
+            # A MAP_CLEAR with no serial cannot be ordered against the map's entries. `apply_operation`
+            # never gets here, as it rejects a message with no serial (RTLO4a3); a direct call can.
             log.warning(f'InternalLiveMap.apply_map_clear(): skipping a MAP_CLEAR with no serial; '
                         f'object_id={self.object_id}')
             return LiveMapUpdate(noop=True)
@@ -418,3 +410,42 @@ class InternalLiveMap(LiveObject):
     def _log_missing_payload(self, action: ObjectOperationAction) -> None:
         log.warning(f'InternalLiveMap.apply_operation(): skipping a {action.name} operation with no key or '
                     f'value; object_id={self.object_id}')
+
+
+def map_set_message(object_id: str, key: str, data: ObjectData) -> ObjectMessage:
+    """RTLM20e: the MAP_SET of `key` in the map `object_id` to `data`."""
+    return ObjectMessage(operation=ObjectOperation(
+        action=ObjectOperationAction.MAP_SET,  # RTLM20e2
+        object_id=object_id,  # RTLM20e3
+        map_set=MapSet(key=key, value=data),  # RTLM20e6, RTLM20e7
+    ))
+
+
+def map_remove_message(object_id: str, key: str) -> ObjectMessage:
+    """RTLM21e: the MAP_REMOVE of `key` from the map `object_id`."""
+    return ObjectMessage(operation=ObjectOperation(
+        action=ObjectOperationAction.MAP_REMOVE,  # RTLM21e2
+        object_id=object_id,  # RTLM21e3
+        map_remove=MapRemove(key=key),  # RTLM21e5
+    ))
+
+
+async def map_set_messages(realtime_object: RealtimeObject, object_id: str, key: str,
+                           value: LiveMapValue) -> list[ObjectMessage]:
+    """RTLM20e: the ObjectMessages setting `key` of the map `object_id` to `value`.
+
+    For a `LiveMap` or `LiveCounter`, they are the creates it evaluates to, with object ids
+    generated from the server time (RTLM20e7g1), followed by a MAP_SET referencing the last
+    of them (RTLM20e7g2); for a primitive, just the MAP_SET (RTLM20e7b-RTLM20e7f).
+
+    Raises as `validate_value` does for an invalid value (RTLM20e1), a blueprint before the
+    server time is fetched.
+    """
+    if not isinstance(value, (LiveCounter, LiveMap)):
+        return [map_set_message(object_id, key, primitive_to_object_data(value))]
+
+    validate_value(value)
+    server_time_ms = await realtime_object._get_server_time_ms()
+    object_messages = evaluate(value, server_time_ms)
+    data = ObjectData(object_id=object_messages[-1].operation.object_id)
+    return [*object_messages, map_set_message(object_id, key, data)]

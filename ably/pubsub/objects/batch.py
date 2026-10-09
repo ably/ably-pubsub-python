@@ -10,13 +10,14 @@ raising, and closes the batch either way (RTPO20g). Any use of a context after i
 has closed raises `AblyException` 40000 (RTBC16e).
 
 A write validates its arguments when it is called, so an invalid one raises inside the
-block and nothing is published. A `LiveMap` or `LiveCounter` value is evaluated when the
-batch is published, because its object id needs the server time (RTO16): an invalid
-value inside one raises from the end of the block, and nothing is published then either.
+block and nothing is published. A `LiveMap` or `LiveCounter` value is validated then too,
+but evaluated only when the batch is published, because its object ids need the server
+time (RTO16).
 """
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Generic, TypeVar, overload
 
 from ably.pubsub.objects.enums import ValueType
@@ -29,17 +30,17 @@ from ably.pubsub.objects.instance import (
     primitive_value,
     value_type_of,
 )
-from ably.pubsub.objects.livecounter import _validate_amount
-from ably.pubsub.objects.objectmessage import (
-    CounterInc,
-    MapRemove,
-    MapSet,
-    ObjectData,
-    ObjectMessage,
-    ObjectOperation,
-    ObjectOperationAction,
+from ably.pubsub.objects.livecounter import counter_inc_message
+from ably.pubsub.objects.livemap import map_remove_message, map_set_message, map_set_messages
+from ably.pubsub.objects.objectmessage import ObjectMessage
+from ably.pubsub.objects.valuetypes import (
+    LiveCounter,
+    LiveMap,
+    primitive_to_object_data,
+    validate_amount,
+    validate_key,
+    validate_value,
 )
-from ably.pubsub.objects.valuetypes import LiveCounter, LiveMap, evaluate, primitive_to_object_data, validate_key
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
@@ -146,23 +147,23 @@ class RootBatchContext:
         Raises whatever building or publishing the messages raises. Nothing is published if
         building any of them fails.
         """
-        try:
-            self.close()
-            if self.queued_message_constructors:
-                # The block may have awaited since its writes checked the write preconditions (RTO26)
-                self.realtime_object._check_write_preconditions()
-            object_messages: list[ObjectMessage] = []
-            for construct in self.queued_message_constructors:
-                object_messages.extend(await construct())
-            if object_messages:
-                await self.realtime_object._publish_and_apply(object_messages)
-        finally:
-            self.wrapped_instances.clear()
-            self.queued_message_constructors.clear()
+        constructors = self.queued_message_constructors
+        self.close()
+        if constructors:
+            # The block may have awaited since its writes checked the write preconditions (RTO26)
+            self.realtime_object._check_write_preconditions()
+        object_messages: list[ObjectMessage] = []
+        for construct in constructors:
+            object_messages.extend(await construct())
+        if object_messages:
+            await self.realtime_object._publish_and_apply(object_messages)
 
     def close(self) -> None:
-        """RTBC16e: closes the batch, so that every later use of its contexts raises 40000."""
+        """RTBC16e: closes the batch, so that every later use of its contexts raises 40000, and
+        drops the contexts and writes it holds."""
         self.closed = True
+        self.wrapped_instances = {}
+        self.queued_message_constructors = []
 
 
 class BatchContext:
@@ -278,7 +279,11 @@ class LiveMapBatchContext(BatchContext):
         return [context for _, context in self.entries()]  # RTBC8a-RTBC8c
 
     def size(self) -> int | None:
-        """RTBC9: the number of entries in the map."""
+        """RTBC9: the number of entries in the map.
+
+        This is always an int, as the context always wraps a map; the signature is the one
+        `size()` has on the path views, where a path can resolve to nothing.
+        """
         self._realtime_object._check_access_preconditions()  # RTBC9a
         self._throw_if_closed()  # RTBC9b
         return self._instance.size()  # RTBC9c
@@ -288,9 +293,10 @@ class LiveMapBatchContext(BatchContext):
         value evaluates to.
 
         Raises AblyException 40003 for a key that is not a string and 40013 for a value of
-        an unsupported type (RTLM20e1). A `LiveMap` or `LiveCounter` value is evaluated when
-        the batch is flushed, so it is the end of the block that raises for an invalid value
-        inside one (RTLMV4).
+        an unsupported type (RTLM20e1), the contents of a `LiveMap` or `LiveCounter` value
+        included (RTLMV4). Such a value is evaluated when the batch is flushed, as its object
+        ids need the server time (RTO16); a primitive is encoded now, so later changes to a
+        dict or list the caller passed do not reach the batch.
         """
         realtime_object = self._realtime_object
         realtime_object._check_write_preconditions()  # RTBC12b
@@ -299,17 +305,12 @@ class LiveMapBatchContext(BatchContext):
         object_id = self._instance.id
 
         if not isinstance(value, (LiveCounter, LiveMap)):
-            self._queue(_map_set(object_id, key, primitive_to_object_data(value)))  # RTBC12e, RTLM20e7b-f
+            self._queue(map_set_message(object_id, key, primitive_to_object_data(value)))  # RTBC12e, RTLM20e1
             return
 
-        async def construct() -> list[ObjectMessage]:
-            # RTLM20e7g1: the creates the value evaluates to, their object ids from the server time
-            server_time_ms = await realtime_object._get_server_time_ms()
-            object_messages = evaluate(value, server_time_ms)
-            data = ObjectData(object_id=object_messages[-1].operation.object_id)  # RTLM20e7g2
-            return [*object_messages, _map_set(object_id, key, data)]
-
-        self._root_context.queue_message_constructor(construct)  # RTBC12e
+        validate_value(value)  # RTLM20e1
+        self._root_context.queue_message_constructor(
+            partial(map_set_messages, realtime_object, object_id, key, value))  # RTBC12e
 
     def remove(self, key: str) -> None:
         """RTBC13: queues a MAP_REMOVE of `key`.
@@ -319,12 +320,7 @@ class LiveMapBatchContext(BatchContext):
         self._realtime_object._check_write_preconditions()  # RTBC13b
         self._throw_if_closed()  # RTBC13c
         validate_key(key)  # RTLM21e1
-        # RTBC13e
-        self._queue(ObjectMessage(operation=ObjectOperation(
-            action=ObjectOperationAction.MAP_REMOVE,  # RTLM21e2
-            object_id=self._instance.id,  # RTLM21e3
-            map_remove=MapRemove(key=key),  # RTLM21e5
-        )))
+        self._queue(map_remove_message(self._instance.id, key))  # RTBC13e
 
 
 class LiveCounterBatchContext(BatchContext):
@@ -351,18 +347,13 @@ class LiveCounterBatchContext(BatchContext):
         """
         self._realtime_object._check_write_preconditions()  # RTBC14b
         self._throw_if_closed()  # RTBC14c
-        # RTBC14e
-        self._queue(ObjectMessage(operation=ObjectOperation(
-            action=ObjectOperationAction.COUNTER_INC,  # RTLC12e2
-            object_id=self._instance.id,  # RTLC12e3
-            counter_inc=CounterInc(number=_validate_amount(amount)),  # RTLC12e1, RTLC12e5
-        )))
+        self._queue(counter_inc_message(self._instance.id, validate_amount(amount)))  # RTBC14e, RTLC12e1
 
     def decrement(self, amount: float = 1) -> None:
         """RTBC15: queues a COUNTER_INC of `-amount`, after the same validation as `increment`."""
         self._realtime_object._check_write_preconditions()  # RTBC15b
         self._throw_if_closed()  # RTBC15c
-        self.increment(-_validate_amount(amount))  # RTBC15e
+        self.increment(-validate_amount(amount))  # RTBC15e
 
 
 class PrimitiveBatchContext(BatchContext):
@@ -392,12 +383,3 @@ def _context_type_for(instance: Instance) -> type[BatchContext]:
     if isinstance(instance, PrimitiveInstance):
         return PrimitiveBatchContext
     return BatchContext
-
-
-def _map_set(object_id: str, key: str, data: ObjectData) -> ObjectMessage:
-    """RTLM20e: the ObjectMessage setting `key` of the map `object_id` to `data`."""
-    return ObjectMessage(operation=ObjectOperation(
-        action=ObjectOperationAction.MAP_SET,  # RTLM20e2
-        object_id=object_id,  # RTLM20e3
-        map_set=MapSet(key=key, value=data),  # RTLM20e6, RTLM20e7
-    ))
