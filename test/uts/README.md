@@ -20,12 +20,13 @@ helpers/     shared infrastructure the specifications assume, and its own tests
 assets/      fixtures the specifications name, vendored from elsewhere
 rest/        specifications under uts/rest
 realtime/    specifications under uts/realtime
+objects/     specifications under uts/objects (LiveObjects), with helpers/ of its own
 ```
 
 Every directory holding tests needs an `__init__.py`, because `test` is a package.
 
 Unit tests serve every request from a mock and reach no network — neither the REST
-suite nor the realtime one. The seams are installed per client, so a test holds to
+suite, the realtime one nor the objects one. The seams are installed per client, so a test holds to
 that by installing them; one that omits a seam, or that lets the host fallback loop
 run, reaches the real internet. Integration tests run against a sandbox app.
 
@@ -86,10 +87,11 @@ that closes its own leaves nothing to clean up if it fails first.
 | [helpers/presence.py](helpers/presence.py) | the presence-map stubs and wire-message builders the presence specifications share |
 | [helpers/sandbox.py](helpers/sandbox.py) | the sandbox app the integration tier provisions, the presence-fixture cipher, `random_id()` and the JWT signing the auth specification asks a library for |
 | [helpers/deviations.py](helpers/deviations.py) | the `@deviation` and `@spec_error` gates |
+| [objects/helpers/standard_test_pool.py](objects/helpers/standard_test_pool.py) | the LiveObjects fixtures, from `uts/objects/helpers/standard_test_pool.md`; see the objects tier below |
 
 `SKILL.md` lists every name in each. The helpers have their own tests
-(`helpers/*_test.py`), which are not derived from a specification and are not counted
-in the derived-test totals.
+(`helpers/*_test.py`, `objects/helpers/standard_test_pool_test.py`), which are not derived
+from a specification and are not counted in the derived-test totals.
 
 ## The integration tier
 
@@ -253,6 +255,55 @@ the session; the modules here sign an Ably JWT locally instead, through a file-l
 nothing to the log a test is counting. Tests in this package are given 300 seconds each,
 as in the REST proxy package.
 
+## The objects tier
+
+`objects/` holds the LiveObjects specifications, laid out as the other two:
+`objects/unit/`, fifteen specifications that reach no network; `objects/integration/`, three
+against the sandbox; and `objects/integration/proxy/`, one through `uts-proxy`. Seven of the
+unit specifications are pure — they build `InternalLiveCounter`, `InternalLiveMap`,
+`ObjectsPool` or a channel-less `RealtimeObject()` and connect nothing — and the other eight
+drive `channel.object` over the mock websocket. The specifications are written against an
+untyped `PathObject` and `Instance`; the tests reach a type's methods through LODR-061's
+views, `root.get('score').as_live_counter().value()`, which [deviations.md](deviations.md)
+explains along with the shapes the pure tier adapts to (S-1 to S-5).
+
+Everything the objects specifications share is in
+[objects/helpers/standard_test_pool.py](objects/helpers/standard_test_pool.py), named as
+`standard_test_pool.md` names it:
+
+| Helper | Is |
+|---|---|
+| `setup_synced_channel(channel_name='test', mock_ws=None, clock=None, modes=OBJECTS_MODES, **client_options)` | the specifications' synced channel: a client on `standard_mock_websocket()`, the channel with both object modes, and `await channel.object.get()`. Unpacks as `client, channel, root, mock_ws`. `setup_synced_channel_no_ack` records OBJECT messages without ACKing them |
+| `standard_mock_websocket(auto_ack=True, on_object=None, connected=None, ...)` | answers an ATTACH with an ATTACHED and an OBJECT_SYNC of `STANDARD_POOL_OBJECTS`, a DETACH with a DETACHED, and each OBJECT, after `on_object`, with an ACK |
+| `objects_client(mock_ws, clock=None, mock_http=None, **kwargs)` | the client underneath: it connects on its own, speaks JSON, and has `GET /time` answered by `time_mock_http(clock)`, since creating an object reads the server time |
+| `objects_channel_options(*modes)`, `objects_connected_message(...)`, `objects_attached_message(channel, channel_serial, flags)` | the channel options and harness messages. Granted modes are `flags` bits, `HAS_OBJECTS \| OBJECT_SUBSCRIBE_FLAG`, not a `modes` list |
+| `build_counter_inc`, `build_map_set`, `build_map_remove`, `build_map_clear`, `build_object_delete`, `build_counter_create`, `build_map_create`, `build_object_state`, `build_object_message`, `build_object_sync_message`, `build_ack_message`, `json_value`, `bytes_value` | the builders, each returning the JSON-wire dictionary `send_to_client` takes: camelCase keys, numeric actions, `json` values as JSON strings, `bytes` as base64 |
+| `ack_serial(msg_serial, index)`, `remote_serial(index)`, `below_ack_serial(index)`, `POOL_SERIAL` | serials that sort where the specifications need them. A bare `'99'` sorts before `POOL_SERIAL` and is rejected as stale |
+| `object_message(wire)`, `object_messages(protocol_message)`, `capture_updates(obj)` | the pure tier's: a builder's output decoded to the internal type, and the updates an object emits, since `apply_operation` returns a boolean |
+| `build_public_object_message(message, channel_name)` | the public `ObjectMessage` a subscription event should carry, built independently of the library |
+| `assert_unchanged_after_quiescence(count_under_test, control_delivered)` | the specifications' negative-assertion pattern |
+| `provision_objects_via_rest(api_key, channel_name, operations)` | REST provisioning for the integration tier, over `X-Ably-Version: 6` |
+
+The client reads frames on a task of its own, so a test reads state after a `poll_until` on
+the frame's effect, never straight after `send_to_client`, and asserts a negative or an exact
+count only once a positive control behind it has arrived and the loop has settled.
+
+```python
+async def test_rtpo17_increment_delegates_to_counter():
+    client, channel, root, mock_ws = await setup_synced_channel('test')
+
+    await root.get('score').as_live_counter().increment(25)
+
+    assert root.get('score').as_live_counter().value() == 125
+```
+
+`objects/integration/` provisions its own sandbox app from its own `conftest.py`, separate
+from the realtime tier's but under the same fixture name, `realtime_sandbox`. All three of
+its specifications carry Protocol Variants, so every test takes `use_binary_protocol`, and
+each is given 120 seconds, as in the other integration tiers. Its `proxy/` package repeats
+the realtime proxy package's `proxy_control` and `proxy_session` fixtures and 300-second
+timeout, and its clients sign an Ably JWT locally, as the realtime proxy modules do.
+
 ## Running
 
 ```
@@ -262,15 +313,16 @@ uv run --frozen --extra crypto --extra dev pytest test/uts -q
 The offline tiers alone, which need no network:
 
 ```
-uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/helpers -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/objects/unit test/uts/helpers test/uts/objects/helpers -q
 ```
 
-Either integration tier alone, each of which provisions a sandbox app and needs network
+Any integration tier alone, each of which provisions a sandbox app and needs network
 access:
 
 ```
 uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration -q
 uv run --frozen --extra crypto --extra dev pytest test/uts/realtime/integration -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/objects/integration -q
 ```
 
 `--frozen` is required: without it dependency resolution reaches past the

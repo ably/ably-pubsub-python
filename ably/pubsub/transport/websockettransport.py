@@ -207,7 +207,9 @@ class WebSocketTransport(EventEmitter):
             ProtocolMessageAction.MESSAGE,
             ProtocolMessageAction.PRESENCE,
             ProtocolMessageAction.ANNOTATION,
-            ProtocolMessageAction.SYNC
+            ProtocolMessageAction.SYNC,
+            ProtocolMessageAction.OBJECT,
+            ProtocolMessageAction.OBJECT_SYNC,
         ):
             self.connection_manager.on_channel_message(msg)
 

@@ -8,6 +8,7 @@ class Flag(int, Enum):
     RESUMED = 1 << 2
     TRANSIENT = 1 << 4
     ATTACH_RESUME = 1 << 5
+    HAS_OBJECTS = 1 << 7
     # Channel mode flags
     PRESENCE = 1 << 16
     PUBLISH = 1 << 17
@@ -15,6 +16,8 @@ class Flag(int, Enum):
     PRESENCE_SUBSCRIBE = 1 << 19
     ANNOTATION_PUBLISH = 1 << 21
     ANNOTATION_SUBSCRIBE = 1 << 22
+    OBJECT_SUBSCRIBE = 1 << 24
+    OBJECT_PUBLISH = 1 << 25
 
 
 def has_flag(message_flags: int, flag: Flag):

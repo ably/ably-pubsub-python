@@ -22,6 +22,33 @@ from ably.pubsub.http.auth import Auth
 from ably.pubsub.http.channel import Channels as HttpChannels
 from ably.pubsub.http.http import DefaultPubSubHttpClient as _DefaultPubSubHttpClient
 from ably.pubsub.http.push import Push
+from ably.pubsub.objects.batch import (
+    Batch,
+    BatchContext,
+    LiveCounterBatchContext,
+    LiveMapBatchContext,
+    PrimitiveBatchContext,
+)
+from ably.pubsub.objects.enums import ObjectsEvent, ValueType
+from ably.pubsub.objects.instance import (
+    Instance,
+    InstanceSubscriptionEvent,
+    LiveCounterInstance,
+    LiveMapInstance,
+    PrimitiveInstance,
+)
+from ably.pubsub.objects.objectmessage import ObjectOperationAction, ObjectsMapSemantics
+from ably.pubsub.objects.pathobject import (
+    LiveCounterPathObject,
+    LiveMapPathObject,
+    PathObject,
+    PathObjectSubscriptionEvent,
+    PrimitivePathObject,
+)
+from ably.pubsub.objects.publicmessage import ObjectMessage, ObjectOperation
+from ably.pubsub.objects.realtimeobject import RealtimeObject
+from ably.pubsub.objects.subscription import StatusSubscription, Subscription
+from ably.pubsub.objects.valuetypes import LiveCounter, LiveMap, LiveMapValue, Primitive
 from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
 from ably.pubsub.realtime.channel import Channels as RealtimeChannels
 from ably.pubsub.realtime.connection import Connection
@@ -188,6 +215,9 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
         queue_messages: bool
             Hold messages published while the connection is not yet established and send
             them once it is, rather than failing them. Defaults to True.
+        echo_messages: bool
+            Deliver the messages this client publishes back to it on its own connection.
+            LiveObjects writes require it. Defaults to True.
         transport_params: dict
             Additional query parameters to send when opening the realtime connection.
 
@@ -248,6 +278,8 @@ __all__ = [
     'Annotation',
     'AnnotationAction',
     'Auth',
+    'Batch',
+    'BatchContext',
     'Capability',
     'ChannelMode',
     'ChannelOptions',
@@ -257,21 +289,47 @@ __all__ = [
     'HttpChannels',
     'HttpPaginatedResponse',
     'IncompatibleClientIdException',
+    'Instance',
+    'InstanceSubscriptionEvent',
+    'LiveCounter',
+    'LiveCounterBatchContext',
+    'LiveCounterInstance',
+    'LiveCounterPathObject',
+    'LiveMap',
+    'LiveMapBatchContext',
+    'LiveMapInstance',
+    'LiveMapPathObject',
+    'LiveMapValue',
     'Message',
     'MessageAction',
     'MessageOperation',
     'MessageVersion',
+    'ObjectMessage',
+    'ObjectOperation',
+    'ObjectOperationAction',
+    'ObjectsEvent',
+    'ObjectsMapSemantics',
     'Options',
     'PaginatedResult',
+    'PathObject',
+    'PathObjectSubscriptionEvent',
+    'Primitive',
+    'PrimitiveBatchContext',
+    'PrimitiveInstance',
+    'PrimitivePathObject',
     'PubSubHttpClient',
     'PubSubRealtimeClient',
     'PublishResult',
     'Push',
     'PushChannelSubscription',
     'RealtimeChannels',
+    'RealtimeObject',
+    'StatusSubscription',
+    'Subscription',
     'TokenDetails',
     'UpdateDeleteResult',
     'VCDiffDecoder',
+    'ValueType',
     'api_version',
     'create_http_client',
     'create_realtime_client',
