@@ -31,8 +31,8 @@ Variants` section and run every one of their tests twice, once per protocol, and
 `rest/unit` tests are parametrized over a table of fixtures the specification gives
 inline. That turns 1141 derived tests into 1234 pytest cases.
 
-Of **1132 Test IDs, derived as 1141 tests and run as 1234 pytest cases**: 904 Test IDs
-(913 tests, 1001 cases) pass, 213 (213 tests, 218 cases) are gated behind
+Of **1132 Test IDs, derived as 1141 tests and run as 1234 pytest cases**: 905 Test IDs
+(914 tests, 1002 cases) pass, 212 (212 tests, 217 cases) are gated behind
 `RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs, and one parametrized test, have a gated part and a passing part,
 and are counted with the gated. Every gated test has been confirmed to fail when
@@ -40,12 +40,12 @@ enabled, so none of them passes under both behaviours. 494 of the Test IDs come 
 `uts/rest/unit` (503 tests, 536 cases), 481 from `uts/realtime/unit` (481, 481), 84
 from `uts/rest/integration` (84, 122) and 73 from `uts/realtime/integration` (73, 95); 8
 of the REST integration ids (8, 8) and 30 of the realtime ones (30, 30) come from the
-`proxy` package within each. Of the gated Test IDs 122 are REST and 91 realtime, which is
-126 REST cases and 92 realtime.
+`proxy` package within each. Of the gated Test IDs 122 are REST and 90 realtime, which is
+126 REST cases and 91 realtime.
 A further 122 pytest cases under `helpers/` cover the mock infrastructure itself and are
 not derived from a specification.
 
-The 203 gated Test IDs that record SDK non-compliance — 203 tests, 208 cases — reduce to
+The 202 gated Test IDs that record SDK non-compliance — 202 tests, 207 cases — reduce to
 **71 distinct root causes**, 27 on the REST side and 44 on the realtime side. Three further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
@@ -823,7 +823,7 @@ on the `recover` parameter the connection never sends.
 | TP3a, TP3d, TP3g | Presence attributes defaulted from the encapsulating ProtocolMessage. There is no ProtocolMessage type; `ably/realtime/channel.py:751-761` passes the presence array through without context. Matters for synthesized-leave detection and `memberKey` | 3 |
 | TB4, RTL7h, RTP6e | `attachOnSubscribe`. `ChannelOptions.__init__` (`channeloptions.py:22-26`) takes only `cipher`, `params` and `modes`, and `subscribe()` on the channel, on presence and on annotations all end unconditionally with `await attach()`. This absence also forces the largest single adaptation in the suite, below | 3 |
 | RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
-| RTC1a (TO3h), RTL7f | `echoMessages`, in both the forms RTL7f allows. There is no `echo_messages` client option — passing one raises `TypeError` — and no `echo` connect parameter, so every message the server sends is delivered whatever its `connectionId` | 2 |
+| RTL7f | `echoMessages` in its client-filter form. The `echo_messages` option sends `echo=false` (RTC1a), which the server honours, but the client does not itself drop a message carrying its own `connectionId`, and that is the only form a mock-backed test can observe | 1 |
 | RTP12, RTP12a, RTP12c | `RealtimePresence#history`. The realtime *channel* does delegate `history` to the REST implementation; only the presence object is missing it | 2 |
 | RTN23c1, RTN23c2 | PING/PONG. `ProtocolMessageAction` stops at `ANNOTATION` (21), so PING (22) and PONG (23) are not modelled and action 22 matches no branch of `on_protocol_message` (`websockettransport.py:37-59`, `:143-199`). The message is counted as activity and discarded | 2 |
 | TI4, TI1/TI5 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors | 2 |
@@ -2725,7 +2725,7 @@ Each row is one feature and one issue. None is a bug in existing code.
 | Retry backoff, jitter and `retryIn` on both state-change types | RTB1, RTB1a, RTB1b | 4 | `connection/backoff_jitter_test.py` |
 | `RealtimeChannel#whenState` (the connection has a private equivalent) | RTL25, RTL25a, RTL25b | 4 | `channels/channel_when_state_test.py` |
 | `attachOnSubscribe` on `ChannelOptions`. Also forces the suite's largest adaptation — 21 tests attach explicitly to work around it | TB4, RTL7h, RTP6e | 3 | `channels/channel_subscribe_test.py -k rtl7h`, `channels/channel_options_test.py -k tb4`, `presence/realtime_presence_subscribe_test.py -k rtp6e` |
-| `echoMessages`, in both the client-filter and `echo`-parameter forms | RTC1a, RTL7f | 2 | `client/realtime_client_test.py -k rtc1a`, `channels/channel_subscribe_test.py -k rtl7f` |
+| `echoMessages` in its client-filter form; the `echo` connect parameter is sent | RTL7f | 1 | `channels/channel_subscribe_test.py -k rtl7f` |
 | `RealtimePresence#history` (the realtime *channel* does delegate `history`) | RTP12, RTP12a, RTP12c | 2 | `presence/realtime_presence_history_test.py` |
 | PING/PONG handling — actions 22 and 23 are not modelled | RTN23c1, RTN23c2 | 2 | `connection/heartbeat_test.py -k rtn23c1` |
 | The `heartbeats` connect parameter. Binding on ably-python, which cannot observe ping frames | RTN23a | 1 | `connection/heartbeat_test.py -k rtn23a_heartbeats_true` |
