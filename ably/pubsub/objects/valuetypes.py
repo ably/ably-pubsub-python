@@ -60,10 +60,13 @@ class LiveMap:
     def create(entries: dict[str, LiveMapValue] | None = None) -> LiveMap:
         """RTLMV3: a blueprint for a map holding `entries`.
 
-        A dict is copied, so the blueprint does not change when the caller's dict does
-        (RTLMV3d); anything else is kept for evaluation to reject (RTLMV3c).
+        A dict is copied, along with each JSON object, JSON array and binary value in it, so
+        the blueprint does not change when the caller's values do (RTLMV3d); anything else is
+        kept for evaluation to reject (RTLMV3c).
         """
-        return LiveMap(dict(entries) if isinstance(entries, dict) else entries)
+        if not isinstance(entries, dict):
+            return LiveMap(entries)
+        return LiveMap({key: _snapshot(value) for key, value in entries.items()})
 
 
 # The values `set` accepts: a primitive, or a blueprint for a new object (RTTS11)
@@ -80,13 +83,33 @@ def validate_key(key: Any) -> None:
 
 
 def validate_value(value: Any) -> None:
-    """RTLMV4c: raises AblyException 40013 unless `value` is a primitive or a blueprint.
+    """RTLM20e1: raises the AblyException a map's `set` raises for `value`, without evaluating it.
 
-    A map's `set` validates its value the same way (RTLM20e1). A blueprint's own contents
-    are validated when it is evaluated.
+    That is 40013 unless `value` is a primitive or a blueprint (RTLMV4c), and for a blueprint,
+    whatever evaluating it raises (RTLCV4a, RTLMV4a-RTLMV4c), so that a write can reject one
+    before fetching the server time its object ids are generated from (RTO16).
     """
-    if not isinstance(value, (LiveCounter, LiveMap)):
+    if isinstance(value, LiveCounter):
+        _counter_create(value)
+    elif isinstance(value, LiveMap):
+        entries, _ = _map_entries_data(value)
+        for entry in entries.values():
+            if isinstance(entry, (LiveCounter, LiveMap)):
+                validate_value(entry)
+    else:
         primitive_to_object_data(value)
+
+
+def validate_amount(amount: Any) -> float:
+    """RTLC12e1: `amount` as a float, raising AblyException 40003 unless it is a finite number.
+
+    A bool is not a number, and None is not an omitted amount. A counter's `increment` and
+    `decrement` validate their amount this way (RTLC12e1, RTLC13c).
+    """
+    number = _finite_number(amount)
+    if number is None:
+        raise AblyException('Counter value increment should be a valid number', 400, 40003)
+    return number
 
 
 def primitive_to_object_data(value: Any) -> ObjectData:
@@ -126,11 +149,7 @@ def evaluate_live_counter(value: LiveCounter, timestamp_ms: int) -> ObjectMessag
     `CounterCreate` it was built from (RTLCV4g5). Raises AblyException 40003 for a count
     that is not a finite number (RTLCV4a).
     """
-    count = _finite_number(value._count)
-    if count is None:
-        raise AblyException('Counter value should be a valid number', 400, 40003)  # RTLCV4a
-
-    counter_create = CounterCreate(count=count)  # RTLCV4b
+    counter_create = _counter_create(value)  # RTLCV4a, RTLCV4b
     initial_value = _initial_value(counter_create)  # RTLCV4c
     nonce = generate_nonce()  # RTLCV4d
     object_id = generate_object_id('counter', initial_value, nonce, timestamp_ms)  # RTLCV4f
@@ -154,18 +173,8 @@ def evaluate_live_map(value: LiveMap, timestamp_ms: int) -> list[ObjectMessage]:
     are not a dict or a key that is not a string (RTLMV4a, RTLMV4b), and 40013 for a
     value of an unsupported type (RTLMV4c).
     """
-    # `LiveMap.create()` and `LiveMap.create(None)` both leave the entries unset
-    entries = {} if value._entries is None else value._entries
-    if not isinstance(entries, dict):
-        raise AblyException('Map entries should be a dict', 400, 40003)  # RTLMV4a
-    for key in entries:
-        validate_key(key)  # RTLMV4b
-
     # Every value at this level is validated (RTLMV4c) before any blueprint is evaluated
-    data: dict[str, ObjectData | None] = {
-        key: None if isinstance(entry, (LiveCounter, LiveMap)) else primitive_to_object_data(entry)
-        for key, entry in entries.items()
-    }
+    entries, data = _map_entries_data(value)
 
     messages: list[ObjectMessage] = []
     for key, entry in entries.items():
@@ -204,6 +213,53 @@ def evaluate(value: LiveCounter | LiveMap, timestamp_ms: int) -> list[ObjectMess
     if isinstance(value, LiveMap):
         return evaluate_live_map(value, timestamp_ms)
     raise TypeError(f'Expected a LiveCounter or LiveMap, got {type(value).__name__}')
+
+
+def _counter_create(value: LiveCounter) -> CounterCreate:
+    """RTLCV4a, RTLCV4b: the `CounterCreate` a `LiveCounter` describes, raising AblyException 40003
+    for a count that is not a finite number."""
+    count = _finite_number(value._count)
+    if count is None:
+        raise AblyException('Counter value should be a valid number', 400, 40003)  # RTLCV4a
+    return CounterCreate(count=count)  # RTLCV4b
+
+
+def _map_entries_data(value: LiveMap) -> tuple[dict, dict[str, ObjectData | None]]:
+    """RTLMV4a-RTLMV4c: a `LiveMap`'s entries, and the `ObjectData` of each, None for a blueprint.
+
+    Raises AblyException 40003 for entries that are not a dict or a key that is not a string,
+    and 40013 for a value of an unsupported type at this level; a blueprint among the entries
+    is not looked into.
+    """
+    # `LiveMap.create()` and `LiveMap.create(None)` both leave the entries unset
+    entries = {} if value._entries is None else value._entries
+    if not isinstance(entries, dict):
+        raise AblyException('Map entries should be a dict', 400, 40003)  # RTLMV4a
+    for key in entries:
+        validate_key(key)  # RTLMV4b
+    # RTLMV4c
+    data: dict[str, ObjectData | None] = {
+        key: None if isinstance(entry, (LiveCounter, LiveMap)) else primitive_to_object_data(entry)
+        for key, entry in entries.items()
+    }
+    return entries, data
+
+
+def _snapshot(value: Any) -> Any:
+    """A copy of a map entry's value that later changes to `value` do not reach (RTLMV3d).
+
+    A JSON object or array is copied through its JSON encoding, which evaluation applies to
+    it anyway (RTLMV4d3), and binary is copied to `bytes`. A value that does not encode is
+    kept as it is, as no validation is done at creation (RTLMV3c); evaluation rejects it.
+    """
+    if isinstance(value, bytearray):
+        return bytes(value)
+    if isinstance(value, (dict, list)):
+        try:
+            return json.loads(json.dumps(value, allow_nan=False))
+        except (TypeError, ValueError, RecursionError):
+            return value
+    return value
 
 
 def _finite_number(value: Any) -> float | None:

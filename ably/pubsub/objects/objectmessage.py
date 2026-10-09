@@ -22,21 +22,45 @@ Decoded values are what the rest of the package works with: `ObjectData.bytes` h
 Fields that are only ever held locally (`ObjectsMapEntry.tombstoned_at`, RTLM3a1, and
 the `derived_from` of the `*CreateWithObjectId` payloads, RTLMV4j5 and RTLCV4g5) are
 never encoded.
+
+A ProtocolMessage's `state` is decoded one `ObjectMessage` at a time: a message that fails
+to decode is logged and left out, and the others are decoded.
 """
 
 from __future__ import annotations
 
 import base64
+import builtins
 import json
+import logging
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any
+from typing import Any, TypeVar
+
+log = logging.getLogger(__name__)
 
 WIRE_FORMAT_JSON = 'json'
 WIRE_FORMAT_MSGPACK = 'msgpack'
 
+E = TypeVar('E', bound='_WireEnum')
 
-class ObjectOperationAction(IntEnum):
+
+class _WireEnum(IntEnum):
+    """An enumeration carried as its integer wire value, whose `UNKNOWN` member stands for a wire
+    value this library does not recognise."""
+
+    @classmethod
+    def from_wire(cls: type[E], value: Any) -> E:
+        """The member for a wire value, or `UNKNOWN` for one that is not recognised (OOP2a, OMP2a)."""
+        if isinstance(value, bool):
+            return cls.UNKNOWN
+        try:
+            return cls(value)
+        except ValueError:
+            return cls.UNKNOWN
+
+
+class ObjectOperationAction(_WireEnum):
     """OOP2: the operation an `ObjectOperation` describes, by its wire value.
 
     `UNKNOWN` stands for a wire value this library does not recognise (OOP2a). Such an
@@ -52,18 +76,8 @@ class ObjectOperationAction(IntEnum):
     OBJECT_DELETE = 5
     MAP_CLEAR = 6
 
-    @classmethod
-    def from_wire(cls, value: Any) -> ObjectOperationAction:
-        """The member for a wire value, or `UNKNOWN` for one that is not recognised (OOP2a)."""
-        if isinstance(value, bool):
-            return cls.UNKNOWN
-        try:
-            return cls(value)
-        except ValueError:
-            return cls.UNKNOWN
 
-
-class ObjectsMapSemantics(IntEnum):
+class ObjectsMapSemantics(_WireEnum):
     """OMP2: the conflict-resolution semantics of a map, by its wire value.
 
     `UNKNOWN` stands for a wire value this library does not recognise (OMP2a).
@@ -71,16 +85,6 @@ class ObjectsMapSemantics(IntEnum):
 
     UNKNOWN = -1
     LWW = 0
-
-    @classmethod
-    def from_wire(cls, value: Any) -> ObjectsMapSemantics:
-        """The member for a wire value, or `UNKNOWN` for one that is not recognised (OMP2a)."""
-        if isinstance(value, bool):
-            return cls.UNKNOWN
-        try:
-            return cls(value)
-        except ValueError:
-            return cls.UNKNOWN
 
 
 def _check_format(format: str) -> None:
@@ -131,7 +135,8 @@ class ObjectData:
     object_id: str | None = None  # OD2a
     encoding: str | None = None  # OD2b
     boolean: bool | None = None  # OD2c
-    bytes: bytes | None = None  # OD2d
+    # Spelled `builtins.bytes`, as the field's own name hides the builtin within the class
+    bytes: builtins.bytes | None = None  # OD2d
     number: float | None = None  # OD2e
     string: str | None = None  # OD2f
     json: dict | list | None = None  # OD2g
@@ -625,12 +630,26 @@ class ObjectMessage:
         """Decodes the `state` array of an OBJECT or OBJECT_SYNC ProtocolMessage.
 
         A message with no `id`, `connectionId` or `timestamp` takes them from the
-        ProtocolMessage that carried it (OM2a, OM2c, OM2e).
+        ProtocolMessage that carried it (OM2a, OM2c, OM2e). A message that fails to decode is
+        logged and left out, so that it costs neither the other messages nor the handling of
+        the ProtocolMessage itself, such as the sync cursor of an OBJECT_SYNC.
         """
+        channel = protocol_message.get('channel')
+        entries = protocol_message.get('state') or []
+        if not isinstance(entries, list):
+            log.error(f'ObjectMessage.from_protocol_message(): skipping a state that is not an array; '
+                      f'channel={channel}, state={entries!r}')
+            return []
+
         messages = []
         protocol_id = protocol_message.get('id')
-        for index, entry in enumerate(protocol_message.get('state') or []):
-            message = ObjectMessage.from_dict(entry, format)
+        for index, entry in enumerate(entries):
+            try:
+                message = ObjectMessage.from_dict(entry, format)
+            except Exception as e:
+                log.error(f'ObjectMessage.from_protocol_message(): skipping an object message that failed to '
+                          f'decode; index={index}, channel={channel}, error={e!r}')
+                continue
             if message.id is None and protocol_id is not None:
                 message.id = f'{protocol_id}:{index}'
             if message.connection_id is None:

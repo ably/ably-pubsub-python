@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Callable
 from ably.pubsub.objects.liveobject import LiveMapUpdate
 from ably.pubsub.objects.pathobject import PathObject, PathObjectSubscriptionEvent
 from ably.pubsub.objects.publicmessage import ObjectMessage
-from ably.pubsub.objects.subscription import Subscription
+from ably.pubsub.objects.subscription import Registry, Subscription
 
 if TYPE_CHECKING:
     from ably.pubsub.objects.liveobject import LiveObject, LiveObjectUpdate
@@ -25,7 +25,6 @@ class _PathSubscription:
         self.path = path
         self.listener = listener
         self.depth = depth
-        self.active = True
 
 
 class PathObjectSubscriptionRegister:
@@ -33,29 +32,23 @@ class PathObjectSubscriptionRegister:
 
     def __init__(self, realtime_object: RealtimeObject):
         self.realtime_object = realtime_object
-        self._subscriptions: list[_PathSubscription] = []
+        self._subscriptions: Registry[_PathSubscription] = Registry()
 
     def subscribe(self, path: list[str], listener: Callable[[PathObjectSubscriptionEvent], None],
                   depth: int | None = None) -> Subscription:
         """RTPO19f: registers `listener` for changes covered by `path` and `depth` (RTO24c1)."""
-        subscription = _PathSubscription(list(path), listener, depth)
-        self._subscriptions.append(subscription)
-
-        def deregister() -> None:
-            subscription.active = False
-            self._subscriptions = [entry for entry in self._subscriptions if entry is not subscription]
-
-        return Subscription(deregister)
+        return Subscription(self._subscriptions.register(_PathSubscription(list(path), listener, depth)))
 
     def dispatch(self, live_object: LiveObject, update: LiveObjectUpdate) -> None:
-        """RTO24b: calls each subscription covering a path to `live_object` once.
+        """RTO24b: calls each subscription once for each path to `live_object` that it covers.
 
         A listener that raises is logged and does not stop the others (RTO24b2c). A
-        subscription made during a dispatch is not called by it, and one removed during a
-        dispatch is not called again.
+        subscription made during a dispatch is not called by it, for any path, and one removed
+        during a dispatch is not called again.
         """
         if not self._subscriptions:
             return
+        registrations = self._subscriptions.snapshot()
 
         realtime_object = self.realtime_object
         root = realtime_object._objects_pool.root
@@ -67,9 +60,10 @@ class PathObjectSubscriptionRegister:
         for path_to_this in live_object.get_full_paths():  # RTO24b1, RTO24b2
             # RTO24b2a1, RTO24b2a2
             candidate_paths = [path_to_this, *([*path_to_this, key] for key in updated_keys)]
-            for subscription in list(self._subscriptions):
-                if not subscription.active:
+            for registration in registrations:
+                if not registration.active:
                     continue
+                subscription = registration.item
                 # RTO24b2b
                 event_path = next((candidate for candidate in candidate_paths
                                    if self.covers(subscription.path, subscription.depth, candidate)), None)

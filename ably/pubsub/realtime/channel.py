@@ -126,12 +126,21 @@ class RealtimeChannel(EventEmitter, Channel):
         AblyException
             If unable to attach channel
         """
+        await self._attach()
 
+    async def _attach(self) -> ChannelStateChange | None:
+        """The attach procedure `attach` runs, returning the state change it ended with, or None if
+        the channel was already ATTACHED.
+
+        Raises where `attach` does. An attach that ends in a state other than ATTACHED,
+        SUSPENDED or FAILED, such as DETACHED when the connection closes first, returns that
+        state change.
+        """
         log.info(f'RealtimeChannel.attach() called, channel = {self.name}')
 
         # RTL4a - if channel is attached do nothing
         if self.state == ChannelState.ATTACHED:
-            return
+            return None
 
         self.__error_reason = None
 
@@ -155,6 +164,7 @@ class RealtimeChannel(EventEmitter, Channel):
 
         if state_change.current in (ChannelState.SUSPENDED, ChannelState.FAILED):
             raise state_change.reason
+        return state_change
 
     def _attach_impl(self):
         log.debug("RealtimeChannel.attach_impl(): sending ATTACH protocol message")
@@ -183,7 +193,7 @@ class RealtimeChannel(EventEmitter, Channel):
         ------
         AblyException
             90001 if the channel is FAILED (RTL33c), or the error the implicit attach failed
-            with (RTL33b1)
+            with (RTL33b1): the reason for the state it ended in, else 90001
         """
         # RTL33a
         if self.state in (ChannelState.ATTACHED, ChannelState.SUSPENDED):
@@ -193,8 +203,14 @@ class RealtimeChannel(EventEmitter, Channel):
         if self.state == ChannelState.FAILED:
             raise AblyException(f"Channel operation failed as channel state is {self.state.value}", 400, 90001)
 
-        # RTL33b, RTL33b1
-        await self.attach()
+        # RTL33b
+        state_change = await self._attach()
+        if state_change is not None and state_change.current != ChannelState.ATTACHED:
+            # RTL33b1, RTL4d: the attach ended without the channel attaching, as when the connection
+            # closes or `detach` is called first
+            raise state_change.reason or AblyException(
+                f'Unable to attach channel; channel state = {state_change.current.value}, '
+                f'connection state = {self.__realtime.connection.state.value}', 400, 90001)
 
     # RTL5
     async def detach(self) -> None:
@@ -807,23 +823,17 @@ class RealtimeChannel(EventEmitter, Channel):
             except Exception as e:
                 log.error(f"Annotation processing error {e}. Skip annotations {annotation_data}")
         elif action == ProtocolMessageAction.OBJECT:
-            try:
-                object_messages = ObjectMessage.from_protocol_message(proto_msg, self.__object._wire_format)
-            except Exception as e:
-                log.error(f"Object message processing error {e}. Skip object messages {proto_msg.get('state')}")
-            else:
-                # RTL15b
-                if channel_serial:
-                    self.__channel_serial = channel_serial
-                self.__object._handle_object_messages(object_messages)  # RTO8
+            # RTL15b
+            if channel_serial:
+                self.__channel_serial = channel_serial
+            # An object message that fails to decode is logged and left out, and the rest are handled
+            object_messages = ObjectMessage.from_protocol_message(proto_msg, self.__object._wire_format)
+            self.__object._handle_object_messages(object_messages)  # RTO8
         elif action == ProtocolMessageAction.OBJECT_SYNC:
-            try:
-                object_messages = ObjectMessage.from_protocol_message(proto_msg, self.__object._wire_format)
-            except Exception as e:
-                log.error(f"Object sync processing error {e}. Skip object messages {proto_msg.get('state')}")
-            else:
-                # RTO5: the channelSerial of an OBJECT_SYNC carries the sync sequence and cursor (RTO5a1)
-                self.__object._handle_object_sync_messages(object_messages, channel_serial)
+            # RTO5: the channelSerial of an OBJECT_SYNC carries the sync sequence and cursor (RTO5a1),
+            # which are handled whichever of its object messages fail to decode
+            object_messages = ObjectMessage.from_protocol_message(proto_msg, self.__object._wire_format)
+            self.__object._handle_object_sync_messages(object_messages, channel_serial)
         elif action == ProtocolMessageAction.ERROR:
             error = AblyException.from_dict(proto_msg.get('error'))
             self._notify_state(ChannelState.FAILED, reason=error)
@@ -1085,7 +1095,9 @@ class Channels(HttpChannels):
         """
         if name not in self.__all:
             return
-        del self.__all[name]
+        channel = self.__all.pop(name)
+        # The released channel receives nothing more, so its objects stop their GC timer and their waits
+        channel.object._release()
 
     def _on_channel_message(self, msg: dict) -> None:
         channel_name = msg.get('channel')
@@ -1127,8 +1139,10 @@ class Channels(HttpChannels):
                 channel._notify_state(connection_to_channel_state[state], reason)
 
     def _on_connected(self) -> None:
+        connection_details = self.__ably.connection.connection_details
         for channel_name in self.__all:
             channel = self.__all[channel_name]
+            channel.object._on_connected(connection_details)  # RTO10b2
             if channel.state == ChannelState.ATTACHING or channel.state == ChannelState.DETACHING:
                 channel._check_pending_state()
             elif channel.state == ChannelState.SUSPENDED:

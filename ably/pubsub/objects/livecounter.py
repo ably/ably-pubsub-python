@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
-import math
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from ably.pubsub.objects.enums import ObjectsOperationSource
 from ably.pubsub.objects.liveobject import CounterUpdate, LiveCounterUpdate, LiveObject
 from ably.pubsub.objects.objectmessage import CounterInc, ObjectMessage, ObjectOperation, ObjectOperationAction
+from ably.pubsub.objects.valuetypes import validate_amount
 from ably.pubsub.util.clock import Clock
 from ably.pubsub.util.exceptions import AblyException
 
@@ -40,23 +40,17 @@ class InternalLiveCounter(LiveObject):
         Raises AblyException 40003 if `amount` is not a finite number (RTLC12e1); a bool
         is not a number.
         """
-        await self._publish_counter_inc(_validate_amount(amount))
+        await self._publish_counter_inc(validate_amount(amount))
 
     async def decrement(self, amount: float) -> None:
         """RTLC13: `increment` by `-amount`, after the same validation (RTLC13c)."""
-        await self._publish_counter_inc(-_validate_amount(amount))  # RTLC13b, RTLC13c
+        await self._publish_counter_inc(-validate_amount(amount))  # RTLC13b, RTLC13c
 
     async def _publish_counter_inc(self, number: float) -> None:
         realtime_object = self.realtime_object
         if realtime_object is None:
             raise AblyException('Unable to increment a counter that is not on a channel', 400, 40000)
-
-        object_message = ObjectMessage(operation=ObjectOperation(
-            action=ObjectOperationAction.COUNTER_INC,  # RTLC12e2
-            object_id=self.object_id,  # RTLC12e3
-            counter_inc=CounterInc(number=number),  # RTLC12e5
-        ))
-        await realtime_object._publish_and_apply([object_message])  # RTLC12g
+        await realtime_object._publish_and_apply([counter_inc_message(self.object_id, number)])  # RTLC12g
 
     def apply_operation(self, object_message: ObjectMessage, source: ObjectsOperationSource) -> bool:
         """RTLC7: applies `object_message.operation`, returning whether it was applied (RTLC7g).
@@ -169,16 +163,11 @@ class InternalLiveCounter(LiveObject):
         return LiveCounterUpdate(update=CounterUpdate(amount=amount))
 
 
-def _validate_amount(amount: Any) -> float:
-    """RTLC12e1: `amount` as a float, raising AblyException 40003 unless it is a finite number.
-
-    A bool is not a number, and None is not an omitted amount.
-    """
-    if not isinstance(amount, bool) and isinstance(amount, (int, float)):
-        try:
-            number = float(amount)
-        except OverflowError:
-            number = math.inf
-        if math.isfinite(number):
-            return number
-    raise AblyException('Counter value increment should be a valid number', 400, 40003)
+def counter_inc_message(object_id: str, number: float) -> ObjectMessage:
+    """RTLC12e: the COUNTER_INC of the counter `object_id` by `number`, a validated amount
+    (`validate_amount`)."""
+    return ObjectMessage(operation=ObjectOperation(
+        action=ObjectOperationAction.COUNTER_INC,  # RTLC12e2
+        object_id=object_id,  # RTLC12e3
+        counter_inc=CounterInc(number=number),  # RTLC12e5
+    ))

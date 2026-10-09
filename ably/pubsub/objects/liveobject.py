@@ -8,13 +8,13 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
 from ably.pubsub.objects.defaults import ROOT_OBJECT_ID
-from ably.pubsub.objects.subscription import Subscription
+from ably.pubsub.objects.objectmessage import ObjectMessage
+from ably.pubsub.objects.subscription import Registry, Subscription
 from ably.pubsub.util.clock import Clock
 
 if TYPE_CHECKING:
     from ably.pubsub.objects.enums import ObjectsOperationSource
     from ably.pubsub.objects.livemap import InternalLiveMap
-    from ably.pubsub.objects.objectmessage import ObjectMessage
     from ably.pubsub.objects.objectspool import ObjectsPool
     from ably.pubsub.objects.realtimeobject import RealtimeObject
 
@@ -85,9 +85,7 @@ class LiveObject(ABC):
         self.pool: ObjectsPool | None = pool
         self.data: Any = None
         self._clock: Clock | None = clock
-        # (token, listener) for each subscribe call, so that one registration can be removed
-        # even when the same listener is registered more than once
-        self._listeners: list[tuple[object, Callable[[LiveObjectUpdate], None]]] = []
+        self._listeners: Registry[Callable[[LiveObjectUpdate], None]] = Registry()
 
     @property
     def clock(self) -> Clock:
@@ -108,13 +106,7 @@ class LiveObject(ABC):
 
         Listeners are called synchronously from `notify_updated`, in registration order.
         """
-        token = object()
-        self._listeners.append((token, listener))
-
-        def deregister() -> None:
-            self._listeners = [entry for entry in self._listeners if entry[0] is not token]
-
-        return Subscription(deregister)
+        return Subscription(self._listeners.register(listener))
 
     def notify_updated(self, update: LiveObjectUpdate) -> None:
         """RTLO4b4c: emits `update`.
@@ -123,14 +115,17 @@ class LiveObject(ABC):
         no-op stops here (RTLO4b4c1). Otherwise the `subscribe` listeners are called
         (RTLO4b4c3a), path subscriptions are dispatched through the `RealtimeObject`, if
         there is one (RTLO4b4c3b), and a tombstone update then deregisters the `subscribe`
-        listeners (RTLO4b4c3c).
+        listeners (RTLO4b4c3c). A listener registered during the dispatch is not called by it,
+        and one deregistered during it is not called again.
         """
         if update.noop:
             return
 
-        for _, listener in list(self._listeners):
+        for registration in self._listeners.snapshot():
+            if not registration.active:
+                continue
             try:
-                listener(update)
+                registration.item(update)
             except Exception:
                 log.exception(f'LiveObject.notify_updated(): a subscription listener raised; '
                               f'object_id={self.object_id}')
@@ -140,7 +135,7 @@ class LiveObject(ABC):
             realtime_object._path_object_subscription_register.dispatch(self, update)
 
         if update.tombstone:
-            self._listeners = []
+            self._listeners.clear()
 
     def can_apply_operation(self, object_message: ObjectMessage) -> bool:
         """RTLO4a: whether `object_message`'s serial is newer than this object's for its site."""

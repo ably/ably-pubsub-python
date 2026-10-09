@@ -36,6 +36,7 @@ from test.uts.objects.helpers.standard_test_pool import (
     remote_serial,
     setup_synced_channel,
     standard_mock_websocket,
+    time_mock_http,
 )
 
 MAP_CREATE = ObjectOperationAction.MAP_CREATE
@@ -215,24 +216,23 @@ async def test_rtpo20g_exception_in_the_block_publishes_nothing():
     _assert_error(excinfo, 40000)
 
 
-async def test_rtbc16d_invalid_value_inside_a_value_type_publishes_nothing():
-    """RTBC16d, RTLMV4c: a `LiveMap` value is evaluated when the batch is flushed, so an
-    unsupported value inside one raises from the end of the block, and nothing in the batch
-    is published."""
-    (client, channel, root, mock_ws), published = await _synced()
+async def test_rtbc12_invalid_value_inside_a_value_type_raises_at_the_call():
+    """RTBC12, RTLMV4c: a `LiveMap` value is evaluated when the batch is flushed, but its
+    contents are validated when it is set, so an unsupported value inside one raises from the
+    `set` call, before the server time is fetched, and queues nothing; the batch's other writes
+    are published."""
+    mock_http = time_mock_http()
+    (client, channel, root, mock_ws), published = await _synced(mock_http=mock_http)
 
-    with pytest.raises(AblyException) as excinfo:
-        async with root.batch() as ctx:
-            ctx.set('name', 'Bob')
+    async with root.batch() as ctx:
+        with pytest.raises(AblyException) as excinfo:
             ctx.set('team', LiveMap.create({'lead': object()}))
+        ctx.set('name', 'Bob')
 
     _assert_error(excinfo, 40013)
-    assert published == []
-    assert root.get('name').as_primitive().value() == 'Alice'
-
-    with pytest.raises(AblyException) as closed:
-        ctx.keys()
-    _assert_error(closed, 40000)
+    assert len(published) == 1
+    assert _operations(published[0]) == [_map_set('root', 'name', {'string': 'Bob'})]
+    assert [request for request in mock_http.captured_requests if request.path == '/time'] == []
 
 
 async def test_rtpo20f_batch_checks_preconditions_again_before_publishing():

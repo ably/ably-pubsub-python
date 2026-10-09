@@ -261,7 +261,7 @@ class LiveMapInstance(Instance):
 
         Entering checks the write preconditions (RTINS17b).
         """
-        # Imported here, as the batch module builds on this one
+        # Imported here, as the batch module builds on the views
         from ably.pubsub.objects.batch import Batch, LiveMapBatchContext
 
         return Batch(self._realtime_object, lambda: self._value, LiveMapBatchContext, f'object {self.id!r}')
@@ -322,7 +322,7 @@ class LiveCounterInstance(Instance):
 
         Entering checks the write preconditions (RTINS17b).
         """
-        # Imported here, as the batch module builds on this one
+        # Imported here, as the batch module builds on the views
         from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext
 
         return Batch(self._realtime_object, lambda: self._value, LiveCounterBatchContext, f'object {self.id!r}')

@@ -2724,9 +2724,9 @@ mock-backed client; no new kind of warning appears.
 The GC timer is scheduled on the first ATTACHED of every channel, whether or not it uses
 objects (RTO10a; ably-js does the same whenever the plugin is loaded), and cancelled on
 DETACHED and FAILED, so a client's `close()` stops it. A non-objects test advancing a
-`FakeClock` by five minutes therefore runs one empty sweep. The one channel whose timer
-outlives it is one passed to `Channels.release()` while attached, because release does not
-detach — the RTS4a defect under *Failing Tests*. And a burst of creates on a channel that has
+`FakeClock` by five minutes therefore runs one empty sweep. `Channels.release()` stops it
+too, although release does not detach — the RTS4a defect under *Failing Tests*. And a burst
+of creates on a channel that has
 not yet read the server time each request `/time`, until the first answer persists the offset
 (RTO16a); wasteful, and not wrong.
 
@@ -3685,7 +3685,11 @@ No UTS specification covers batched writes (RTPO20, RTINS17, RTBC1–RTBC16, in 
 #491). Both are implemented, so both are tested, in `test/unit/objects/`: `batch_test.py`, 29
 functions run as 76 cases, and `typed_views_test.py`, 17 functions run as 61. They are written
 against `objects-features.md`, the two pull requests and LODR-061, carry no `# UTS:` comment,
-and are not counted in the header. They drive the standard synced pool over the mock
+and are not counted in the header. Beside them, `realtime_object_test.py`,
+`subscription_test.py` and `value_types_test.py` (17 functions, 18 cases) hold regression
+tests for behaviour no specification test reaches: a sync wait on a channel that is already
+detached, failed or released, an object message that fails to decode, a GC sweep that raises,
+and the validation of a creation value before the server time is read. They drive the standard synced pool over the mock
 websocket with this tier's helpers, and their own `conftest.py` closes clients as
 `test/uts/conftest.py` does. Single-point mutants of the implementation checked that they
 bite: they kill 15 of 16 in the batch code — the survivor removes a check another layer

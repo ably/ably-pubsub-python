@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import logging
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from ably.pubsub.objects.defaults import GC_GRACE_PERIOD_MS, GC_INTERVAL_MS, ROOT_OBJECT_ID
 from ably.pubsub.objects.enums import ObjectsEvent, ObjectsOperationSource, ObjectsSyncState
@@ -21,7 +21,7 @@ from ably.pubsub.objects.objectmessage import (
 from ably.pubsub.objects.objectspool import ObjectsPool
 from ably.pubsub.objects.pathobject import LiveMapPathObject
 from ably.pubsub.objects.pathobjectsubscriptionregister import PathObjectSubscriptionRegister
-from ably.pubsub.objects.subscription import StatusSubscription
+from ably.pubsub.objects.subscription import Registry, StatusSubscription
 from ably.pubsub.objects.syncobjectspool import SyncObjectsPool
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.channelmode import ChannelMode
@@ -32,6 +32,7 @@ from ably.pubsub.util.exceptions import AblyException
 if TYPE_CHECKING:
     from ably.pubsub.objects.objectmessage import ObjectMessage
     from ably.pubsub.realtime.channel import RealtimeChannel
+    from ably.pubsub.types.connectiondetails import ConnectionDetails
     from ably.pubsub.types.operations import PublishResult
     from ably.pubsub.util.helper import Timer
 
@@ -57,7 +58,8 @@ _SYNC_STATE_EVENTS = {
 # RTO23c1, RTO20e1: the channel states that fail a wait for SYNCED
 _SYNC_WAIT_FAILURE_STATES = frozenset((ChannelState.DETACHED, ChannelState.SUSPENDED, ChannelState.FAILED))
 
-# RTO27a: the channel states after which the objects' data can no longer be known
+# RTO27a: the channel states after which the objects' data can no longer be known. The channel
+# leaves them only by attaching again, so a wait for SYNCED begun in one of them fails at once.
 _DATA_CLEARING_STATES = frozenset((ChannelState.DETACHED, ChannelState.FAILED))
 
 
@@ -90,19 +92,21 @@ class RealtimeObject:
         self._buffered_object_operations: list[ObjectMessage] = []  # RTO7a, RTO7a1
         self._applied_on_ack_serials: set[str] = set()  # RTO7b, RTO7b1
         self._current_sync_id: str | None = None  # RTO5a1
-        self._current_sync_cursor: str | None = None  # RTO5a1
         self._path_object_subscription_register = PathObjectSubscriptionRegister(self)  # RTO24a
         self._gc_interval_ms: int = GC_INTERVAL_MS  # RTO10a, read each time the GC timer is scheduled
         self._gc_timer: Timer | None = None
-        self._last_gc_grace_period_ms: int = GC_GRACE_PERIOD_MS  # RTO10b
+        self._gc_grace_period_ms: int = GC_GRACE_PERIOD_MS  # RTO10b3, until a CONNECTED gives one
         self._server_time_offset_ms: float | None = None  # RTO16a
         # RTO23c, RTO20e: each pending wait for SYNCED, with the description its 92008 error gives
         self._sync_waiters: dict[asyncio.Future[None], str] = {}
-        # RTO18: (token, callback) for each `on` call, by event, so that a callback registered
-        # twice is called twice (RTO18d) and each StatusSubscription removes only its own
-        self._sync_state_listeners: dict[ObjectsEvent, list[tuple[object, Callable[[], None]]]] = {
-            event: [] for event in ObjectsEvent
+        # RTO18: the callbacks `on` registered, by event
+        self._sync_state_listeners: dict[ObjectsEvent, Registry[Callable[[], None]]] = {
+            event: Registry() for event in ObjectsEvent
         }
+        # Whether the channel has been released, after which it receives nothing more
+        self._released = False
+        if channel is not None:
+            self._on_connected(channel.ably.connection.connection_details)  # RTO10b1
 
     # Public API
 
@@ -111,8 +115,9 @@ class RealtimeObject:
 
         Requires the OBJECT_SUBSCRIBE mode (RTO23a, 40024), attaches the channel if it is not
         attached (RTO23e, RTL33), and waits for the sync state to reach SYNCED (RTO23c).
-        Raises AblyException 92008 if the channel enters DETACHED, SUSPENDED or FAILED while
-        waiting (RTO23c1), and 90001 if the channel is FAILED (RTL33c).
+        Raises AblyException 92008 if the channel is or enters DETACHED or FAILED, or enters
+        SUSPENDED, while waiting (RTO23c1), 90001 if the channel is FAILED (RTL33c), and the
+        attach's error if attaching fails (RTO23e).
         """
         self._throw_if_missing_channel_mode(ChannelMode.OBJECT_SUBSCRIBE)  # RTO23a
         if self._channel is not None:
@@ -126,23 +131,17 @@ class RealtimeObject:
     def on(self, event: ObjectsEvent, callback: Callable[[], None]) -> StatusSubscription:
         """RTO18: calls `callback`, with no arguments, whenever the sync state reaches `event`.
 
-        Registering one callback twice calls it twice (RTO18d).
+        Registering one callback twice calls it twice (RTO18d). Raises AblyException 40003 for
+        an `event` that is not an `ObjectsEvent`.
         """
-        event = ObjectsEvent(event)
-        token = object()
-        self._sync_state_listeners[event].append((token, callback))  # RTO18c
-
-        def deregister() -> None:
-            self._sync_state_listeners[event] = [
-                entry for entry in self._sync_state_listeners[event] if entry[0] is not token]
-
-        return StatusSubscription(deregister)  # RTO18f
+        return StatusSubscription(self._sync_state_listeners[_objects_event(event)].register(callback))  # RTO18c
 
     def off(self, event: ObjectsEvent, callback: Callable[[], None]) -> None:
-        """RTO19: deregisters `callback` from `event`, however many times it was registered."""
-        event = ObjectsEvent(event)
-        self._sync_state_listeners[event] = [
-            entry for entry in self._sync_state_listeners[event] if entry[1] != callback]
+        """RTO19: deregisters `callback` from `event`, however many times it was registered.
+
+        Raises AblyException 40003 for an `event` that is not an `ObjectsEvent`.
+        """
+        self._sync_state_listeners[_objects_event(event)].deregister(callback)
 
     # Internal API: inbound protocol messages and channel state
 
@@ -159,7 +158,8 @@ class RealtimeObject:
         return WIRE_FORMAT_JSON
 
     def _on_attached(self, has_objects: bool) -> None:
-        """RTO4: handles an ATTACHED ProtocolMessage, whatever the channel's state was.
+        """RTO4: handles an ATTACHED ProtocolMessage the channel received while ATTACHING or
+        ATTACHED; the channel ignores one received in any other state.
 
         `has_objects` is the HAS_OBJECTS flag. Starts the GC timer if it is not running
         and there is a channel (RTO10).
@@ -190,6 +190,27 @@ class RealtimeObject:
 
         self._schedule_gc_timer()  # RTO10a
 
+    def _on_connected(self, connection_details: ConnectionDetails | None) -> None:
+        """RTO10b2: takes the GC grace period from the ConnectionDetails of a CONNECTED.
+
+        With no details, as before the first CONNECTED, the grace period is left as it is.
+        """
+        if connection_details is None:
+            return
+        grace_period_ms = connection_details.objects_gc_grace_period
+        # RTO10b1, RTO10b3
+        self._gc_grace_period_ms = grace_period_ms if grace_period_ms is not None else GC_GRACE_PERIOD_MS
+
+    def _release(self) -> None:
+        """Stops this RealtimeObject when its channel is released (RTS4).
+
+        A released channel receives nothing more, so the GC timer stops for good, and every
+        wait for SYNCED, pending or later, fails with 92008.
+        """
+        self._released = True
+        self._cancel_gc_timer()
+        self._fail_sync_waiters('the channel being released', self._channel_error_reason)
+
     def _handle_object_sync_messages(self, object_messages: list[ObjectMessage],
                                      sync_channel_serial: str | None) -> None:
         """RTO5: handles the decoded `state` of an OBJECT_SYNC ProtocolMessage."""
@@ -200,7 +221,6 @@ class RealtimeObject:
         # whole sync of its own (RTO5a5), so it too discards anything accumulated before it.
         if sync_id is None or sync_id != self._current_sync_id:
             self._start_sync_sequence(sync_id)
-        self._current_sync_cursor = sync_cursor
 
         self._sync_objects_pool.apply_object_sync_messages(object_messages)  # RTO5f
 
@@ -217,37 +237,50 @@ class RealtimeObject:
 
     def _apply_object_messages(self, object_messages: list[ObjectMessage],
                                source: ObjectsOperationSource) -> None:
-        """RTO9: applies operations to the pool, recording LOCAL serials in `_applied_on_ack_serials`."""
+        """RTO9: applies operations to the pool, recording LOCAL serials in `_applied_on_ack_serials`.
+
+        An operation that raises as it is applied is logged and skipped, and the rest are
+        applied.
+        """
         for object_message in object_messages:
-            operation = object_message.operation
-            if operation is None:
-                # RTO9a1
-                log.warning(f'RealtimeObject._apply_object_messages(): skipping an object message with no '
-                            f'operation; message id={object_message.id}, channel={self._channel_name}')
-                continue
+            try:
+                self._apply_object_message(object_message, source)
+            except Exception:
+                log.exception(f'RealtimeObject._apply_object_messages(): skipping an object message that '
+                              f'could not be applied; message id={object_message.id}, '
+                              f'channel={self._channel_name}')
 
-            serial = object_message.serial
-            if serial is not None and serial in self._applied_on_ack_serials:
-                # RTO9a3
-                log.debug(f'RealtimeObject._apply_object_messages(): skipping an operation already applied '
-                          f'on ACK; serial={serial}, channel={self._channel_name}')
-                self._applied_on_ack_serials.discard(serial)
-                continue
+    def _apply_object_message(self, object_message: ObjectMessage, source: ObjectsOperationSource) -> None:
+        """RTO9a: applies one operation to the pool."""
+        operation = object_message.operation
+        if operation is None:
+            # RTO9a1
+            log.warning(f'RealtimeObject._apply_object_message(): skipping an object message with no '
+                        f'operation; message id={object_message.id}, channel={self._channel_name}')
+            return
 
-            if operation.action not in _SUPPORTED_ACTIONS:
-                # RTO9a2b
-                log.warning(f'RealtimeObject._apply_object_messages(): skipping an object message with an '
-                            f'unsupported action; action={operation.action!r}, '
-                            f'message id={object_message.id}, channel={self._channel_name}')
-                continue
+        serial = object_message.serial
+        if serial is not None and serial in self._applied_on_ack_serials:
+            # RTO9a3
+            log.debug(f'RealtimeObject._apply_object_message(): skipping an operation already applied '
+                      f'on ACK; serial={serial}, channel={self._channel_name}')
+            self._applied_on_ack_serials.discard(serial)
+            return
 
-            # RTO9a2a1, RTO9a2a2
-            live_object = self._objects_pool.create_zero_value_object_if_not_exists(operation.object_id)
-            if live_object is None:
-                continue
-            applied = live_object.apply_operation(object_message, source)  # RTO9a2a3
-            if source == ObjectsOperationSource.LOCAL and applied:
-                self._applied_on_ack_serials.add(serial)  # RTO9a2a4
+        if operation.action not in _SUPPORTED_ACTIONS:
+            # RTO9a2b
+            log.warning(f'RealtimeObject._apply_object_message(): skipping an object message with an '
+                        f'unsupported action; action={operation.action!r}, '
+                        f'message id={object_message.id}, channel={self._channel_name}')
+            return
+
+        # RTO9a2a1, RTO9a2a2
+        live_object = self._objects_pool.create_zero_value_object_if_not_exists(operation.object_id)
+        if live_object is None:
+            return
+        applied = live_object.apply_operation(object_message, source)  # RTO9a2a3
+        if source == ObjectsOperationSource.LOCAL and applied:
+            self._applied_on_ack_serials.add(serial)  # RTO9a2a4
 
     def _act_on_channel_state(self, state: ChannelState, reason: AblyException | None = None) -> None:
         """RTO27: handles the channel entering `state`, for every state but ATTACHED.
@@ -259,7 +292,8 @@ class RealtimeObject:
         next ATTACHED starts again.
         """
         if state in _SYNC_WAIT_FAILURE_STATES:
-            self._fail_sync_waiters(state, reason)
+            cause = reason if reason is not None else self._channel_error_reason
+            self._fail_sync_waiters(_entering(state), cause)
 
         if state in _DATA_CLEARING_STATES:
             self._objects_pool.clear_all_data()  # RTO27a1
@@ -278,9 +312,11 @@ class RealtimeObject:
         event = _SYNC_STATE_EVENTS.get(state)
         if event is None:
             return
-        for _, callback in list(self._sync_state_listeners[event]):
+        for registration in self._sync_state_listeners[event].snapshot():
+            if not registration.active:
+                continue
             try:
-                callback()  # RTO18e
+                registration.item()  # RTO18e
             except Exception:
                 log.exception(f'RealtimeObject._set_sync_state(): a {event.value} listener raised; '
                               f'channel={self._channel_name}')
@@ -306,10 +342,13 @@ class RealtimeObject:
         """RTO5a2: discards whatever an earlier sync sequence accumulated and starts `sync_id`."""
         self._sync_objects_pool.clear()  # RTO5a2a
         self._current_sync_id = sync_id
-        self._current_sync_cursor = None
 
     def _complete_sync(self) -> None:
-        """RTO5c: applies the objects the sync sequence delivered, then the operations buffered meanwhile."""
+        """RTO5c: applies the objects the sync sequence delivered, then the operations buffered meanwhile.
+
+        An object whose state raises as it is applied is logged and left as the error left it,
+        so that the sync still completes.
+        """
         pool = self._objects_pool
         received_object_ids: set[str] = set()
         updates: list[tuple[LiveObject, LiveObjectUpdate]] = []
@@ -317,22 +356,15 @@ class RealtimeObject:
         # RTO5c1
         for object_id, object_message in self._sync_objects_pool.entries.items():
             received_object_ids.add(object_id)
-            existing = pool.get(object_id)
-            if existing is not None:
-                # RTO5c1a1, RTO5c1a2
-                updates.append((existing, existing.replace_data(object_message)))
+            try:
+                replaced = self._replace_object_state(object_id, object_message)
+            except Exception:
+                log.exception(f'RealtimeObject._complete_sync(): skipping an object state that could not be '
+                              f'applied; object_id={object_id}, message id={object_message.id}, '
+                              f'channel={self._channel_name}')
                 continue
-
-            # RTO5c1b1
-            object_state = object_message.object
-            if object_state.counter is not None:
-                live_object: LiveObject = InternalLiveCounter(object_id)  # RTO5c1b1a
-            else:
-                semantics = object_state.map.semantics
-                live_object = InternalLiveMap(
-                    object_id, semantics if semantics is not None else ObjectsMapSemantics.LWW)  # RTO5c1b1b
-            pool[object_id] = live_object
-            live_object.replace_data(object_message)
+            if replaced is not None:
+                updates.append(replaced)
 
         # RTO5c2, RTO5c2a
         for object_id in list(pool):
@@ -348,11 +380,33 @@ class RealtimeObject:
         self._apply_object_messages(self._buffered_object_operations, ObjectsOperationSource.CHANNEL)  # RTO5c6
 
         self._current_sync_id = None  # RTO5c3
-        self._current_sync_cursor = None  # RTO5c3
         self._sync_objects_pool.clear()  # RTO5c4
         self._buffered_object_operations = []  # RTO5c5
         self._applied_on_ack_serials.clear()  # RTO5c9
         self._set_sync_state(ObjectsSyncState.SYNCED)  # RTO5c8
+
+    def _replace_object_state(self, object_id: str,
+                              object_message: ObjectMessage) -> tuple[LiveObject, LiveObjectUpdate] | None:
+        """RTO5c1: applies one synced object state to the pool.
+
+        Returns the object and its update when it replaced an existing object's data, whose
+        update RTO5c7 emits, and None when it created the object.
+        """
+        existing = self._objects_pool.get(object_id)
+        if existing is not None:
+            return existing, existing.replace_data(object_message)  # RTO5c1a1, RTO5c1a2
+
+        # RTO5c1b1
+        object_state = object_message.object
+        if object_state.counter is not None:
+            live_object: LiveObject = InternalLiveCounter(object_id)  # RTO5c1b1a
+        else:
+            semantics = object_state.map.semantics
+            live_object = InternalLiveMap(
+                object_id, semantics if semantics is not None else ObjectsMapSemantics.LWW)  # RTO5c1b1b
+        self._objects_pool[object_id] = live_object
+        live_object.replace_data(object_message)
+        return None
 
     # Internal API: waiting for SYNCED
 
@@ -360,8 +414,19 @@ class RealtimeObject:
         """RTO23c, RTO20e: waits for the sync state to reach SYNCED.
 
         Raises AblyException 92008, whose message starts with `failure_description`, if the
-        channel enters DETACHED, SUSPENDED or FAILED first (RTO23c1, RTO20e1).
+        channel enters DETACHED, SUSPENDED or FAILED first (RTO23c1, RTO20e1). A channel
+        already DETACHED or FAILED, or released, can never sync without attaching again, so
+        the wait then fails at once.
         """
+        if self._released:
+            raise _sync_wait_failure(failure_description, 'the channel being released',
+                                     self._channel_error_reason)
+        channel = self._channel
+        if channel is not None and channel.state in _DATA_CLEARING_STATES:
+            # The channel left ATTACHED before the wait began, as when an ATTACHED or an ACK and a
+            # channel ERROR are read together
+            raise _sync_wait_failure(failure_description, _entering(channel.state), channel.error_reason)
+
         future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
         self._sync_waiters[future] = failure_description
         try:
@@ -375,17 +440,16 @@ class RealtimeObject:
             if not future.done():
                 future.set_result(None)
 
-    def _fail_sync_waiters(self, state: ChannelState, reason: AblyException | None) -> None:
-        """RTO23c1, RTO20e1: fails every wait for SYNCED with 92008, caused by the channel's error."""
+    def _fail_sync_waiters(self, reason: str, cause: AblyException | None) -> None:
+        """RTO23c1, RTO20e1: fails every wait for SYNCED with 92008, `reason` saying why."""
         waiters, self._sync_waiters = self._sync_waiters, {}
-        cause = reason
-        if cause is None and self._channel is not None:
-            cause = self._channel.error_reason
         for future, failure_description in waiters.items():
             if not future.done():
-                future.set_exception(AblyException(
-                    f'{failure_description} due to the channel entering the {state.value} state '
-                    f'whilst waiting for objects sync to complete', 400, 92008, cause=cause))
+                future.set_exception(_sync_wait_failure(failure_description, reason, cause))
+
+    @property
+    def _channel_error_reason(self) -> AblyException | None:
+        return self._channel.error_reason if self._channel is not None else None
 
     # Internal API: publishing
 
@@ -415,9 +479,11 @@ class RealtimeObject:
         """RTO20: publishes `object_messages`, then applies them locally with the serials the ACK
         assigned, as LOCAL operations, once synced.
 
-        Raises the publish's error (RTO20b), and AblyException 92008 if the channel enters
-        DETACHED, SUSPENDED or FAILED while waiting for SYNCED (RTO20e1). An operation that
-        cannot be applied locally is left for its echo to apply (RTO20c, RTO20d1).
+        Raises the publish's error (RTO20b), and AblyException 92008 if the channel is or
+        enters DETACHED or FAILED, or enters SUSPENDED, while waiting for SYNCED (RTO20e1). An
+        operation that cannot be applied locally is left for its echo to apply (RTO20c,
+        RTO20d1), and nothing is applied once the channel is DETACHED or FAILED, as its
+        objects' data has been cleared (RTO27a).
         """
         publish_result = await self._publish(object_messages)  # RTO20b
 
@@ -455,6 +521,12 @@ class RealtimeObject:
         if self._sync_state != ObjectsSyncState.SYNCED:
             # RTO20e, RTO20e1
             await self._wait_for_synced('The operation could not be applied locally')
+
+        if self._channel.state in _DATA_CLEARING_STATES:
+            # The channel left ATTACHED after the ACK, and before this resumed
+            log.debug(f'RealtimeObject._publish_and_apply(): the operations will not be applied locally, as '
+                      f'the channel is {self._channel.state.value}; channel={self._channel_name}')
+            return
 
         self._apply_object_messages(synthetic_messages, ObjectsOperationSource.LOCAL)  # RTO20f
 
@@ -525,25 +597,13 @@ class RealtimeObject:
 
     # Internal API: garbage collection
 
-    @property
-    def _gc_grace_period_ms(self) -> int:
-        """RTO10b: `ConnectionDetails.objects_gc_grace_period` from the latest CONNECTED, or the default."""
-        connection_details = None
-        if self._channel is not None:
-            connection_details = self._channel.ably.connection.connection_details
-        if connection_details is not None:
-            # RTO10b1, RTO10b2, RTO10b3
-            grace_period_ms = connection_details.objects_gc_grace_period
-            self._last_gc_grace_period_ms = grace_period_ms if grace_period_ms is not None else GC_GRACE_PERIOD_MS
-        return self._last_gc_grace_period_ms
-
     def _schedule_gc_timer(self) -> None:
         """RTO10a: schedules `_on_gc_interval` on the clock, `_gc_interval_ms` from now, if there is a
-        channel and no sweep is scheduled already.
+        channel, it has not been released, and no sweep is scheduled already.
 
         A `RealtimeObject` with no channel schedules nothing.
         """
-        if self._channel is None or self._gc_timer is not None:
+        if self._channel is None or self._released or self._gc_timer is not None:
             return
         self._gc_timer = self._clock.timer(self._gc_interval_ms, self._on_gc_interval)
 
@@ -553,9 +613,33 @@ class RealtimeObject:
             self._gc_timer = None
 
     def _on_gc_interval(self) -> None:
-        """RTO10c: releases what has been tombstoned for the grace period, and reschedules itself."""
+        """RTO10c: releases what has been tombstoned for the grace period, and reschedules itself.
+
+        A sweep that raises is logged, and the next one is scheduled all the same.
+        """
         self._gc_timer = None
         try:
             self._objects_pool.collect_garbage(self._gc_grace_period_ms, self._clock.now_ms())
-        finally:
-            self._schedule_gc_timer()
+        except Exception:
+            log.exception(f'RealtimeObject._on_gc_interval(): the GC sweep raised; channel={self._channel_name}')
+        self._schedule_gc_timer()
+
+
+def _objects_event(event: Any) -> ObjectsEvent:
+    """`event` as an `ObjectsEvent`, raising AblyException 40003 if it is not one."""
+    try:
+        return ObjectsEvent(event)
+    except ValueError:
+        events = ', '.join(repr(member.value) for member in ObjectsEvent)
+        raise AblyException(f'Objects event should be one of {events}; got {event!r}', 400, 40003) from None
+
+
+def _entering(state: ChannelState) -> str:
+    """Why a wait for SYNCED fails, when the channel enters `state`."""
+    return f'the channel entering the {state.value} state'
+
+
+def _sync_wait_failure(failure_description: str, reason: str, cause: AblyException | None) -> AblyException:
+    """RTO23c1, RTO20e1: the 92008 error a wait for SYNCED fails with, `reason` saying why."""
+    return AblyException(f'{failure_description} due to {reason} whilst waiting for objects sync to complete',
+                         400, 92008, cause=cause)
