@@ -266,10 +266,14 @@ class WebSocketTransport(EventEmitter):
         if self.idle_timer:
             self.idle_timer.cancel()
 
-        # Schedule cleanup of cancelled tasks in the background to avoid blocking dispose()
-        # This prevents deadlock when dispose() is called from within these tasks
+        # Await the cancelled tasks so none is left unfinalized when dispose() returns. When
+        # dispose() runs inside one of them, awaiting it would deadlock, so that case is
+        # cleaned up in the background instead.
         if tasks_to_await:
-            asyncio.create_task(self._cleanup_tasks(tasks_to_await))
+            if asyncio.current_task() in tasks_to_await:
+                asyncio.create_task(self._cleanup_tasks(tasks_to_await))
+            else:
+                await self._cleanup_tasks(tasks_to_await)
 
         if self.websocket:
             try:
@@ -279,11 +283,9 @@ class WebSocketTransport(EventEmitter):
 
     async def _cleanup_tasks(self, tasks):
         """Wait for cancelled tasks to complete their cleanup."""
-        for task in tasks:
-            try:
-                await task
-            except Exception:
-                pass  # Ignore all exceptions from cancelled/failed tasks
+        # return_exceptions ignores what the cancelled or failed tasks raise, but still lets
+        # this coroutine be cancelled itself
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     async def close(self):
         await self.send({'action': ProtocolMessageAction.CLOSE})
