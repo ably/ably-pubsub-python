@@ -1015,16 +1015,33 @@ class Channels(HttpChannels):
         """Releases a RealtimeChannel object, deleting it, and enabling it to be garbage collected
 
         It also removes any listeners associated with the channel.
-        To release a channel, the channel state must be INITIALIZED, DETACHED, or FAILED.
-
+        A realtime channel can only be released when it is in the INITIALIZED, DETACHED, or FAILED state.
 
         Parameters
         ----------
         name: str
             Channel name
+
+        Raises
+        ------
+        AblyException
+            With code 90011 if the channel is in any other state. Await channel.detach() before
+            calling release().
         """
+        # RTS4c
         if name not in self.__all:
             return
+        channel = self.__all[name]
+        # RTS4e
+        if channel.state not in (ChannelState.INITIALIZED, ChannelState.DETACHED, ChannelState.FAILED):
+            raise AblyException(
+                'Can only release a channel in a state where there is no possibility of further updates '
+                'from the server being received (initialized, detached, or failed). The current state is '
+                f'{channel.state.value}',
+                400,
+                90011,
+            )
+        # RTS4d
         del self.__all[name]
 
     def _on_channel_message(self, msg: dict) -> None:
