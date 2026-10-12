@@ -5,6 +5,7 @@ from ably.rest.auth import Auth
 from ably.rest.push import Push
 from ably.rest.rest import AblyRest
 from ably.types.annotation import Annotation, AnnotationAction
+from ably.types.apnsbroadcast import PushApnsBroadcast
 from ably.types.capability import Capability
 from ably.types.channelmode import ChannelMode
 from ably.types.channeloptions import ChannelOptions
