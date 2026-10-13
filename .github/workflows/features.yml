@@ -6,6 +6,12 @@ on:
     branches:
       - main
 
+# One run per pull request; a new event supersedes the one in flight.
+# Pushes to main and manual runs group by ref and always run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions: {}
 
 jobs:
