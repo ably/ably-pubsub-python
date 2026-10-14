@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from typing import Any, TypeVar, Union
+from typing import Any, Dict, List, TypeVar, Union
 
 from ably.pubsub.objects.objectid import generate_nonce, generate_object_id
 from ably.pubsub.objects.objectmessage import (
@@ -36,6 +36,10 @@ from ably.pubsub.util.exceptions import AblyException
 Primitive = Union[str, float, bool, bytes, list, dict]
 
 T = TypeVar('T', bound=Primitive)
+
+# A JSON value and a JSON object, as `compact_json` returns them (RTPO14, RTINS11)
+JsonValue = Union[str, float, bool, None, List['JsonValue'], Dict[str, 'JsonValue']]
+JsonObject = Dict[str, JsonValue]
 
 
 @dataclass(frozen=True)

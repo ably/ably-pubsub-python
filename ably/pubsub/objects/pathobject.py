@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Callable, overload
 
 from ably.pubsub.objects.instance import (
     Instance,
-    compact_value,
+    compact_json_value,
     expected_value_type,
     primitive_value,
     value_type_of,
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from ably.pubsub.objects.enums import ValueType
     from ably.pubsub.objects.realtimeobject import RealtimeObject
     from ably.pubsub.objects.subscription import Subscription
-    from ably.pubsub.objects.valuetypes import LiveMapValue, Primitive, T
+    from ably.pubsub.objects.valuetypes import JsonValue, LiveMapValue, Primitive, T
 
 
 @dataclass
@@ -112,21 +112,19 @@ class PathObject:
             return None  # RTPO8e
         return Instance._wrap(self._realtime_object, resolved)  # RTPO8c, RTPO8f
 
-    def compact(self) -> Any:
-        """RTPO13: a plain snapshot of what the path resolves to, or None."""
-        self._realtime_object._check_access_preconditions()  # RTPO13a
+    def compact_json(self) -> JsonValue:
+        """RTPO14: a JSON-serializable snapshot of what the path resolves to, or None.
+
+        A map is a JSON object of its entries that are not tombstoned, nested maps becoming
+        nested objects and counters their values. Binary is a base64 string, and a map
+        reached again in the same snapshot, through a cycle or a second reference, is
+        `{'objectId': id}`.
+        """
+        self._realtime_object._check_access_preconditions()  # RTPO14a
         resolved = self._resolve()  # RTPO13b
         if resolved is None:
             return None  # RTPO13f
-        return compact_value(resolved)  # RTPO13c, RTPO13d, RTPO13e
-
-    def compact_json(self) -> Any:
-        """RTPO14: `compact`, with binary as base64 and cycles as `{'objectId': ...}`."""
-        self._realtime_object._check_access_preconditions()  # RTPO14a
-        resolved = self._resolve()
-        if resolved is None:
-            return None
-        return compact_value(resolved, for_json=True)  # RTPO14b
+        return compact_json_value(resolved)  # RTPO14b
 
     def subscribe(self, listener: Callable[[PathObjectSubscriptionEvent], None], *,
                   depth: int | None = None) -> Subscription:
