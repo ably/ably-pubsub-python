@@ -45,7 +45,7 @@ from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
     from ably.pubsub.objects.realtimeobject import RealtimeObject
-    from ably.pubsub.objects.valuetypes import LiveMapValue, Primitive, T
+    from ably.pubsub.objects.valuetypes import JsonValue, LiveMapValue, Primitive, T
 
     # RTBC16b: builds the ObjectMessages of one queued write when the batch is flushed
     MessageConstructor = Callable[[], Awaitable[list[ObjectMessage]]]
@@ -200,13 +200,7 @@ class BatchContext:
             return None
         return self._root_context.wrap_instance(instance)  # RTBC4e
 
-    def compact(self) -> Any:
-        """RTBC10: `Instance.compact` on the wrapped instance."""
-        self._realtime_object._check_access_preconditions()  # RTBC10a
-        self._throw_if_closed()  # RTBC10b
-        return self._instance.compact()  # RTBC10c
-
-    def compact_json(self) -> Any:
+    def compact_json(self) -> JsonValue:
         """RTBC11: `Instance.compact_json` on the wrapped instance."""
         self._realtime_object._check_access_preconditions()  # RTBC11a
         self._throw_if_closed()  # RTBC11b

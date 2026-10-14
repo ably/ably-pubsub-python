@@ -7,13 +7,16 @@ RTPO11d, RTPO12, RTPO12a, RTPO12c, RTPO12d, RTPO13, RTPO13a, RTPO13c1, RTPO13c2,
 RTPO13c5, RTPO13d, RTPO14, RTPO14a, RTPO14b1, RTPO14b2, RTINS3b, RTINS4c, RTTS5d1
 
 The specification reads through the untyped `PathObject`, which carries every method. ably-python
-partitions it (LODR-061, RTTS3-RTTS6): navigation, `instance`, `compact` and `compact_json` are on the
-base `PathObject`, and the type-specific reads are reached through the unchecked view helpers, so
+partitions it (LODR-061, RTTS3-RTTS6): navigation, `instance` and `compact_json` are on the base
+`PathObject`, and the type-specific reads are reached through the unchecked view helpers, so
 `po.value()` on a counter is `po.as_live_counter().value()`, on a primitive `po.as_primitive().value()`,
 and `po.keys()` is `po.as_live_map().keys()`. A view whose type does not match what the path resolves
 to answers None, or `[]` for the collection reads (RTTS5d1), which is what the specification's
 null and empty-array expectations become. Where the specification expects the untyped `value()` to
 be null, neither value view may answer, so both are asserted.
+
+The snapshot is `compact_json()` alone (RTTS3f), so the RTPO13 tests take it there and assert its
+form where the two differ: binary as base64, and a map reached again as its object id (S-6).
 
 Every test opens with the standard synced channel; the module issues no writes, so no ACK is involved.
 """
@@ -274,14 +277,15 @@ async def test_rtpo12c_size_non_map_null():
 async def test_rtpo13_compact_recursive():
     client, channel, root, mock_ws = await setup_synced_channel('test')
 
-    result = root.compact()
+    result = root.compact_json()
 
     assert result['name'] == 'Alice'
     assert result['age'] == 30
     assert result['active'] is True
     assert result['score'] == 100
     assert result['data'] == {'tags': ['a', 'b']}
-    assert result['avatar'] == bytes([1, 2, 3])
+    # S-6: the specification's `compact()` keeps the bytes
+    assert result['avatar'] == 'AQID'
     assert result['profile']['email'] == 'alice@example.com'
     assert result['profile']['nested_counter'] == 5
     assert result['profile']['prefs']['theme'] == 'dark'
@@ -292,16 +296,18 @@ async def test_rtpo13c5_compact_cycle_detection():
     client, channel, root, mock_ws = await setup_synced_channel('test')
     await _apply_back_ref(root, mock_ws)
 
-    result = root.get('profile').compact()
+    result = root.get('profile').compact_json()
 
-    assert result['prefs']['back_ref'] is result
+    # S-6: the specification's `compact()` reuses the dict already built for the map
+    assert result['prefs']['back_ref'] == {'objectId': 'map:profile@1000'}
 
 
 # UTS: objects/unit/RTPO13c/compact-counter-0
 async def test_rtpo13c_compact_counter():
     client, channel, root, mock_ws = await setup_synced_channel('test')
 
-    assert root.get('score').compact() == 100
+    # S-6: the specification calls `compact()`, which reads the same for a counter
+    assert root.get('score').compact_json() == 100
 
 
 # UTS: objects/unit/RTPO14/compact-json-0
@@ -344,7 +350,8 @@ async def test_rtpo3c1_read_null_on_failure():
     assert nonexistent.as_live_counter().value() is None
     assert nonexistent.instance() is None
     assert nonexistent.as_live_map().size() is None
-    assert nonexistent.compact() is None
+    # S-6: the specification calls `compact()`, which reads the same where nothing resolves
+    assert nonexistent.compact_json() is None
 
 
 # UTS: objects/unit/RTPO7/value-bytes-0

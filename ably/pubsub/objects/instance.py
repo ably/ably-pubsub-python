@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from ably.pubsub.objects.liveobject import LiveObjectUpdate
     from ably.pubsub.objects.realtimeobject import RealtimeObject
     from ably.pubsub.objects.subscription import Subscription
-    from ably.pubsub.objects.valuetypes import LiveMapValue, Primitive, T
+    from ably.pubsub.objects.valuetypes import JsonObject, JsonValue, LiveMapValue, Primitive, T
 
 # The types `value(expected)` accepts as `expected`, and the category each one selects
 _EXPECTED_VALUE_TYPES: tuple[tuple[type, ValueType], ...] = (
@@ -103,36 +103,37 @@ def primitive_value(value: Any, value_type: ValueType | None = None) -> Any:
     return value
 
 
-def compact_value(value: Any, *, for_json: bool = False) -> Any:
-    """RTPO13, RTPO14: a plain snapshot of a resolved value.
+def compact_json_value(value: Any) -> JsonValue:
+    """RTPO14, RTINS11: a JSON-serializable snapshot of a resolved value, a map as
+    `compact_json_map` builds it."""
+    if isinstance(value, InternalLiveMap):
+        return compact_json_map(value)
+    return _compact_json_leaf(value)
 
-    A map becomes a dict of its entries that are not tombstoned (RTPO13c1), nested maps
-    becoming nested dicts (RTPO13c2) and counters their values (RTPO13c3). Maps are visited
-    depth first in entry order, and a map reached again in the same snapshot, through a
-    cycle or a second reference, is the dict already built for it (RTPO13c5). With
-    `for_json` it is `{'objectId': id}` instead (RTPO14b2), and binary is a base64 string
-    (RTPO14b1), so that the result is JSON-serializable.
+
+def compact_json_map(live_map: InternalLiveMap) -> JsonObject:
+    """RTPO13c, RTPO14b: a JSON object of a map's entries that are not tombstoned (RTPO13c1).
+
+    Nested maps become nested objects (RTPO13c2) and counters their values (RTPO13c3). Maps
+    are visited depth first in entry order, and a map reached again in the same snapshot,
+    through a cycle or a second reference, is `{'objectId': id}` (RTPO13c5, RTPO14b2).
     """
-    if not isinstance(value, InternalLiveMap):
-        return _compact_leaf(value, for_json)
-
-    result: dict[str, Any] = {}
-    built: dict[str, dict[str, Any]] = {value.object_id: result}
+    result: JsonObject = {}
+    visited = {live_map.object_id}
     # A stack in place of recursion, so that the depth of the tree is not limited by the
-    # interpreter's. Each item is a dict being built and the entries of its map still to add.
-    stack = [(result, iter(value.entries()))]
+    # interpreter's. Each item is an object being built and the entries of its map still to add.
+    stack = [(result, iter(live_map.entries()))]
     while stack:
         target, entries = stack[-1]
         for key, entry_value in entries:
             if not isinstance(entry_value, InternalLiveMap):
-                target[key] = _compact_leaf(entry_value, for_json)
+                target[key] = _compact_json_leaf(entry_value)
                 continue
-            seen = built.get(entry_value.object_id)
-            if seen is not None:
-                target[key] = {'objectId': entry_value.object_id} if for_json else seen
+            if entry_value.object_id in visited:
+                target[key] = {'objectId': entry_value.object_id}
                 continue
-            child: dict[str, Any] = {}
-            built[entry_value.object_id] = child
+            child: JsonObject = {}
+            visited.add(entry_value.object_id)
             target[key] = child
             stack.append((child, iter(entry_value.entries())))
             break
@@ -141,11 +142,14 @@ def compact_value(value: Any, *, for_json: bool = False) -> Any:
     return result
 
 
-def _compact_leaf(value: Any, for_json: bool) -> Any:
-    """RTPO13c3, RTPO13c4, RTPO13d, RTPO13e, RTPO14b1: the snapshot of a value that is not a map."""
+def _compact_json_leaf(value: Any) -> JsonValue:
+    """RTPO13c3, RTPO13c4, RTPO13d, RTPO13e, RTPO14b1: the snapshot of a value that is not a map.
+
+    A counter is its value, binary a base64 string, and a JSON object or array a copy.
+    """
     if isinstance(value, InternalLiveCounter):
         return value.value()
-    if for_json and isinstance(value, (bytes, bytearray)):
+    if isinstance(value, (bytes, bytearray)):
         return base64.b64encode(value).decode('ascii')
     if isinstance(value, (dict, list)):
         return copy.deepcopy(value)
@@ -208,15 +212,11 @@ class Instance:
             return None
         return Instance._wrap(self._realtime_object, value)  # RTINS5c
 
-    def compact(self) -> Any:
-        """RTINS10: a plain snapshot of the wrapped value."""
-        self._realtime_object._check_access_preconditions()  # RTINS10a
-        return compact_value(self._value)  # RTINS10b
-
-    def compact_json(self) -> Any:
-        """RTINS11: `compact`, with binary as base64 and cycles as `{'objectId': ...}`. Never None."""
+    def compact_json(self) -> JsonValue:
+        """RTINS11: a JSON-serializable snapshot of the wrapped value, as
+        `PathObject.compact_json` builds it. Never None (RTINS11c)."""
         self._realtime_object._check_access_preconditions()  # RTINS11a
-        return compact_value(self._value, for_json=True)  # RTINS11b
+        return compact_json_value(self._value)  # RTINS11b
 
     def as_live_map(self) -> LiveMapInstance:
         """RTTS9a: this instance as a map. Raises AblyException 92007 if it wraps something else."""
@@ -265,6 +265,11 @@ class LiveMapInstance(Instance):
         from ably.pubsub.objects.batch import Batch, LiveMapBatchContext
 
         return Batch(self._realtime_object, lambda: self._value, LiveMapBatchContext, f'object {self.id!r}')
+
+    def compact_json(self) -> JsonObject:
+        """RTINS11, RTTS7a1: a JSON-serializable snapshot of the wrapped map."""
+        self._realtime_object._check_access_preconditions()  # RTINS11a
+        return compact_json_map(self._value)  # RTINS11b
 
     def entries(self) -> list[tuple[str, Instance]]:
         """RTINS6: `(key, instance)` for each entry of the map.
@@ -331,6 +336,11 @@ class LiveCounterInstance(Instance):
         """RTINS4b: the wrapped counter's value."""
         self._realtime_object._check_access_preconditions()  # RTINS4a
         return self._value.value()
+
+    def compact_json(self) -> float:
+        """RTINS11, RTTS7a3: the wrapped counter's value."""
+        self._realtime_object._check_access_preconditions()  # RTINS11a
+        return self._value.value()  # RTINS11b
 
     async def increment(self, amount: float = 1) -> None:
         """RTINS14: increments the wrapped counter by `amount`."""

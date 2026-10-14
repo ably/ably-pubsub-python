@@ -5,7 +5,7 @@ RTINS15, RTINS16, RTTS8a, RTTS9d, RTTS10
 
 The specification is written against the untyped `Instance`, one class carrying every
 method. ably-python partitions it per RTTS7-RTTS10: `id` and `type` are properties, `get`,
-`compact` and the three view helpers are on the base `Instance`, and a type-specific method
+`compact_json` and the three view helpers are on the base `Instance`, and a type-specific method
 is reached through the checked view helper for the wrapped type, so `inst.value()` on a
 counter is `inst.as_live_counter().value()` and `inst.set(k, v)` on a map is
 `await inst.as_live_map().set(k, v)`. A view helper asked for a type the instance does not
@@ -16,6 +16,8 @@ That makes three of the specification's reads unreachable: `value()` on a map in
 (RTINS16c), since the typed instance for those types has no such method and the views
 that do have it refuse the wrapped type. Those tests assert the wrapped `type`, the
 absence of the method, and the 92007 the view helpers raise in its place (S-5).
+
+The snapshot is `compact_json()` alone (RTTS7d), so RTINS10's test takes it there (S-6).
 
 `setup_synced_channel` uses the standard mock, which ACKs every OBJECT the client sends,
 so each write is awaited to completion and is applied locally by the time it returns
@@ -130,7 +132,8 @@ async def test_rtins10_compact():
     client, channel, root, mock_ws = await setup_synced_channel('test')
     root_inst = root.instance()
 
-    result = root_inst.compact()
+    # S-6: the specification calls `compact()`, which reads the same for these values
+    result = root_inst.compact_json()
 
     assert result['name'] == 'Alice'
     assert result['score'] == 100

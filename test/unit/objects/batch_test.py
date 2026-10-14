@@ -574,14 +574,13 @@ async def test_rtbc6_rtbc9_map_enumeration():
         assert entries[2][1].get('theme').as_primitive().value() == 'dark'
 
 
-async def test_rtbc10_rtbc11_compact():
-    """RTBC10, RTBC11: `compact` and `compact_json` snapshot the wrapped value as `Instance` does."""
+async def test_rtbc11_compact_json():
+    """RTBC11: `compact_json` snapshots the wrapped value as `Instance` does."""
     (client, channel, root, mock_ws), published = await _synced()
 
     async with root.batch() as ctx:
-        assert ctx.get('profile').compact() == {
+        assert ctx.get('profile').compact_json() == {
             'email': 'alice@example.com', 'nested_counter': 5, 'prefs': {'theme': 'dark'}}
-        assert ctx.compact()['avatar'] == b'\x01\x02\x03'
         assert ctx.compact_json()['avatar'] == 'AQID'
         assert ctx.get('score').compact_json() == 100
 
@@ -635,7 +634,6 @@ class _Contexts(NamedTuple):
 # A call of each context method that reads the objects, and of each that writes
 _READS = {
     'get': lambda c: c.root.get('name'),
-    'compact': lambda c: c.root.compact(),
     'compact_json': lambda c: c.root.compact_json(),
     'entries': lambda c: c.root.entries(),
     'keys': lambda c: c.root.keys(),

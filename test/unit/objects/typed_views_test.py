@@ -1,4 +1,5 @@
-"""The typed views: `type()` and `exists()`, the unchecked path views and the checked instance views.
+"""The typed views: `type()` and `exists()`, the unchecked path views, the checked instance views
+and the snapshots `compact_json` takes through them.
 
 Spec points: RTTS2-RTTS10 (ably/specification#491), as LODR-061 binds them: one
 `PrimitivePathObject` and `PrimitiveInstance` whose `value(expected)` stands for the six
@@ -9,6 +10,7 @@ the features specification and LODR-061.
 Each test drives the standard synced pool over the mock websocket.
 """
 
+import json
 import typing
 
 import pytest
@@ -352,11 +354,45 @@ async def test_rtts10_instance_id_is_a_property():
     assert root.get('name').instance().id is None
 
 
+async def test_rtts7a_instance_compact_json_is_of_the_wrapped_type():
+    """RTINS11, RTTS7a1, RTTS7a3: a map instance's snapshot is a JSON object, a counter
+    instance's is its value as a float, and a primitive instance's is the primitive."""
+    root = await _synced_root()
+
+    profile = root.get('profile').instance().compact_json()
+    score = root.get('score').instance().compact_json()
+
+    assert profile == {'email': 'alice@example.com', 'nested_counter': 5, 'prefs': {'theme': 'dark'}}
+    assert type(score) is float
+    assert score == 100
+    assert root.get('name').instance().compact_json() == 'Alice'
+    assert root.get('avatar').instance().compact_json() == 'AQID'
+
+
+async def test_rtpo14b_compact_json_is_json_serializable():
+    """RTPO14b: binary is a base64 string, and a map reached a second time in one snapshot is
+    its object id, through a second reference as through a cycle, so `json.dumps` takes the
+    snapshot."""
+    client, channel, root, mock_ws = await setup_synced_channel('test')
+    # root.alias references the same map as root.profile
+    mock_ws.send_to_client(build_object_message('test', [
+        build_map_set('root', 'alias', {'objectId': 'map:profile@1000'}, remote_serial(0), 'remote')]))
+    await poll_until(lambda: 'alias' in root.keys(), description='the reference to be applied')
+
+    result = root.compact_json()
+
+    assert result['avatar'] == 'AQID'
+    assert result['profile'] == {'email': 'alice@example.com', 'nested_counter': 5, 'prefs': {'theme': 'dark'}}
+    assert result['alias'] == {'objectId': 'map:profile@1000'}
+    assert json.loads(json.dumps(result)) == result
+
+
 @pytest.mark.parametrize('typed_class, present, absent', [
     (PathObject,
-     {'path', 'type', 'exists', 'get', 'at', 'instance', 'compact', 'compact_json', 'subscribe',
+     {'path', 'type', 'exists', 'get', 'at', 'instance', 'compact_json', 'subscribe',
       'as_live_map', 'as_live_counter', 'as_primitive'},
-     {'value', 'entries', 'keys', 'values', 'size', 'set', 'remove', 'increment', 'decrement', 'batch'}),
+     {'compact', 'value', 'entries', 'keys', 'values', 'size', 'set', 'remove', 'increment', 'decrement',
+      'batch'}),
     (LiveMapPathObject,
      {'entries', 'keys', 'values', 'size', 'set', 'remove', 'batch'},
      {'value', 'increment', 'decrement'}),
@@ -367,8 +403,8 @@ async def test_rtts10_instance_id_is_a_property():
      {'value'},
      {'entries', 'keys', 'values', 'size', 'set', 'remove', 'increment', 'decrement', 'batch'}),
     (Instance,
-     {'id', 'type', 'get', 'compact', 'compact_json', 'as_live_map', 'as_live_counter', 'as_primitive'},
-     {'value', 'entries', 'size', 'set', 'remove', 'increment', 'decrement', 'subscribe', 'batch'}),
+     {'id', 'type', 'get', 'compact_json', 'as_live_map', 'as_live_counter', 'as_primitive'},
+     {'compact', 'value', 'entries', 'size', 'set', 'remove', 'increment', 'decrement', 'subscribe', 'batch'}),
     (LiveMapInstance,
      {'entries', 'keys', 'values', 'size', 'set', 'remove', 'subscribe', 'batch'},
      {'value', 'increment', 'decrement'}),

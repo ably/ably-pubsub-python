@@ -2398,11 +2398,11 @@ pseudocode is not mistaken for non-compliance.
 | RTC17 (RSA7b1) | `client.clientId == client.auth.clientId` | `AblyRealtime.client_id` reads `options.client_id` and returns the configured value, while `Auth.__init__` sets `self.__client_id = None` whenever `ably._is_realtime` (`rest/auth.py:34-41`), deferring it to whatever a CONNECTED confirms. The two disagree on a client that has not connected | Open bug. RSA12b only allows the realtime clientId to be unknown while it has not been *configured* |
 | RTC1f | a `transportParams` boolean appears as `"true"` / `"false"` | `True` / `False`, because `WebSocketTransport.connect` builds the query string with `urllib.parse.urlencode`, which renders each value through `str()` (`websockettransport.py:89`). Integers are unaffected | Open bug. A caller can pass the strings directly, but a bool is what the spec's Stringifiable type admits |
 
-### LiveObjects: the internal shapes the unit specifications assume — S-1 to S-5
+### LiveObjects: the internal shapes the unit specifications assume — S-1 to S-6
 
 The objects unit specifications drive internal classes, and ably-python's differ in shape from
 the ones they are written against — three of them because the specification contradicts
-`objects-features.md` (the first UTS Spec Error entry on the objects tier), two because of how
+`objects-features.md` (the first UTS Spec Error entry on the objects tier), three because of how
 ably-python is built. Each shape has a label, cited in the module docstring and at the site, so
 that one entry here covers every test it affects. The behaviour each test asserts is the
 specification's; only the reach into the object differs.
@@ -2414,9 +2414,10 @@ specification's; only the reach into the object differs.
 | S-3 | `evaluate(vt)` | `evaluate(vt, timestamp_ms)`: evaluation needs the server time (RTLCV4e, RTLMV4h), which is an async read (RTO16), so the caller fetches it and passes it in. The tests pass a fixed one | the 13 in `value_types_test.py` that evaluate |
 | S-4 | The create an evaluated value type retains, as `operation.counterCreate` / `operation.mapCreate` | `operation.resolved_counter_create` / `resolved_map_create`, the `derived_from` of the `*CreateWithObjectId` payload. The two retention tests also assert that `counterCreate` / `mapCreate` is absent from `operation.to_dict()`, which is what "not sent" means and what keeps this reading honest | `test_rtlcv4g5_retains_local_counter_create`, `test_rtlcv4_evaluate_zero_count`, `test_rtlmv4j5_retains_local_map_create`, `test_rtlmv4d_entry_value_types`, `test_rtlmv4d1_nested_value_types`, `test_rtlmv4a_evaluate_validates_entries`, `test_rtlmv4e2_empty_entries`, `test_rtlmv4d_map_set_all_types_table` |
 | S-5 | Three reads on the untyped `Instance` that answer null or fail: `value()` on a map (RTINS4d), `size()` on a counter (RTINS9c), and `subscribe` on a primitive failing 92007 (RTINS16c) | The typed instances have no such method (RTTS10a–c; `PrimitiveInstance` has no `subscribe` at all, RTTS7b), and the checked views that do have it refuse the wrapped type with 92007 (RTTS9d). The tests assert the wrapped `type`, that the method is absent, and the 92007 from each view in its place | `test_rtins4_value_counter` and `test_rtins9_size` (their second halves), `test_rtins16c_subscribe_primitive_throws` |
+| S-6 | `compact()` on a path or an instance (RTPO13, RTINS10) | ably-python's only snapshot is `compact_json()` (RTTS3f, RTTS7d, LODR-061), which is `compact()` with binary as a base64 string (RTPO14b1) and a map reached again as `{'objectId': id}` (RTPO14b2). The tests take the snapshot through `compact_json()`, and where the specification asserts bytes or the reused dict they assert those two forms, so `compact-cycle-detection-0` asserts what `compact-json-0` does | `test_rtpo13_compact_recursive`, `test_rtpo13c5_compact_cycle_detection`, `test_rtpo13c_compact_counter`, `test_rtpo3c1_read_null_on_failure` (its last line), `test_rtins10_compact` |
 
 **Status:** shape adaptations, not defects. S-1, S-2 and S-4 close when the specifications are
-corrected (candidate O.1); S-3 and S-5 are how ably-python is built.
+corrected (candidate O.1); S-3, S-5 and S-6 are how ably-python is built.
 
 ### LiveObjects: inputs that do not exist in Python
 
@@ -3620,7 +3621,7 @@ reaches the library only through its public surface and a handful of underscore 
 The specifications are written against the merged features spec's `PathObject` and
 `Instance`, each one class carrying every method. ably-python follows LODR-061 and the RTTS
 partition of [#491](https://github.com/ably/specification/pull/491): navigation, `instance`,
-`compact`, `compact_json` and `subscribe` are on the base `PathObject`, and a type-specific
+`compact_json` and `subscribe` are on the base `PathObject`, and a type-specific
 method is reached through the view for that type. So `root.get("score").value()` is
 `root.get('score').as_live_counter().value()`, `root.get("name").value()` is
 `root.get('name').as_primitive().value()`, and `pathObject.set(k, v)` is
@@ -3632,9 +3633,11 @@ both value views. An `Instance`'s views are checked and raise 92007 (RTTS9d).
 
 That is a difference of spelling, which `writing-derived-tests.md` says is not a deviation,
 and nothing above records it test by test. Where the partition makes a read unreachable
-rather than differently spelled, the test is an S-5 adaptation. Mutations are `async` and
-awaited; reads, navigation, the views and `subscribe` are synchronous; `entries()` yields
-`(key, value)` tuples; `Instance.id` and `Instance.type` are properties.
+rather than differently spelled, the test is an S-5 adaptation, and where the specification
+calls `compact()`, which the partition leaves out (RTTS3f, RTTS7d), it is an S-6 one.
+Mutations are `async` and awaited; reads, navigation, the views and `subscribe` are
+synchronous; `entries()` yields `(key, value)` tuples; `Instance.id` and `Instance.type` are
+properties.
 
 ### A standalone `RealtimeObject` drives the pure tier
 

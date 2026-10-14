@@ -48,7 +48,14 @@ from ably.pubsub.objects.pathobject import (
 from ably.pubsub.objects.publicmessage import ObjectMessage, ObjectOperation
 from ably.pubsub.objects.realtimeobject import RealtimeObject
 from ably.pubsub.objects.subscription import StatusSubscription, Subscription
-from ably.pubsub.objects.valuetypes import LiveCounter, LiveMap, LiveMapValue, Primitive
+from ably.pubsub.objects.valuetypes import (
+    JsonObject,
+    JsonValue,
+    LiveCounter,
+    LiveMap,
+    LiveMapValue,
+    Primitive,
+)
 from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
 from ably.pubsub.realtime.channel import Channels as RealtimeChannels
 from ably.pubsub.realtime.connection import Connection
@@ -291,6 +298,8 @@ __all__ = [
     'IncompatibleClientIdException',
     'Instance',
     'InstanceSubscriptionEvent',
+    'JsonObject',
+    'JsonValue',
     'LiveCounter',
     'LiveCounterBatchContext',
     'LiveCounterInstance',
