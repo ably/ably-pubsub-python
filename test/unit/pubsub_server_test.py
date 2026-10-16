@@ -161,3 +161,9 @@ class TestPublicTypes:
     def test_message_is_exported(self):
         assert 'Message' in server.__all__
         assert 'Message' in server_sync.__all__
+
+    # RSE2: channel encryption needs a public way to generate a key and build cipher params
+    @pytest.mark.parametrize('name', ['generate_random_key', 'get_default_params'])
+    def test_crypto_helpers_are_exported(self, name):
+        assert name in server.__all__
+        assert name in server_sync.__all__

@@ -38,7 +38,7 @@ from ably.pubsub.types.operations import MessageOperation, PublishResult, Update
 from ably.pubsub.types.options import Options, VCDiffDecoder
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.util.construction import factory_construction
-from ably.pubsub.util.crypto import CipherParams
+from ably.pubsub.util.crypto import CipherParams, generate_random_key, get_default_params
 from ably.pubsub.util.exceptions import AblyAuthException, AblyException, IncompatibleClientIdException
 from ably.pubsub.vcdiff.defaultvcdiffdecoder import AblyVCDiffDecoder
 from ably.pubsub.version import api_version, lib_version
@@ -275,5 +275,7 @@ __all__ = [
     'api_version',
     'create_http_client',
     'create_realtime_client',
+    'generate_random_key',
+    'get_default_params',
     'lib_version',
 ]
