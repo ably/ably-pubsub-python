@@ -24,7 +24,7 @@ from ably.pubsub.sync.types.operations import MessageOperation, PublishResult, U
 from ably.pubsub.sync.types.options import Options, VCDiffDecoder
 from ably.pubsub.sync.types.tokendetails import TokenDetails
 from ably.pubsub.sync.util.construction import factory_construction
-from ably.pubsub.sync.util.crypto import CipherParams
+from ably.pubsub.sync.util.crypto import CipherParams, generate_random_key, get_default_params
 from ably.pubsub.sync.util.exceptions import AblyAuthException, AblyException, IncompatibleClientIdException
 from ably.pubsub.sync.vcdiff.defaultvcdiffdecoder import AblyVCDiffDecoder
 from ably.pubsub.version import api_version, lib_version
@@ -84,5 +84,7 @@ __all__ = [
     'VCDiffDecoder',
     'api_version',
     'create_http_client',
+    'generate_random_key',
+    'get_default_params',
     'lib_version',
 ]

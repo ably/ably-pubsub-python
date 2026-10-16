@@ -49,6 +49,18 @@ Where 3.x left you reaching into submodules such as `ably.types.message` or
 the whole public API, and `ably.pubsub.server.sync` is its synchronous
 counterpart. The packages beneath them are internal and free to move.
 
+For example, the encryption helpers move from `ably.util.crypto`:
+
+Example 3.x code:
+```python
+from ably.util.crypto import generate_random_key, get_default_params
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import generate_random_key, get_default_params
+```
+
 ### Clients are built by factories
 
 `AblyRest` and `AblyRealtime` are internal in 4.0.0 and raise `TypeError` if
