@@ -211,6 +211,8 @@ class ConnectionManager(EventEmitter):
         # RTN2a: Set format to msgpack if use_binary_protocol is enabled
         if self.options.use_binary_protocol:
             params["format"] = "msgpack"
+        # RTN2h, RTC1a: whether the server echoes this connection's own messages back to it
+        params["echo"] = "true" if self.options.echo_messages else "false"
 
         # Add any custom transport params from options
         params.update(self.options.transport_params)

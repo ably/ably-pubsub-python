@@ -34,8 +34,8 @@ class Options(AuthOptions):
                  idempotent_rest_publishing=None, loop=None, auto_connect=True,
                  suspended_retry_timeout=None, connectivity_check_url=None,
                  channel_retry_timeout=Defaults.channel_retry_timeout, add_request_ids=False,
-                 vcdiff_decoder: VCDiffDecoder = None, transport_params=None, _test_options=None,
-                 **kwargs):
+                 vcdiff_decoder: VCDiffDecoder = None, transport_params=None, echo_messages=True,
+                 _test_options=None, **kwargs):
 
         super().__init__(**kwargs)
 
@@ -108,6 +108,7 @@ class Options(AuthOptions):
         self.__tls_port = tls_port
         self.__use_binary_protocol = use_binary_protocol
         self.__queue_messages = queue_messages
+        self.__echo_messages = echo_messages
         self.__recover = recover
         self.__endpoint = endpoint
         self.__http_open_timeout = http_open_timeout
@@ -188,6 +189,11 @@ class Options(AuthOptions):
     @queue_messages.setter
     def queue_messages(self, value):
         self.__queue_messages = value
+
+    # TO3h
+    @property
+    def echo_messages(self):
+        return self.__echo_messages
 
     @property
     def recover(self):

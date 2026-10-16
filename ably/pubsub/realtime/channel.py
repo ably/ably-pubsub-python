@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 
 from ably.pubsub.http.channel import Channel
 from ably.pubsub.http.channel import Channels as HttpChannels
+from ably.pubsub.objects.objectmessage import ObjectMessage
+from ably.pubsub.objects.realtimeobject import RealtimeObject
 from ably.pubsub.realtime.annotations import RealtimeAnnotations
 from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.realtime.presence import RealtimePresence
@@ -92,6 +94,9 @@ class RealtimeChannel(EventEmitter, Channel):
         # Initialize realtime annotations for this channel (override REST annotations)
         self._Channel__annotations = RealtimeAnnotations(self, realtime.connection.connection_manager)
 
+        # RTL27: the LiveObjects entry point for this channel
+        self.__object = RealtimeObject(self)
+
     async def set_options(self, channel_options: ChannelOptions) -> None:
         """Set channel options"""
         should_reattach = self.should_reattach_to_set_options(channel_options)
@@ -121,12 +126,21 @@ class RealtimeChannel(EventEmitter, Channel):
         AblyException
             If unable to attach channel
         """
+        await self._attach()
 
+    async def _attach(self) -> ChannelStateChange | None:
+        """The attach procedure `attach` runs, returning the state change it ended with, or None if
+        the channel was already ATTACHED.
+
+        Raises where `attach` does. An attach that ends in a state other than ATTACHED,
+        SUSPENDED or FAILED, such as DETACHED when the connection closes first, returns that
+        state change.
+        """
         log.info(f'RealtimeChannel.attach() called, channel = {self.name}')
 
         # RTL4a - if channel is attached do nothing
         if self.state == ChannelState.ATTACHED:
-            return
+            return None
 
         self.__error_reason = None
 
@@ -150,6 +164,7 @@ class RealtimeChannel(EventEmitter, Channel):
 
         if state_change.current in (ChannelState.SUSPENDED, ChannelState.FAILED):
             raise state_change.reason
+        return state_change
 
     def _attach_impl(self):
         log.debug("RealtimeChannel.attach_impl(): sending ATTACH protocol message")
@@ -169,6 +184,33 @@ class RealtimeChannel(EventEmitter, Channel):
             attach_msg["channelSerial"] = self.__channel_serial
 
         self._send_message(attach_msg)
+
+    # RTL33
+    async def _ensure_active(self) -> None:
+        """The ensure-active-channel procedure: attaches the channel unless it is ATTACHED or SUSPENDED.
+
+        Raises
+        ------
+        AblyException
+            90001 if the channel is FAILED (RTL33c), or the error the implicit attach failed
+            with (RTL33b1): the reason for the state it ended in, else 90001
+        """
+        # RTL33a
+        if self.state in (ChannelState.ATTACHED, ChannelState.SUSPENDED):
+            return
+
+        # RTL33c
+        if self.state == ChannelState.FAILED:
+            raise AblyException(f"Channel operation failed as channel state is {self.state.value}", 400, 90001)
+
+        # RTL33b
+        state_change = await self._attach()
+        if state_change is not None and state_change.current != ChannelState.ATTACHED:
+            # RTL33b1, RTL4d: the attach ended without the channel attaching, as when the connection
+            # closes or `detach` is called first
+            raise state_change.reason or AblyException(
+                f'Unable to attach channel; channel state = {state_change.current.value}, '
+                f'connection state = {self.__realtime.connection.state.value}', 400, 90001)
 
     # RTL5
     async def detach(self) -> None:
@@ -706,6 +748,7 @@ class RealtimeChannel(EventEmitter, Channel):
             exception = None
             resumed = False
             has_presence = False
+            has_objects = False
 
             self.__attach_serial = channel_serial
             self.__channel_serial = channel_serial
@@ -718,6 +761,8 @@ class RealtimeChannel(EventEmitter, Channel):
                 resumed = has_flag(flags, Flag.RESUMED)
                 # RTP1: Check for HAS_PRESENCE flag
                 has_presence = has_flag(flags, Flag.HAS_PRESENCE)
+                # RTO4: whether an OBJECT_SYNC follows
+                has_objects = has_flag(flags, Flag.HAS_OBJECTS)
                 # Store channel attach flags
                 self.__modes = decode_channel_mode(flags)
 
@@ -726,8 +771,11 @@ class RealtimeChannel(EventEmitter, Channel):
                 if not resumed:
                     state_change = ChannelStateChange(self.state, ChannelState.ATTACHED, resumed, exception)
                     self._emit("update", state_change)
+                # RTO4: an ATTACHED restarts the objects sync even while attached, a resumed one included
+                self.__object._on_attached(has_objects)
             elif self.state == ChannelState.ATTACHING:
                 self._notify_state(ChannelState.ATTACHED, resumed=resumed, has_presence=has_presence)
+                self.__object._on_attached(has_objects)  # RTO4
             else:
                 log.warn("RealtimeChannel._on_message(): ATTACHED received while not attaching")
         elif action == ProtocolMessageAction.DETACHED:
@@ -774,6 +822,18 @@ class RealtimeChannel(EventEmitter, Channel):
                 self.__channel_serial = channel_serial
             except Exception as e:
                 log.error(f"Annotation processing error {e}. Skip annotations {annotation_data}")
+        elif action == ProtocolMessageAction.OBJECT:
+            # RTL15b
+            if channel_serial:
+                self.__channel_serial = channel_serial
+            # An object message that fails to decode is logged and left out, and the rest are handled
+            object_messages = ObjectMessage.from_protocol_message(proto_msg, self.__object._wire_format)
+            self.__object._handle_object_messages(object_messages)  # RTO8
+        elif action == ProtocolMessageAction.OBJECT_SYNC:
+            # RTO5: the channelSerial of an OBJECT_SYNC carries the sync sequence and cursor (RTO5a1),
+            # which are handled whichever of its object messages fail to decode
+            object_messages = ObjectMessage.from_protocol_message(proto_msg, self.__object._wire_format)
+            self.__object._handle_object_sync_messages(object_messages, channel_serial)
         elif action == ProtocolMessageAction.ERROR:
             error = AblyException.from_dict(proto_msg.get('error'))
             self._notify_state(ChannelState.FAILED, reason=error)
@@ -824,6 +884,10 @@ class RealtimeChannel(EventEmitter, Channel):
 
         # RTP5: Notify presence of channel state change
         self.__presence.act_on_channel_state(state, has_presence=has_presence, error=reason)
+
+        # RTO27: the objects act on every state but ATTACHED, whose ATTACHED message RTO4 handles
+        if state != ChannelState.ATTACHED:
+            self.__object._act_on_channel_state(state, reason)
 
     def _send_message(self, msg: dict) -> None:
         asyncio.create_task(self.__realtime.connection.connection_manager.send_protocol_message(msg))
@@ -925,6 +989,12 @@ class RealtimeChannel(EventEmitter, Channel):
     def annotations(self) -> RealtimeAnnotations:
         return self._Channel__annotations
 
+    # RTL27
+    @property
+    def object(self) -> RealtimeObject:
+        """The LiveObjects on this channel"""
+        return self.__object
+
     @property
     def modes(self):
         """Get the list of channel modes"""
@@ -1025,7 +1095,9 @@ class Channels(HttpChannels):
         """
         if name not in self.__all:
             return
-        del self.__all[name]
+        channel = self.__all.pop(name)
+        # The released channel receives nothing more, so its objects stop their GC timer and their waits
+        channel.object._release()
 
     def _on_channel_message(self, msg: dict) -> None:
         channel_name = msg.get('channel')
@@ -1067,8 +1139,10 @@ class Channels(HttpChannels):
                 channel._notify_state(connection_to_channel_state[state], reason)
 
     def _on_connected(self) -> None:
+        connection_details = self.__ably.connection.connection_details
         for channel_name in self.__all:
             channel = self.__all[channel_name]
+            channel.object._on_connected(connection_details)  # RTO10b2
             if channel.state == ChannelState.ATTACHING or channel.state == ChannelState.DETACHING:
                 channel._check_pending_state()
             elif channel.state == ChannelState.SUSPENDED:
