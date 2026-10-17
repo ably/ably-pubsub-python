@@ -28,6 +28,14 @@ from ably.pubsub.realtime.connection import Connection
 from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient as _DefaultPubSubRealtimeClient
 from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult
 from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.batch import (
+    BatchPresenceFailureResult,
+    BatchPresenceSuccessResult,
+    BatchPublishFailureResult,
+    BatchPublishSpec,
+    BatchPublishSuccessResult,
+    BatchResult,
+)
 from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.channelmode import ChannelMode
 from ably.pubsub.types.channeloptions import ChannelOptions
@@ -248,6 +256,12 @@ __all__ = [
     'Annotation',
     'AnnotationAction',
     'Auth',
+    'BatchPresenceFailureResult',
+    'BatchPresenceSuccessResult',
+    'BatchPublishFailureResult',
+    'BatchPublishSpec',
+    'BatchPublishSuccessResult',
+    'BatchResult',
     'Capability',
     'ChannelMode',
     'ChannelOptions',

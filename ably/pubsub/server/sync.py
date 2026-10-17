@@ -14,6 +14,14 @@ from ably.pubsub.sync.http.push import PushSync
 from ably.pubsub.sync.prototypes import PubSubHttpClient
 from ably.pubsub.sync.request.paginatedresult import HttpPaginatedResponseSync, PaginatedResultSync
 from ably.pubsub.sync.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.sync.types.batch import (
+    BatchPresenceFailureResult,
+    BatchPresenceSuccessResult,
+    BatchPublishFailureResult,
+    BatchPublishSpec,
+    BatchPublishSuccessResult,
+    BatchResult,
+)
 from ably.pubsub.sync.types.capability import Capability
 from ably.pubsub.sync.types.channelmode import ChannelMode
 from ably.pubsub.sync.types.channeloptions import ChannelOptions
@@ -61,6 +69,12 @@ __all__ = [
     'Annotation',
     'AnnotationAction',
     'AuthSync',
+    'BatchPresenceFailureResult',
+    'BatchPresenceSuccessResult',
+    'BatchPublishFailureResult',
+    'BatchPublishSpec',
+    'BatchPublishSuccessResult',
+    'BatchResult',
     'Capability',
     'ChannelMode',
     'ChannelOptions',

@@ -1,7 +1,5 @@
-import base64
 import json
 import logging
-import os
 from collections import OrderedDict
 from typing import Iterator, Optional
 from urllib import parse
@@ -15,6 +13,7 @@ from ably.pubsub.types.message import (
     Message,
     MessageAction,
     MessageVersion,
+    assign_idempotent_ids,
     make_message_response_handler,
     make_single_message_response_handler,
 )
@@ -58,11 +57,7 @@ class Channel:
         """
         # Idempotent publishing
         if self.ably.options.idempotent_rest_publishing:
-            # RSL1k1
-            if all(message.id is None for message in messages):
-                base_id = base64.urlsafe_b64encode(os.urandom(12)).decode()
-                for serial, message in enumerate(messages):
-                    message.id = f'{base_id}:{serial}'
+            assign_idempotent_ids(messages)
 
         request_body_list = []
         for m in messages:
