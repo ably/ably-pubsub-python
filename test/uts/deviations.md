@@ -3234,8 +3234,8 @@ RTO20c, RTO20d1, RTO20e1; and, derived as written, RTO4 with RTO5a2, RTO7 and RT
 proxy, RTLC11b1, RTLO4b, RTO5c10 and the lifecycle test's unread `events_b`. Sixteen derived
 tests carry the assertion or the direct check their specification omits. The sharpest are the GC
 tests, which read a value that is null with no GC at all — RTO10b1 also advances less than one
-GC interval — and the two `objects_faults.md` tests titled for RTO8a's buffer, which
-measurement shows never buffer. Same class as
+GC interval — and the two `objects_faults.md` tests titled for RTO8a's buffer, neither of which, by
+measurement, exercises the buffer. Same class as
 [#543](https://github.com/ably/specification/issues/543).
 `test/uts/objects/unit -k "rtlm8g or rtlm9b or rto10 or rtpo6_at_escaped or rtpo19_map_clear or rto4b_attached or rto14_objectid_format_counter or rtins16g or rto20e or rto23c_get_waits or rto20c_missing or rto20d1"`
 

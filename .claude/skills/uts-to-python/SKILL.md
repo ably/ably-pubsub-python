@@ -1009,7 +1009,7 @@ environment's cutoff — and `--extra dev` carries pytest. Line length is 115. I
 `uv.lock` changes, revert only what the run touched; a wholesale
 `git checkout -- uv.lock` takes any edit of your own with it.
 
-The second command is the offline tiers, which need no network. The third is the two
+The second command is the offline tiers, which need no network. The third is the three
 integration tiers, each of which provisions a sandbox app of its own and does need the
 network; `pytest test/uts -q` runs everything together, so run the tiers separately when
 only one is in question. All three must pass.
