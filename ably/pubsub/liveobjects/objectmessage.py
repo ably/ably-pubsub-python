@@ -92,11 +92,14 @@ def _check_format(format: str) -> None:
         raise ValueError(f"Unknown wire format {format!r}; expected 'json' or 'msgpack'")
 
 
-def _decode_number(value: Any) -> Any:
+def _decode_number(value: Any) -> float | None:
     # OD4c3: numbers are float64 on the wire, so a decoded number is always a float
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return float(value)
-    return value
+    if value is None:
+        return None
+    # A value of any other type fails the decode, so from_protocol_message skips its message
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f'Expected a number, got {value!r}')
+    return float(value)
 
 
 def _encode_number(value: Any, format: str) -> Any:

@@ -18,6 +18,7 @@ import pytest
 
 from ably.pubsub.liveobjects.defaults import GC_INTERVAL_MS
 from ably.pubsub.liveobjects.enums import ObjectsSyncState
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
 from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.types.channelstate import ChannelState
@@ -228,14 +229,35 @@ async def test_rto8_an_object_message_that_fails_to_decode_costs_only_itself(cap
     assert any('failed to decode' in record.getMessage() for record in caplog.records)
 
 
-async def test_rto9_an_object_message_that_fails_to_apply_costs_only_itself(caplog):
-    """RTO9: an operation that decodes but raises as it is applied, here an increment by a
-    string, is logged and skipped, and the operations after it in the OBJECT still apply."""
+async def test_rto8_an_increment_by_a_non_number_fails_to_decode_and_costs_only_itself(caplog):
+    """RTO8, OD4c3: an increment by a string fails to decode rather than reaching the counter,
+    and the operations after it in the OBJECT still apply."""
     client, channel, root, mock_ws = await setup_synced_channel('test')
 
     with caplog.at_level(logging.ERROR, logger='ably.pubsub.liveobjects'):
         mock_ws.send_to_client(build_object_message('test', [
             build_counter_inc(SCORE, 'one', remote_serial(0), 'remote'),
+            build_map_set('root', 'name', {'string': 'Bob'}, remote_serial(1), 'remote'),
+        ]))
+        await poll_until(lambda: root.get('name').as_primitive().value() == 'Bob',
+                         description='the MAP_SET after the undecodable increment to apply')
+
+    assert _score(channel) == 100
+    assert any('failed to decode' in record.getMessage() for record in caplog.records)
+
+
+async def test_rto9_an_object_message_that_fails_to_apply_costs_only_itself(caplog, monkeypatch):
+    """RTO9: an operation that decodes but raises as it is applied is logged and skipped, and
+    the operations after it in the OBJECT still apply."""
+    client, channel, root, mock_ws = await setup_synced_channel('test')
+
+    def apply_counter_inc(self, *args, **kwargs):
+        raise RuntimeError('apply_counter_inc failed')
+    monkeypatch.setattr(InternalLiveCounter, 'apply_counter_inc', apply_counter_inc)
+
+    with caplog.at_level(logging.ERROR, logger='ably.pubsub.liveobjects'):
+        mock_ws.send_to_client(build_object_message('test', [
+            build_counter_inc(SCORE, 1, remote_serial(0), 'remote'),
             build_map_set('root', 'name', {'string': 'Bob'}, remote_serial(1), 'remote'),
         ]))
         await poll_until(lambda: root.get('name').as_primitive().value() == 'Bob',
@@ -245,11 +267,19 @@ async def test_rto9_an_object_message_that_fails_to_apply_costs_only_itself(capl
     assert any('could not be applied' in record.getMessage() for record in caplog.records)
 
 
-async def test_rto5c_an_object_state_that_fails_to_apply_does_not_stall_the_sync(caplog):
-    """RTO5c: an object state that decodes but raises as it is applied, here a counter whose
-    count is a string, is logged and skipped, and the sync still completes."""
-    bad = build_object_state('counter:bad@1000', {'aaa': 't:0'}, counter={'count': 'many'})
+async def test_rto5c_an_object_state_that_fails_to_apply_does_not_stall_the_sync(caplog, monkeypatch):
+    """RTO5c: an object state that decodes but raises as it is applied is logged and skipped,
+    and the sync still completes."""
+    bad = build_object_state('counter:bad@1000', {'aaa': 't:0'}, counter={'count': 1})
     mock_ws = standard_mock_websocket(sync_objects=(*STANDARD_POOL_OBJECTS, bad))
+
+    replace_data = InternalLiveCounter.replace_data
+
+    def failing_replace_data(self, object_message):
+        if self.object_id == 'counter:bad@1000':
+            raise RuntimeError('replace_data failed')
+        return replace_data(self, object_message)
+    monkeypatch.setattr(InternalLiveCounter, 'replace_data', failing_replace_data)
 
     with caplog.at_level(logging.ERROR, logger='ably.pubsub.liveobjects'):
         client, channel, root, mock_ws = await asyncio.wait_for(
