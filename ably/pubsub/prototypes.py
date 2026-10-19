@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from ably.pubsub.realtime.channel import Channels as RealtimeChannels
     from ably.pubsub.realtime.connection import Connection
     from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult
+    from ably.pubsub.types.batch import BatchPublishSpec, BatchResult
     from ably.pubsub.types.options import Options
 
 
@@ -70,6 +71,15 @@ class PubSubHttpClient(Protocol):
 
     async def time(self, timeout: float | None = None) -> float:
         """Return the current server time in ms since the unix epoch."""
+        ...
+
+    async def batch_publish(self, specs: BatchPublishSpec | dict | list[BatchPublishSpec | dict]
+                            ) -> BatchResult | list[BatchResult]:
+        """Publish messages to one or more channels in a single request."""
+        ...
+
+    async def batch_presence(self, channels: list[str]) -> BatchResult:
+        """Return the presence members of several channels in a single request."""
         ...
 
     async def request(self, method: str, path: str, version: str, params: dict | None = None,
