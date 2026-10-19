@@ -24,8 +24,8 @@ import json
 
 import pytest
 
-from ably.pubsub.objects.objectmessage import ObjectOperationAction, ObjectsMapSemantics
-from ably.pubsub.objects.valuetypes import LiveCounter, LiveMap, evaluate
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction, ObjectsMapSemantics
+from ably.pubsub.liveobjects.valuetypes import LiveCounter, LiveMap, evaluate
 from ably.pubsub.util.exceptions import AblyException
 
 # The server time evaluation generates object ids with (S-3)

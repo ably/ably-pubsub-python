@@ -22,9 +22,9 @@ first, since a seed applied after the subscription would itself be delivered to 
 
 import pytest
 
-from ably.pubsub.objects.objectmessage import ObjectOperationAction
-from ably.pubsub.objects.pathobject import PathObject
-from ably.pubsub.objects.subscription import Subscription
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
+from ably.pubsub.liveobjects.pathobject import PathObject
+from ably.pubsub.liveobjects.subscription import Subscription
 from ably.pubsub.types.channelstate import ChannelState
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_channel_state, poll_until

@@ -26,8 +26,8 @@ import json
 from typing import NamedTuple
 from urllib.parse import quote
 
-from ably.pubsub.objects import publicmessage
-from ably.pubsub.objects.objectmessage import (
+from ably.pubsub.liveobjects import publicmessage
+from ably.pubsub.liveobjects.objectmessage import (
     WIRE_FORMAT_JSON,
     ObjectMessage,
     ObjectOperationAction,

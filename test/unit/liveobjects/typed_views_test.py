@@ -15,7 +15,7 @@ import typing
 
 import pytest
 
-from ably.pubsub.objects.liveobject import LiveObject, LiveObjectUpdate
+from ably.pubsub.liveobjects.liveobject import LiveObject, LiveObjectUpdate
 from ably.pubsub.server import (
     Instance,
     LiveCounterInstance,

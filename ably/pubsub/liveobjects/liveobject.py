@@ -7,16 +7,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
-from ably.pubsub.objects.defaults import ROOT_OBJECT_ID
-from ably.pubsub.objects.objectmessage import ObjectMessage
-from ably.pubsub.objects.subscription import Registry, Subscription
+from ably.pubsub.liveobjects.defaults import ROOT_OBJECT_ID
+from ably.pubsub.liveobjects.objectmessage import ObjectMessage
+from ably.pubsub.liveobjects.subscription import Registry, Subscription
 from ably.pubsub.util.clock import Clock
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.enums import ObjectsOperationSource
-    from ably.pubsub.objects.livemap import InternalLiveMap
-    from ably.pubsub.objects.objectspool import ObjectsPool
-    from ably.pubsub.objects.realtimeobject import RealtimeObject
+    from ably.pubsub.liveobjects.enums import ObjectsOperationSource
+    from ably.pubsub.liveobjects.livemap import InternalLiveMap
+    from ably.pubsub.liveobjects.objectspool import ObjectsPool
+    from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 
 log = logging.getLogger(__name__)
 

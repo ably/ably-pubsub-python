@@ -16,9 +16,9 @@ import logging
 
 import pytest
 
-from ably.pubsub.objects.defaults import GC_INTERVAL_MS
-from ably.pubsub.objects.enums import ObjectsSyncState
-from ably.pubsub.objects.realtimeobject import RealtimeObject
+from ably.pubsub.liveobjects.defaults import GC_INTERVAL_MS
+from ably.pubsub.liveobjects.enums import ObjectsSyncState
+from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.types.channelstate import ChannelState
 from ably.pubsub.util.exceptions import AblyException
@@ -202,7 +202,7 @@ async def test_rto5_an_object_sync_message_that_fails_to_decode_is_skipped(caplo
         'semantics': LWW, 'entries': {'k': {'data': {'json': '{not json'}, 'timeserial': 't:0'}}})
     mock_ws = standard_mock_websocket(sync_objects=(*STANDARD_POOL_OBJECTS, bad))
 
-    with caplog.at_level(logging.ERROR, logger='ably.pubsub.objects'):
+    with caplog.at_level(logging.ERROR, logger='ably.pubsub.liveobjects'):
         client, channel, root, mock_ws = await asyncio.wait_for(
             setup_synced_channel('test', mock_ws=mock_ws), OPERATION_TIMEOUT)
 
@@ -217,7 +217,7 @@ async def test_rto8_an_object_message_that_fails_to_decode_costs_only_itself(cap
     one."""
     client, channel, root, mock_ws = await setup_synced_channel('test')
 
-    with caplog.at_level(logging.ERROR, logger='ably.pubsub.objects'):
+    with caplog.at_level(logging.ERROR, logger='ably.pubsub.liveobjects'):
         mock_ws.send_to_client(build_object_message('test', [
             build_map_set('root', 'data', {'json': '{not json'}, remote_serial(0), 'remote'),
             build_counter_inc(SCORE, 1, remote_serial(1), 'remote'),
@@ -233,7 +233,7 @@ async def test_rto9_an_object_message_that_fails_to_apply_costs_only_itself(capl
     string, is logged and skipped, and the operations after it in the OBJECT still apply."""
     client, channel, root, mock_ws = await setup_synced_channel('test')
 
-    with caplog.at_level(logging.ERROR, logger='ably.pubsub.objects'):
+    with caplog.at_level(logging.ERROR, logger='ably.pubsub.liveobjects'):
         mock_ws.send_to_client(build_object_message('test', [
             build_counter_inc(SCORE, 'one', remote_serial(0), 'remote'),
             build_map_set('root', 'name', {'string': 'Bob'}, remote_serial(1), 'remote'),
@@ -251,7 +251,7 @@ async def test_rto5c_an_object_state_that_fails_to_apply_does_not_stall_the_sync
     bad = build_object_state('counter:bad@1000', {'aaa': 't:0'}, counter={'count': 'many'})
     mock_ws = standard_mock_websocket(sync_objects=(*STANDARD_POOL_OBJECTS, bad))
 
-    with caplog.at_level(logging.ERROR, logger='ably.pubsub.objects'):
+    with caplog.at_level(logging.ERROR, logger='ably.pubsub.liveobjects'):
         client, channel, root, mock_ws = await asyncio.wait_for(
             setup_synced_channel('test', mock_ws=mock_ws), OPERATION_TIMEOUT)
 
@@ -316,7 +316,7 @@ async def test_rto10c_a_gc_sweep_that_raises_is_logged_and_the_next_still_runs(c
 
     monkeypatch.setattr(channel.object._objects_pool, 'collect_garbage', collect_garbage)
 
-    with caplog.at_level(logging.ERROR, logger='ably.pubsub.objects'):
+    with caplog.at_level(logging.ERROR, logger='ably.pubsub.liveobjects'):
         await clock.advance(GC_INTERVAL_MS)
     assert len(sweeps) == 1
     assert any('GC sweep raised' in record.getMessage() for record in caplog.records)

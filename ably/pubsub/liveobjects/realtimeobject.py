@@ -7,22 +7,22 @@ import dataclasses
 import logging
 from typing import TYPE_CHECKING, Any, Callable
 
-from ably.pubsub.objects.defaults import GC_GRACE_PERIOD_MS, GC_INTERVAL_MS, ROOT_OBJECT_ID
-from ably.pubsub.objects.enums import ObjectsEvent, ObjectsOperationSource, ObjectsSyncState
-from ably.pubsub.objects.livecounter import InternalLiveCounter
-from ably.pubsub.objects.livemap import InternalLiveMap
-from ably.pubsub.objects.liveobject import LiveObject, LiveObjectUpdate
-from ably.pubsub.objects.objectmessage import (
+from ably.pubsub.liveobjects.defaults import GC_GRACE_PERIOD_MS, GC_INTERVAL_MS, ROOT_OBJECT_ID
+from ably.pubsub.liveobjects.enums import ObjectsEvent, ObjectsOperationSource, ObjectsSyncState
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
+from ably.pubsub.liveobjects.livemap import InternalLiveMap
+from ably.pubsub.liveobjects.liveobject import LiveObject, LiveObjectUpdate
+from ably.pubsub.liveobjects.objectmessage import (
     WIRE_FORMAT_JSON,
     WIRE_FORMAT_MSGPACK,
     ObjectOperationAction,
     ObjectsMapSemantics,
 )
-from ably.pubsub.objects.objectspool import ObjectsPool
-from ably.pubsub.objects.pathobject import LiveMapPathObject
-from ably.pubsub.objects.pathobjectsubscriptionregister import PathObjectSubscriptionRegister
-from ably.pubsub.objects.subscription import Registry, StatusSubscription
-from ably.pubsub.objects.syncobjectspool import SyncObjectsPool
+from ably.pubsub.liveobjects.objectspool import ObjectsPool
+from ably.pubsub.liveobjects.pathobject import LiveMapPathObject
+from ably.pubsub.liveobjects.pathobjectsubscriptionregister import PathObjectSubscriptionRegister
+from ably.pubsub.liveobjects.subscription import Registry, StatusSubscription
+from ably.pubsub.liveobjects.syncobjectspool import SyncObjectsPool
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.channelmode import ChannelMode
 from ably.pubsub.types.channelstate import ChannelState
@@ -30,7 +30,7 @@ from ably.pubsub.util.clock import Clock, select_clock
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.objectmessage import ObjectMessage
+    from ably.pubsub.liveobjects.objectmessage import ObjectMessage
     from ably.pubsub.realtime.channel import RealtimeChannel
     from ably.pubsub.types.connectiondetails import ConnectionDetails
     from ably.pubsub.types.operations import PublishResult

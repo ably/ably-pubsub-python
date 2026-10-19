@@ -11,8 +11,8 @@ import json
 
 import msgpack
 
-from ably.pubsub.objects import publicmessage
-from ably.pubsub.objects.objectmessage import (
+from ably.pubsub.liveobjects import publicmessage
+from ably.pubsub.liveobjects.objectmessage import (
     WIRE_FORMAT_MSGPACK,
     CounterCreate,
     MapCreate,
@@ -23,7 +23,7 @@ from ably.pubsub.objects.objectmessage import (
     ObjectOperationAction,
     ObjectsMapSemantics,
 )
-from ably.pubsub.objects.realtimeobject import RealtimeObject
+from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.types.channelmode import ChannelMode, decode_channel_mode
 from ably.pubsub.types.channelstate import ChannelState

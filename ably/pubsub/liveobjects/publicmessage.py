@@ -2,7 +2,7 @@
 
 The specification calls these `PublicAPI::ObjectMessage` and `PublicAPI::ObjectOperation`.
 They are exposed to users as `ObjectMessage` and `ObjectOperation`, sharing their names
-with the internal wire types in `ably.pubsub.objects.objectmessage`; code that needs both
+with the internal wire types in `ably.pubsub.liveobjects.objectmessage`; code that needs both
 imports one of the pairs under a module-qualified name.
 """
 
@@ -12,7 +12,7 @@ import copy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ably.pubsub.objects.objectmessage import (
+from ably.pubsub.liveobjects.objectmessage import (
     CounterCreate,
     CounterInc,
     MapClear,
@@ -24,7 +24,7 @@ from ably.pubsub.objects.objectmessage import (
 )
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects import objectmessage
+    from ably.pubsub.liveobjects import objectmessage
 
 
 @dataclass

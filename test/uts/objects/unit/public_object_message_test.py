@@ -23,8 +23,8 @@ RTLCV4g5).
 
 import json
 
-from ably.pubsub.objects import publicmessage
-from ably.pubsub.objects.objectmessage import (
+from ably.pubsub.liveobjects import publicmessage
+from ably.pubsub.liveobjects.objectmessage import (
     CounterCreate,
     CounterCreateWithObjectId,
     CounterInc,

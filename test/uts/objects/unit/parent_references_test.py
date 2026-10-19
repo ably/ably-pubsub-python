@@ -15,12 +15,12 @@ The three RTO5c10 cases drive a sync, which the specification does through
 coroutines only so that an implementation is free to touch the event loop.
 """
 
-from ably.pubsub.objects.enums import ObjectsSyncState
-from ably.pubsub.objects.livecounter import InternalLiveCounter
-from ably.pubsub.objects.livemap import InternalLiveMap
-from ably.pubsub.objects.objectmessage import ObjectsMapSemantics
-from ably.pubsub.objects.objectspool import ObjectsPool
-from ably.pubsub.objects.realtimeobject import RealtimeObject
+from ably.pubsub.liveobjects.enums import ObjectsSyncState
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
+from ably.pubsub.liveobjects.livemap import InternalLiveMap
+from ably.pubsub.liveobjects.objectmessage import ObjectsMapSemantics
+from ably.pubsub.liveobjects.objectspool import ObjectsPool
+from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 from test.uts.objects.helpers.standard_test_pool import (
     HAS_OBJECTS,
     LWW,

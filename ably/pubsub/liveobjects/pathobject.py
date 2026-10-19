@@ -20,24 +20,24 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, overload
 
-from ably.pubsub.objects.instance import (
+from ably.pubsub.liveobjects.instance import (
     Instance,
     compact_json_value,
     expected_value_type,
     primitive_value,
     value_type_of,
 )
-from ably.pubsub.objects.livecounter import InternalLiveCounter
-from ably.pubsub.objects.livemap import InternalLiveMap
-from ably.pubsub.objects.publicmessage import ObjectMessage
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
+from ably.pubsub.liveobjects.livemap import InternalLiveMap
+from ably.pubsub.liveobjects.publicmessage import ObjectMessage
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext, LiveMapBatchContext
-    from ably.pubsub.objects.enums import ValueType
-    from ably.pubsub.objects.realtimeobject import RealtimeObject
-    from ably.pubsub.objects.subscription import Subscription
-    from ably.pubsub.objects.valuetypes import JsonValue, LiveMapValue, Primitive, T
+    from ably.pubsub.liveobjects.batch import Batch, LiveCounterBatchContext, LiveMapBatchContext
+    from ably.pubsub.liveobjects.enums import ValueType
+    from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
+    from ably.pubsub.liveobjects.subscription import Subscription
+    from ably.pubsub.liveobjects.valuetypes import JsonValue, LiveMapValue, Primitive, T
 
 
 @dataclass
@@ -189,7 +189,7 @@ class LiveMapPathObject(PathObject):
         the path does not resolve to a map (RTPO20c).
         """
         # Imported here, as the batch module builds on the views
-        from ably.pubsub.objects.batch import Batch, LiveMapBatchContext
+        from ably.pubsub.liveobjects.batch import Batch, LiveMapBatchContext
 
         return Batch(self._realtime_object, self._resolve, LiveMapBatchContext, f'path {self.path()!r}')
 
@@ -244,7 +244,7 @@ class LiveCounterPathObject(PathObject):
         the path does not resolve to a counter (RTPO20c).
         """
         # Imported here, as the batch module builds on the views
-        from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext
+        from ably.pubsub.liveobjects.batch import Batch, LiveCounterBatchContext
 
         return Batch(self._realtime_object, self._resolve, LiveCounterBatchContext, f'path {self.path()!r}')
 

@@ -17,19 +17,19 @@ import copy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, overload
 
-from ably.pubsub.objects.enums import ValueType
-from ably.pubsub.objects.livecounter import InternalLiveCounter
-from ably.pubsub.objects.livemap import InternalLiveMap
-from ably.pubsub.objects.liveobject import LiveObject
-from ably.pubsub.objects.publicmessage import ObjectMessage
+from ably.pubsub.liveobjects.enums import ValueType
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
+from ably.pubsub.liveobjects.livemap import InternalLiveMap
+from ably.pubsub.liveobjects.liveobject import LiveObject
+from ably.pubsub.liveobjects.publicmessage import ObjectMessage
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext, LiveMapBatchContext
-    from ably.pubsub.objects.liveobject import LiveObjectUpdate
-    from ably.pubsub.objects.realtimeobject import RealtimeObject
-    from ably.pubsub.objects.subscription import Subscription
-    from ably.pubsub.objects.valuetypes import JsonObject, JsonValue, LiveMapValue, Primitive, T
+    from ably.pubsub.liveobjects.batch import Batch, LiveCounterBatchContext, LiveMapBatchContext
+    from ably.pubsub.liveobjects.liveobject import LiveObjectUpdate
+    from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
+    from ably.pubsub.liveobjects.subscription import Subscription
+    from ably.pubsub.liveobjects.valuetypes import JsonObject, JsonValue, LiveMapValue, Primitive, T
 
 # The types `value(expected)` accepts as `expected`, and the category each one selects
 _EXPECTED_VALUE_TYPES: tuple[tuple[type, ValueType], ...] = (
@@ -262,7 +262,7 @@ class LiveMapInstance(Instance):
         Entering checks the write preconditions (RTINS17b).
         """
         # Imported here, as the batch module builds on the views
-        from ably.pubsub.objects.batch import Batch, LiveMapBatchContext
+        from ably.pubsub.liveobjects.batch import Batch, LiveMapBatchContext
 
         return Batch(self._realtime_object, lambda: self._value, LiveMapBatchContext, f'object {self.id!r}')
 
@@ -328,7 +328,7 @@ class LiveCounterInstance(Instance):
         Entering checks the write preconditions (RTINS17b).
         """
         # Imported here, as the batch module builds on the views
-        from ably.pubsub.objects.batch import Batch, LiveCounterBatchContext
+        from ably.pubsub.liveobjects.batch import Batch, LiveCounterBatchContext
 
         return Batch(self._realtime_object, lambda: self._value, LiveCounterBatchContext, f'object {self.id!r}')
 

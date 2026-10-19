@@ -24,8 +24,8 @@ import json
 
 import pytest
 
-from ably.pubsub.objects.objectmessage import ObjectOperationAction
-from ably.pubsub.objects.valuetypes import LiveCounter, LiveMap
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
+from ably.pubsub.liveobjects.valuetypes import LiveCounter, LiveMap
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.objects.helpers.standard_test_pool import (
     LWW,

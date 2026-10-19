@@ -7,7 +7,7 @@ Spec points: RTLMV3d (a blueprint is immutable), RTLM20e1 and RTLMV4c (value val
 
 import pytest
 
-from ably.pubsub.objects.valuetypes import LiveCounter, LiveMap, evaluate
+from ably.pubsub.liveobjects.valuetypes import LiveCounter, LiveMap, evaluate
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.objects.helpers.standard_test_pool import setup_synced_channel, time_mock_http
 

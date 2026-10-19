@@ -22,33 +22,33 @@ from ably.pubsub.http.auth import Auth
 from ably.pubsub.http.channel import Channels as HttpChannels
 from ably.pubsub.http.http import DefaultPubSubHttpClient as _DefaultPubSubHttpClient
 from ably.pubsub.http.push import Push
-from ably.pubsub.objects.batch import (
+from ably.pubsub.liveobjects.batch import (
     Batch,
     BatchContext,
     LiveCounterBatchContext,
     LiveMapBatchContext,
     PrimitiveBatchContext,
 )
-from ably.pubsub.objects.enums import ObjectsEvent, ValueType
-from ably.pubsub.objects.instance import (
+from ably.pubsub.liveobjects.enums import ObjectsEvent, ValueType
+from ably.pubsub.liveobjects.instance import (
     Instance,
     InstanceSubscriptionEvent,
     LiveCounterInstance,
     LiveMapInstance,
     PrimitiveInstance,
 )
-from ably.pubsub.objects.objectmessage import ObjectOperationAction, ObjectsMapSemantics
-from ably.pubsub.objects.pathobject import (
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction, ObjectsMapSemantics
+from ably.pubsub.liveobjects.pathobject import (
     LiveCounterPathObject,
     LiveMapPathObject,
     PathObject,
     PathObjectSubscriptionEvent,
     PrimitivePathObject,
 )
-from ably.pubsub.objects.publicmessage import ObjectMessage, ObjectOperation
-from ably.pubsub.objects.realtimeobject import RealtimeObject
-from ably.pubsub.objects.subscription import StatusSubscription, Subscription
-from ably.pubsub.objects.valuetypes import (
+from ably.pubsub.liveobjects.publicmessage import ObjectMessage, ObjectOperation
+from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
+from ably.pubsub.liveobjects.subscription import StatusSubscription, Subscription
+from ably.pubsub.liveobjects.valuetypes import (
     JsonObject,
     JsonValue,
     LiveCounter,

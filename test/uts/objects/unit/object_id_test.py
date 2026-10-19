@@ -11,7 +11,7 @@ import base64
 import hashlib
 import re
 
-from ably.pubsub.objects.objectid import generate_object_id
+from ably.pubsub.liveobjects.objectid import generate_object_id
 
 # RFC 4648 s.5's URL-safe alphabet, with no padding
 BASE64URL_UNPADDED = re.compile(r'[A-Za-z0-9_-]+')

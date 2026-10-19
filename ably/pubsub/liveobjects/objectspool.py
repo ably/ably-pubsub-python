@@ -6,15 +6,15 @@ import logging
 from collections.abc import Iterator, MutableMapping
 from typing import TYPE_CHECKING
 
-from ably.pubsub.objects.defaults import ROOT_OBJECT_ID
-from ably.pubsub.objects.livecounter import InternalLiveCounter
-from ably.pubsub.objects.livemap import InternalLiveMap
-from ably.pubsub.objects.liveobject import LiveObject
-from ably.pubsub.objects.objectid import object_type_of
+from ably.pubsub.liveobjects.defaults import ROOT_OBJECT_ID
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
+from ably.pubsub.liveobjects.livemap import InternalLiveMap
+from ably.pubsub.liveobjects.liveobject import LiveObject
+from ably.pubsub.liveobjects.objectid import object_type_of
 from ably.pubsub.util.clock import Clock
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.realtimeobject import RealtimeObject
+    from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 
 log = logging.getLogger(__name__)
 

@@ -37,10 +37,10 @@ import asyncio
 
 import pytest
 
-from ably.pubsub.objects.enums import ObjectsEvent, ObjectsSyncState
-from ably.pubsub.objects.objectmessage import ObjectOperationAction
-from ably.pubsub.objects.pathobject import PathObject
-from ably.pubsub.objects.valuetypes import LiveCounter
+from ably.pubsub.liveobjects.enums import ObjectsEvent, ObjectsSyncState
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
+from ably.pubsub.liveobjects.pathobject import PathObject
+from ably.pubsub.liveobjects.valuetypes import LiveCounter
 from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.channelmode import ChannelMode
 from ably.pubsub.types.channelstate import ChannelState

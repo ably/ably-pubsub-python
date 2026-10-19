@@ -13,9 +13,9 @@ where it reads `result == false`, the operation did not apply and emitted nothin
 `replace_data` returns its update (RTLC6h), as the specification has it.
 """
 
-from ably.pubsub.objects.enums import ObjectsOperationSource
-from ably.pubsub.objects.livecounter import InternalLiveCounter
-from ably.pubsub.objects.objectmessage import ObjectOperationAction
+from ably.pubsub.liveobjects.enums import ObjectsOperationSource
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
 from test.uts.helpers.clock import FakeClock
 from test.uts.objects.helpers.standard_test_pool import (
     build_counter_create,

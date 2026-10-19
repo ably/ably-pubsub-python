@@ -18,11 +18,11 @@ own root: `ObjectsPool()` creates that (RTO3b1), and the specification builds a 
 with the id `root` alongside it.
 """
 
-from ably.pubsub.objects.enums import ObjectsOperationSource
-from ably.pubsub.objects.livecounter import InternalLiveCounter
-from ably.pubsub.objects.livemap import InternalLiveMap
-from ably.pubsub.objects.objectmessage import ObjectData, ObjectsMapEntry, ObjectsMapSemantics
-from ably.pubsub.objects.objectspool import ObjectsPool
+from ably.pubsub.liveobjects.enums import ObjectsOperationSource
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
+from ably.pubsub.liveobjects.livemap import InternalLiveMap
+from ably.pubsub.liveobjects.objectmessage import ObjectData, ObjectsMapEntry, ObjectsMapSemantics
+from ably.pubsub.liveobjects.objectspool import ObjectsPool
 from test.uts.objects.helpers.standard_test_pool import (
     LWW,
     build_counter_inc,

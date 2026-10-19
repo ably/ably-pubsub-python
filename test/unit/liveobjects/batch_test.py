@@ -13,7 +13,7 @@ from typing import NamedTuple
 
 import pytest
 
-from ably.pubsub.objects.objectmessage import ObjectOperationAction
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
 from ably.pubsub.server import (
     LiveCounter,
     LiveCounterBatchContext,

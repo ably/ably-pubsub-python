@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 from ably.pubsub.http.channel import Channel
 from ably.pubsub.http.channel import Channels as HttpChannels
-from ably.pubsub.objects.objectmessage import ObjectMessage
-from ably.pubsub.objects.realtimeobject import RealtimeObject
+from ably.pubsub.liveobjects.objectmessage import ObjectMessage
+from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 from ably.pubsub.realtime.annotations import RealtimeAnnotations
 from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.realtime.presence import RealtimePresence

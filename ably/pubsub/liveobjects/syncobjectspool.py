@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.objectmessage import ObjectMessage
+    from ably.pubsub.liveobjects.objectmessage import ObjectMessage
 
 log = logging.getLogger(__name__)
 

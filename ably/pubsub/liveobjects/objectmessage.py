@@ -592,7 +592,7 @@ class ObjectMessage:
     """OM1: an object message sent or received over a channel.
 
     This is the internal type. The type delivered to listeners is the public
-    `ably.pubsub.objects.publicmessage.ObjectMessage` (PAOM1).
+    `ably.pubsub.liveobjects.publicmessage.ObjectMessage` (PAOM1).
     """
 
     id: str | None = None  # OM2a

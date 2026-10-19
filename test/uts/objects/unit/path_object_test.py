@@ -23,7 +23,7 @@ Every test opens with the standard synced channel; the module issues no writes, 
 
 import pytest
 
-from ably.pubsub.objects.instance import Instance
+from ably.pubsub.liveobjects.instance import Instance
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import poll_until
 from test.uts.objects.helpers.standard_test_pool import (

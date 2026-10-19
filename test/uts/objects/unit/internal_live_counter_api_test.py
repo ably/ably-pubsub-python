@@ -16,7 +16,7 @@ protocol v6 operation, so a legacy (v5) payload field fails the test.
 
 import pytest
 
-from ably.pubsub.objects.objectmessage import ObjectOperationAction
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import poll_until
 from test.uts.objects.helpers.standard_test_pool import (

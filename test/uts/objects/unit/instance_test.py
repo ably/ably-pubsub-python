@@ -26,11 +26,11 @@ so each write is awaited to completion and is applied locally by the time it ret
 
 import pytest
 
-from ably.pubsub.objects import publicmessage
-from ably.pubsub.objects.enums import ValueType
-from ably.pubsub.objects.instance import Instance, InstanceSubscriptionEvent, PrimitiveInstance
-from ably.pubsub.objects.objectmessage import ObjectOperationAction
-from ably.pubsub.objects.subscription import Subscription
+from ably.pubsub.liveobjects import publicmessage
+from ably.pubsub.liveobjects.enums import ValueType
+from ably.pubsub.liveobjects.instance import Instance, InstanceSubscriptionEvent, PrimitiveInstance
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
+from ably.pubsub.liveobjects.subscription import Subscription
 from ably.pubsub.types.channelstate import ChannelState
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import poll_until

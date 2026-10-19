@@ -5,14 +5,14 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Callable
 
-from ably.pubsub.objects.liveobject import LiveMapUpdate
-from ably.pubsub.objects.pathobject import PathObject, PathObjectSubscriptionEvent
-from ably.pubsub.objects.publicmessage import ObjectMessage
-from ably.pubsub.objects.subscription import Registry, Subscription
+from ably.pubsub.liveobjects.liveobject import LiveMapUpdate
+from ably.pubsub.liveobjects.pathobject import PathObject, PathObjectSubscriptionEvent
+from ably.pubsub.liveobjects.publicmessage import ObjectMessage
+from ably.pubsub.liveobjects.subscription import Registry, Subscription
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.liveobject import LiveObject, LiveObjectUpdate
-    from ably.pubsub.objects.realtimeobject import RealtimeObject
+    from ably.pubsub.liveobjects.liveobject import LiveObject, LiveObjectUpdate
+    from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 
 log = logging.getLogger(__name__)
 

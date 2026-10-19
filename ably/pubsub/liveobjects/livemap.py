@@ -6,9 +6,9 @@ import dataclasses
 import logging
 from typing import TYPE_CHECKING, Any
 
-from ably.pubsub.objects.enums import ObjectsOperationSource
-from ably.pubsub.objects.liveobject import MAP_KEY_REMOVED, MAP_KEY_UPDATED, LiveMapUpdate, LiveObject
-from ably.pubsub.objects.objectmessage import (
+from ably.pubsub.liveobjects.enums import ObjectsOperationSource
+from ably.pubsub.liveobjects.liveobject import MAP_KEY_REMOVED, MAP_KEY_UPDATED, LiveMapUpdate, LiveObject
+from ably.pubsub.liveobjects.objectmessage import (
     MapRemove,
     MapSet,
     ObjectData,
@@ -18,7 +18,7 @@ from ably.pubsub.objects.objectmessage import (
     ObjectsMapEntry,
     ObjectsMapSemantics,
 )
-from ably.pubsub.objects.valuetypes import (
+from ably.pubsub.liveobjects.valuetypes import (
     LiveCounter,
     LiveMap,
     evaluate,
@@ -30,9 +30,9 @@ from ably.pubsub.util.clock import Clock
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.objectspool import ObjectsPool
-    from ably.pubsub.objects.realtimeobject import RealtimeObject
-    from ably.pubsub.objects.valuetypes import LiveMapValue
+    from ably.pubsub.liveobjects.objectspool import ObjectsPool
+    from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
+    from ably.pubsub.liveobjects.valuetypes import LiveMapValue
 
 log = logging.getLogger(__name__)
 

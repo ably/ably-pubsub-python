@@ -5,15 +5,15 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ably.pubsub.objects.enums import ObjectsOperationSource
-from ably.pubsub.objects.liveobject import CounterUpdate, LiveCounterUpdate, LiveObject
-from ably.pubsub.objects.objectmessage import CounterInc, ObjectMessage, ObjectOperation, ObjectOperationAction
-from ably.pubsub.objects.valuetypes import validate_amount
+from ably.pubsub.liveobjects.enums import ObjectsOperationSource
+from ably.pubsub.liveobjects.liveobject import CounterUpdate, LiveCounterUpdate, LiveObject
+from ably.pubsub.liveobjects.objectmessage import CounterInc, ObjectMessage, ObjectOperation, ObjectOperationAction
+from ably.pubsub.liveobjects.valuetypes import validate_amount
 from ably.pubsub.util.clock import Clock
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.objectspool import ObjectsPool
+    from ably.pubsub.liveobjects.objectspool import ObjectsPool
 
 log = logging.getLogger(__name__)
 

@@ -466,7 +466,9 @@ websocket. Follow `internal_live_map_test.py` (pure), `path_object_mutations_tes
 and `objects_lifecycle_test.py` (integration). The integration package's own `conftest.py`
 provisions a separate app under the realtime tier's fixture name, `realtime_sandbox`, and
 all three of its specifications take `use_binary_protocol`. The package is
-`ably.pubsub.objects`; the public names are exported from `ably.pubsub.server`.
+`ably.pubsub.liveobjects`, named for the product as PDR-080 has package names do, while
+`test/uts/objects/` keeps the specification's directory name so that each test file maps
+onto its specification; the public names are exported from `ably.pubsub.server`.
 
 **Translate the untyped API through the typed views** (LODR-061, the RTTS partition). The
 specifications call every method on one `PathObject` or `Instance` class; ably-python
@@ -538,7 +540,7 @@ class that LODR-061 does not name carry a leading underscore (`channel.object._o
   left `_objects_pool`. The GC interval, 300000 ms, is read when the first ATTACHED schedules
   the timer on the client's clock: set `channel.object._gc_interval_ms` before `get()`.
 - **The public and internal `ObjectMessage` share a name.** Reach the public one as
-  `publicmessage.ObjectMessage`, from `ably.pubsub.objects`.
+  `publicmessage.ObjectMessage`, from `ably.pubsub.liveobjects`.
 - **Check that a test can fail.** Several objects specifications assert something that holds
   with the behaviour removed. The derivation caught them by running each module against a
   throwaway reference implementation with one fault injected; add the discriminating

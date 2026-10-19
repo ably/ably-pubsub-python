@@ -20,8 +20,8 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Generic, TypeVar, overload
 
-from ably.pubsub.objects.enums import ValueType
-from ably.pubsub.objects.instance import (
+from ably.pubsub.liveobjects.enums import ValueType
+from ably.pubsub.liveobjects.instance import (
     Instance,
     LiveCounterInstance,
     LiveMapInstance,
@@ -30,10 +30,10 @@ from ably.pubsub.objects.instance import (
     primitive_value,
     value_type_of,
 )
-from ably.pubsub.objects.livecounter import counter_inc_message
-from ably.pubsub.objects.livemap import map_remove_message, map_set_message, map_set_messages
-from ably.pubsub.objects.objectmessage import ObjectMessage
-from ably.pubsub.objects.valuetypes import (
+from ably.pubsub.liveobjects.livecounter import counter_inc_message
+from ably.pubsub.liveobjects.livemap import map_remove_message, map_set_message, map_set_messages
+from ably.pubsub.liveobjects.objectmessage import ObjectMessage
+from ably.pubsub.liveobjects.valuetypes import (
     LiveCounter,
     LiveMap,
     primitive_to_object_data,
@@ -44,8 +44,8 @@ from ably.pubsub.objects.valuetypes import (
 from ably.pubsub.util.exceptions import AblyException
 
 if TYPE_CHECKING:
-    from ably.pubsub.objects.realtimeobject import RealtimeObject
-    from ably.pubsub.objects.valuetypes import JsonValue, LiveMapValue, Primitive, T
+    from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
+    from ably.pubsub.liveobjects.valuetypes import JsonValue, LiveMapValue, Primitive, T
 
     # RTBC16b: builds the ObjectMessages of one queued write when the batch is flushed
     MessageConstructor = Callable[[], Awaitable[list[ObjectMessage]]]

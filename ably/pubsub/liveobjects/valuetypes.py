@@ -15,8 +15,8 @@ import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, TypeVar, Union
 
-from ably.pubsub.objects.objectid import generate_nonce, generate_object_id
-from ably.pubsub.objects.objectmessage import (
+from ably.pubsub.liveobjects.objectid import generate_nonce, generate_object_id
+from ably.pubsub.liveobjects.objectmessage import (
     WIRE_FORMAT_JSON,
     CounterCreate,
     CounterCreateWithObjectId,

@@ -15,9 +15,9 @@ control listener on a later dispatch has fired and the loop has settled (the
 specification's negative-assertion quiescence pattern).
 """
 
-from ably.pubsub.objects import publicmessage
-from ably.pubsub.objects.objectmessage import ObjectOperationAction
-from ably.pubsub.objects.subscription import Subscription
+from ably.pubsub.liveobjects import publicmessage
+from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
+from ably.pubsub.liveobjects.subscription import Subscription
 from test.uts.helpers.client import poll_until
 from test.uts.helpers.clock import settle
 from test.uts.objects.helpers.standard_test_pool import (

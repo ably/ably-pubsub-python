@@ -27,12 +27,12 @@ tests that drive a `RealtimeObject` are coroutines only so that an implementatio
 touch the event loop.
 """
 
-from ably.pubsub.objects.enums import ObjectsOperationSource, ObjectsSyncState
-from ably.pubsub.objects.livecounter import InternalLiveCounter
-from ably.pubsub.objects.livemap import InternalLiveMap
-from ably.pubsub.objects.objectmessage import ObjectData, ObjectOperationAction, ObjectsMapEntry
-from ably.pubsub.objects.objectspool import ObjectsPool
-from ably.pubsub.objects.realtimeobject import RealtimeObject
+from ably.pubsub.liveobjects.enums import ObjectsOperationSource, ObjectsSyncState
+from ably.pubsub.liveobjects.livecounter import InternalLiveCounter
+from ably.pubsub.liveobjects.livemap import InternalLiveMap
+from ably.pubsub.liveobjects.objectmessage import ObjectData, ObjectOperationAction, ObjectsMapEntry
+from ably.pubsub.liveobjects.objectspool import ObjectsPool
+from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
 from test.uts.objects.helpers.standard_test_pool import (
     ATTACHED,
     HAS_OBJECTS,

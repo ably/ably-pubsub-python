@@ -3701,7 +3701,7 @@ one, goes straight to the sandbox with the key, as the specification builds it.
 
 No UTS specification covers batched writes (RTPO20, RTINS17, RTBC1–RTBC16, in the unmerged
 [#471](https://github.com/ably/specification/pull/471)) or the typed views (RTTS2–RTTS10, in
-#491). Both are implemented, so both are tested, in `test/unit/objects/`: `batch_test.py`, 29
+#491). Both are implemented, so both are tested, in `test/unit/liveobjects/`: `batch_test.py`, 29
 functions run as 76 cases, and `typed_views_test.py`, 17 functions run as 61. They are written
 against `objects-features.md`, the two pull requests and LODR-061, carry no `# UTS:` comment,
 and are not counted in the header. Beside them, `realtime_object_test.py`,
