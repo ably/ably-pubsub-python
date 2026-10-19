@@ -15,47 +15,14 @@ This is the public API of the ``ably-pubsub-server`` distribution. Both
 ``ably`` and ``ably.pubsub`` are PEP 420 namespace packages shared with the
 other ``ably-*`` distributions, so neither carries an ``__init__.py`` of its
 own and neither exports anything; everything the library offers is reachable
-from here.
+from here, from :mod:`ably.pubsub.server.sync` for the synchronous client, or
+from :mod:`ably.pubsub.server.liveobjects` for LiveObjects.
 """
 
 from ably.pubsub.http.auth import Auth
 from ably.pubsub.http.channel import Channels as HttpChannels
 from ably.pubsub.http.http import DefaultPubSubHttpClient as _DefaultPubSubHttpClient
 from ably.pubsub.http.push import Push
-from ably.pubsub.liveobjects.batch import (
-    Batch,
-    BatchContext,
-    LiveCounterBatchContext,
-    LiveMapBatchContext,
-    PrimitiveBatchContext,
-)
-from ably.pubsub.liveobjects.enums import ObjectsEvent, ValueType
-from ably.pubsub.liveobjects.instance import (
-    Instance,
-    InstanceSubscriptionEvent,
-    LiveCounterInstance,
-    LiveMapInstance,
-    PrimitiveInstance,
-)
-from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction, ObjectsMapSemantics
-from ably.pubsub.liveobjects.pathobject import (
-    LiveCounterPathObject,
-    LiveMapPathObject,
-    PathObject,
-    PathObjectSubscriptionEvent,
-    PrimitivePathObject,
-)
-from ably.pubsub.liveobjects.publicmessage import ObjectMessage, ObjectOperation
-from ably.pubsub.liveobjects.realtimeobject import RealtimeObject
-from ably.pubsub.liveobjects.subscription import StatusSubscription, Subscription
-from ably.pubsub.liveobjects.valuetypes import (
-    JsonObject,
-    JsonValue,
-    LiveCounter,
-    LiveMap,
-    LiveMapValue,
-    Primitive,
-)
 from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
 from ably.pubsub.realtime.channel import Channels as RealtimeChannels
 from ably.pubsub.realtime.connection import Connection
@@ -293,8 +260,6 @@ __all__ = [
     'Annotation',
     'AnnotationAction',
     'Auth',
-    'Batch',
-    'BatchContext',
     'BatchPresenceFailureResult',
     'BatchPresenceSuccessResult',
     'BatchPublishFailureResult',
@@ -310,49 +275,21 @@ __all__ = [
     'HttpChannels',
     'HttpPaginatedResponse',
     'IncompatibleClientIdException',
-    'Instance',
-    'InstanceSubscriptionEvent',
-    'JsonObject',
-    'JsonValue',
-    'LiveCounter',
-    'LiveCounterBatchContext',
-    'LiveCounterInstance',
-    'LiveCounterPathObject',
-    'LiveMap',
-    'LiveMapBatchContext',
-    'LiveMapInstance',
-    'LiveMapPathObject',
-    'LiveMapValue',
     'Message',
     'MessageAction',
     'MessageOperation',
     'MessageVersion',
-    'ObjectMessage',
-    'ObjectOperation',
-    'ObjectOperationAction',
-    'ObjectsEvent',
-    'ObjectsMapSemantics',
     'Options',
     'PaginatedResult',
-    'PathObject',
-    'PathObjectSubscriptionEvent',
-    'Primitive',
-    'PrimitiveBatchContext',
-    'PrimitiveInstance',
-    'PrimitivePathObject',
     'PubSubHttpClient',
     'PubSubRealtimeClient',
     'PublishResult',
     'Push',
     'PushChannelSubscription',
     'RealtimeChannels',
-    'RealtimeObject',
-    'StatusSubscription',
-    'Subscription',
     'TokenDetails',
     'UpdateDeleteResult',
     'VCDiffDecoder',
-    'ValueType',
     'api_version',
     'create_http_client',
     'create_realtime_client',

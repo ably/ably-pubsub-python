@@ -4,6 +4,7 @@ import typing
 import pytest
 
 import ably.pubsub.server as server
+import ably.pubsub.server.liveobjects as server_liveobjects
 import ably.pubsub.server.sync as server_sync
 from ably.pubsub.http.http import DefaultPubSubHttpClient
 from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
@@ -167,3 +168,15 @@ class TestPublicTypes:
     def test_crypto_helpers_are_exported(self, name):
         assert name in server.__all__
         assert name in server_sync.__all__
+
+    # LiveObjects names live in their own module, named for the product (PDR-080), so
+    # that generic ones such as Batch and Subscription stay apart from the Pub/Sub names
+    @pytest.mark.parametrize('name', ['Batch', 'LiveCounter', 'LiveMap', 'PathObject', 'Subscription'])
+    def test_liveobjects_names_are_exported_from_their_own_module(self, name):
+        assert name in server_liveobjects.__all__
+        assert name not in server.__all__
+        assert not hasattr(server, name)
+
+    def test_liveobjects_names_are_all_importable(self):
+        for name in server_liveobjects.__all__:
+            assert getattr(server_liveobjects, name) is not None

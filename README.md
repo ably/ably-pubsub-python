@@ -111,7 +111,8 @@ Values are read through a typed view of their path — `as_live_map()`, `as_live
 `as_primitive()` — and reads are synchronous; writes are awaited.
 
 ```python
-from ably.pubsub.server import ChannelMode, ChannelOptions, LiveCounter, LiveMap, create_realtime_client
+from ably.pubsub.server import ChannelMode, ChannelOptions, create_realtime_client
+from ably.pubsub.server.liveobjects import LiveCounter, LiveMap
 
 async with create_realtime_client(key='your-ably-api-key') as realtime_client:
     channel = realtime_client.channels.get(

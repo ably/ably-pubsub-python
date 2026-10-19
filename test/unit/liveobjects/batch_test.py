@@ -14,7 +14,7 @@ from typing import NamedTuple
 import pytest
 
 from ably.pubsub.liveobjects.objectmessage import ObjectOperationAction
-from ably.pubsub.server import (
+from ably.pubsub.server.liveobjects import (
     LiveCounter,
     LiveCounterBatchContext,
     LiveMap,

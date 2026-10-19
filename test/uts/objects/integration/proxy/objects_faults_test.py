@@ -49,7 +49,8 @@ import asyncio
 import pytest
 
 from ably.pubsub.realtime.connection import ConnectionState
-from ably.pubsub.server import AblyException, PathObject
+from ably.pubsub.server import AblyException
+from ably.pubsub.server.liveobjects import PathObject
 from ably.pubsub.types.channelstate import ChannelState
 from test.uts.helpers.client import (
     await_channel_state,

@@ -25,7 +25,7 @@ package timeout. Clients are closed by the suite's fixture.
 import asyncio
 
 from ably.pubsub.realtime.connection import ConnectionState
-from ably.pubsub.server import LiveCounter, LiveMap, PathObject
+from ably.pubsub.server.liveobjects import LiveCounter, LiveMap, PathObject
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 from test.uts.objects.helpers.standard_test_pool import objects_channel_options, provision_objects_via_rest

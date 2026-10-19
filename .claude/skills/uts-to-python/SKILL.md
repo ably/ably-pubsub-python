@@ -468,7 +468,7 @@ provisions a separate app under the realtime tier's fixture name, `realtime_sand
 all three of its specifications take `use_binary_protocol`. The package is
 `ably.pubsub.liveobjects`, named for the product as PDR-080 has package names do, while
 `test/uts/objects/` keeps the specification's directory name so that each test file maps
-onto its specification; the public names are exported from `ably.pubsub.server`.
+onto its specification; the public names are exported from `ably.pubsub.server.liveobjects`.
 
 **Translate the untyped API through the typed views** (LODR-061, the RTTS partition). The
 specifications call every method on one `PathObject` or `Instance` class; ably-python

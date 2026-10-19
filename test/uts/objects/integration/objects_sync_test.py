@@ -22,7 +22,8 @@ seconds `objects_gc_test.md` gives the same call. Clients are closed by the suit
 import asyncio
 
 from ably.pubsub.realtime.connection import ConnectionState
-from ably.pubsub.server import ChannelMode, PathObject
+from ably.pubsub.server import ChannelMode
+from ably.pubsub.server.liveobjects import PathObject
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 from test.uts.objects.helpers.standard_test_pool import objects_channel_options
