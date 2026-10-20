@@ -15,7 +15,8 @@ This is the public API of the ``ably-pubsub-server`` distribution. Both
 ``ably`` and ``ably.pubsub`` are PEP 420 namespace packages shared with the
 other ``ably-*`` distributions, so neither carries an ``__init__.py`` of its
 own and neither exports anything; everything the library offers is reachable
-from here.
+from here, from :mod:`ably.pubsub.server.sync` for the synchronous client, or
+from :mod:`ably.pubsub.server.liveobjects` for LiveObjects.
 """
 
 from ably.pubsub.http.auth import Auth
@@ -196,6 +197,9 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
         queue_messages: bool
             Hold messages published while the connection is not yet established and send
             them once it is, rather than failing them. Defaults to True.
+        echo_messages: bool
+            Deliver the messages this client publishes back to it on its own connection.
+            LiveObjects writes require it. Defaults to True.
         transport_params: dict
             Additional query parameters to send when opening the realtime connection.
 

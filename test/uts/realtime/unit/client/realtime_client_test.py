@@ -151,9 +151,6 @@ async def test_rtc17_client_id_attribute():
 
 
 # UTS: realtime/unit/RTC1a/echo-messages-option-0
-# DEVIATION: ably-python has no `echo_messages` option and sends no `echo` query
-# parameter. See deviations.md.
-@deviation
 async def test_rtc1a_echo_messages_option():
     # RTC1a_1: echoMessages defaults to true
     mock_ws = MockWebSocket()

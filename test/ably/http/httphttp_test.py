@@ -190,7 +190,7 @@ class TestHttpHttp(BaseAsyncTestCase):
 
         # API
         assert 'X-Ably-Version' in r.request.headers
-        assert r.request.headers['X-Ably-Version'] == '5'
+        assert r.request.headers['X-Ably-Version'] == '6'
 
         # Agent
         assert 'Ably-Agent' in r.request.headers

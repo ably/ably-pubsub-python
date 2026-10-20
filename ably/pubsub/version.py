@@ -5,5 +5,5 @@ because ``ably.pubsub`` is a PEP 420 namespace package, shared with the other
 ``ably-pubsub-*`` distributions, and so cannot carry one.
 """
 
-api_version = '5'
+api_version = '6'
 lib_version = '3.1.4'

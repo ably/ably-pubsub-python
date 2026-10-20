@@ -1,5 +1,5 @@
 class Defaults:
-    protocol_version = "5"
+    protocol_version = "6"
 
     connectivity_check_url = "https://internet-up.ably-realtime.com/is-the-internet-up.txt"
     endpoint = 'main'
