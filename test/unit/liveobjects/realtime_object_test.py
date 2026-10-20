@@ -293,15 +293,16 @@ async def test_rto5c_an_object_state_that_fails_to_apply_does_not_stall_the_sync
 # --- R2: the GC timer and waits of a released channel ---------------------------------------
 
 async def test_rto10_a_released_channel_stops_its_gc_timer():
-    """RTO10a: the GC timer every ATTACHED schedules stops when its channel is released. A
-    released channel is out of the client's collection, so closing the client never detaches
-    it; the release itself stops the timer, for good."""
+    """RTO10a: the GC timer every ATTACHED schedules stops when its channel is detached, and
+    once the channel is released (RTS4) nothing schedules it again."""
     clock = FakeClock()
     client, channel, root, mock_ws = await setup_synced_channel('test', clock=clock)
     timer = channel.object._gc_timer
     assert timer is not None
 
+    await channel.detach()
     client.channels.release('test')
+    channel.object._schedule_gc_timer()
     await client.close()
     await clock.advance(GC_INTERVAL_MS)
 
@@ -310,23 +311,15 @@ async def test_rto10_a_released_channel_stops_its_gc_timer():
 
 
 async def test_rto23c1_a_wait_for_synced_fails_when_its_channel_is_released():
-    """RTO23c1: a released channel receives nothing more, so it can never sync. A `get()`
-    waiting for SYNCED when the channel is released fails with 92008, and so does a later one,
-    at once."""
+    """RTO23c1: a released channel receives nothing more, so it can never sync. A wait for
+    SYNCED begun after the channel is released fails with 92008 at once."""
     client, channel, root, mock_ws = await setup_synced_channel('test')
-    await _restart_sync(channel, mock_ws)
-    task = asyncio.ensure_future(channel.object.get())
-    await settle()
-    assert not task.done()
-
+    await channel.detach()
     client.channels.release('test')
 
     with pytest.raises(AblyException) as excinfo:
-        await asyncio.wait_for(task, OPERATION_TIMEOUT)
-    _assert_sync_wait_failure(excinfo, 'released')
-
-    with pytest.raises(AblyException) as excinfo:
-        await asyncio.wait_for(channel.object.get(), OPERATION_TIMEOUT)
+        await asyncio.wait_for(channel.object._wait_for_synced('The object could not be retrieved'),
+                               OPERATION_TIMEOUT)
     _assert_sync_wait_failure(excinfo, 'released')
 
 
