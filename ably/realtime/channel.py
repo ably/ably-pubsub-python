@@ -1014,16 +1014,26 @@ class Channels(RestChannels):
         """Releases a RealtimeChannel object, deleting it, and enabling it to be garbage collected
 
         It also removes any listeners associated with the channel.
-        To release a channel, the channel state must be INITIALIZED, DETACHED, or FAILED.
-
+        A realtime channel should only be released when it is in the INITIALIZED, DETACHED, or FAILED
+        state; releasing a realtime channel in any other state is deprecated and will raise an
+        AblyException in the next major version.
 
         Parameters
         ----------
         name: str
             Channel name
         """
+        # RTS4c
         if name not in self.__all:
             return
+        channel = self.__all[name]
+        # RTS4b
+        if channel.state not in (ChannelState.INITIALIZED, ChannelState.DETACHED, ChannelState.FAILED):
+            log.warning(
+                f'Calling channels.release() on a channel in the {channel.state.value} state is deprecated, '
+                'and will raise an exception in the next major version. Await channel.detach() before '
+                'calling channels.release(name).'
+            )
         del self.__all[name]
 
     def _on_channel_message(self, msg: dict) -> None:
