@@ -98,7 +98,7 @@ assertion it carries still stands. Those tests keep the corrected fixture (or th
 corrected label in a comment), pass, and carry a `# UTS SPEC ERROR:` comment at the
 site. The entries below cover both kinds and say which applies. Almost every realtime
 fault is of the second kind, which is why only one realtime test is gated as a spec
-error while fourteen `realtime/unit` entries appear below. The eight
+error while fourteen `realtime/unit` entries appear below. The nine
 `realtime/integration` faults are of that kind without exception, so none of them is
 gated either.
 
@@ -132,13 +132,14 @@ Raised upstream:
 | [#552](https://github.com/ably/specification/issues/552) | `proxy/connection_resume.md`: a status code neither SDK returns, a proxy substitution that does not exist, and event-log fields the proxy does not emit |
 | [#553](https://github.com/ably/specification/issues/553) | A heartbeat-starvation test that closes the socket thirteen seconds inside the idle window |
 | [#554](https://github.com/ably/specification/issues/554) | Two sections provoking one server response, leaving the revoked-key point uncovered |
+| [#564](https://github.com/ably/specification/issues/564) | A presence lifecycle test racing the server's first presence sync |
 
 `#527` also carries a comment on the realtime wire-format assertions, `#532` one on the
 same housekeeping categories in `realtime/unit`, and
 [#466](https://github.com/ably/specification/issues/466) — which is not ours — one on the
 RSA4c3 contradiction, since that issue is what decides it.
 
-`#547` to `#550` are the `uts/rest/integration` faults and `#551` to `#554` the
+`#547` to `#550` are the `uts/rest/integration` faults and `#551` to `#554` and `#564` the
 `uts/realtime/integration` ones. Each of them is of the second kind — a fixture, a setup
 step or a header label — so the derived test keeps the corrected fixture and passes, and
 none of them is among the ten gated above.
@@ -782,6 +783,34 @@ revoked, which neither fixture nor the app-provisioning section produces:
 40140–40149 range RTN14g excludes.
 
 Filed as [#554](https://github.com/ably/specification/issues/554).
+
+### `presence_lifecycle_test.md`'s RTP8 lifecycle races the server's presence sync
+
+**Spec point:** RTP8, `realtime/integration/RTP8/enter-update-leave-lifecycle-0`.
+
+The steps attach client B, subscribe, then attach client A and enter, and the first
+assertion is that client B's first event is an ENTER. The sandbox answers the first attach
+to a new channel with HAS_PRESENCE set (flags `3080257`) even though the channel is empty,
+and follows it with a SYNC: measured over 738 runs, a median of 80ms later and a 90th
+percentile of 96ms. A client attaching after that SYNC has gone out gets the flag clear
+(`3080256`) in 330 of 331 runs. When client A's enter reaches the server inside that
+window, the SYNC carries the member to client B as PRESENT, ahead of the live ENTER, so
+client B's first event is PRESENT. The ENTER that follows carries the same message id and
+is discarded as a duplicate, as ably-js discards it. Were it kept, it would arrive as a
+second event and the first would still be PRESENT. The derived test failed this way six
+times in CI between 2026-10-01 and 2026-10-08, always `assert 1 == 2`. It reproduces
+locally under both protocols by sending client A's enter a fixed delay after client B
+receives its ATTACHED: swept from 50 to 105ms, 28 of 336 runs failed, every one between 50
+and 84ms. With the wait below, the same sweep failed none of 336.
+
+The step that is missing is a wait for client B's sync before client A attaches. The
+derived test makes it with `presence.get()`, which waits for the sync (RTP11c1), and keeps
+every assertion. `test/ably/realtime/realtimepresence_test.py`'s `await_presence_sync`
+does the same for the same reason. The bulk-enter test in the same specification instead
+counts PRESENT alongside ENTER, which tolerates the same race; it attributes the PRESENT
+events to a dropped connection rather than to the first sync.
+
+Filed as [#564](https://github.com/ably/specification/issues/564).
 
 ### Smaller faults
 

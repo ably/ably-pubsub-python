@@ -117,6 +117,14 @@ async def test_rtp8_enter_update_leave_lifecycle(realtime_sandbox, use_binary_pr
     all_events = []
     await channel_b.presence.subscribe(lambda event: all_events.append(event))
 
+    # UTS SPEC ERROR: the steps go straight from client B's attach to client A's enter. The
+    # sandbox answers the first attach to a new channel with HAS_PRESENCE and follows it
+    # with a SYNC some 80ms later. When client A's enter lands in that window, the SYNC
+    # carries the member to client B as PRESENT ahead of the live ENTER, so the first event
+    # is not an ENTER. Client B waits for its sync (RTP11c1) before client A attaches, so
+    # the enter arrives live.
+    await channel_b.presence.get()
+
     await channel_a.attach()
 
     # --- Phase 1: Enter ---
