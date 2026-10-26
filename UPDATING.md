@@ -222,6 +222,29 @@ except AblyException as e:
         ...
 ```
 
+### A key no longer overrides `auth_callback`, `auth_url` or a token
+
+A client given a `key` together with an `auth_callback`, `auth_url`, `token` or `token_details`
+now uses token auth, and keeps the key only as a means of renewing the token. 3.x used basic
+auth with the key whenever one was present, never called the `auth_callback` or `auth_url`,
+and discarded a `token` or `token_details` given alongside the key. So a client configured this
+way now makes requests to your auth server, or presents the token you gave it, where 3.x did
+neither.
+
+To keep using basic auth with the key, pass `use_token_auth=False`:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', auth_callback=callback)
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', auth_callback=callback, use_token_auth=False)
+```
+
+Or drop the `auth_callback`, `auth_url` or token, which 3.x never used.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

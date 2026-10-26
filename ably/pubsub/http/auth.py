@@ -54,7 +54,12 @@ class Auth:
         self.__token_details: TokenDetails | None = None
         self.__time_offset: int | None = None
 
-        must_use_token_auth = options.use_token_auth is True
+        # RSA4: token auth unless use_token_auth says otherwise, or nothing but a key is given
+        if options.use_token_auth is None:
+            must_use_token_auth = bool(options.auth_callback or options.auth_url
+                                       or options.auth_token or options.token_details)
+        else:
+            must_use_token_auth = options.use_token_auth
         must_not_use_token_auth = options.use_token_auth is False
         can_use_basic_auth = options.key_secret is not None
         if not must_use_token_auth and can_use_basic_auth:
