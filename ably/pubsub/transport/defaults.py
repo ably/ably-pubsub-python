@@ -19,7 +19,11 @@ class Defaults:
 
     transports = []  # ["web_socket", "comet"]
 
+    # The HTTP timeouts are in seconds, unlike the realtime ones above
+    http_open_timeout = 4
+    http_request_timeout = 10
     http_max_retry_count = 3
+    http_max_retry_duration = 15
 
     fallback_retry_timeout = 600000  # 10min
 

@@ -405,6 +405,14 @@ pubsub_http_client = create_http_client(key='xxx', default_token_params={'capabi
 await pubsub_http_client.auth.request_token({'ttl': 600000, 'capability': capability})
 ```
 
+### The HTTP options read back their defaults
+
+`http_open_timeout`, `http_request_timeout`, `http_max_retry_count` and
+`http_max_retry_duration` on `client.options` used to read `None` unless you set them, while
+the client applied defaults of its own. They now read back the values in effect: 4, 10, 3 and
+15 by default. The timeouts and the retry duration are still in seconds. Code that tested an
+option for `None`, to tell whether it had been set, will no longer find it so.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

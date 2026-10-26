@@ -126,13 +126,6 @@ class Response:
 
 
 class Http:
-    CONNECTION_RETRY_DEFAULTS = {
-        'http_open_timeout': 4,
-        'http_request_timeout': 10,
-        'http_max_retry_count': 3,
-        'http_max_retry_duration': 15,
-    }
-
     def __init__(self, ably, options):
         options = options or {}
         self.__ably = ably
@@ -318,24 +311,16 @@ class Http:
 
     @property
     def http_open_timeout(self):
-        if self.options.http_open_timeout is not None:
-            return self.options.http_open_timeout
-        return self.CONNECTION_RETRY_DEFAULTS['http_open_timeout']
+        return self.options.http_open_timeout
 
     @property
     def http_request_timeout(self):
-        if self.options.http_request_timeout is not None:
-            return self.options.http_request_timeout
-        return self.CONNECTION_RETRY_DEFAULTS['http_request_timeout']
+        return self.options.http_request_timeout
 
     @property
     def http_max_retry_count(self):
-        if self.options.http_max_retry_count is not None:
-            return self.options.http_max_retry_count
-        return self.CONNECTION_RETRY_DEFAULTS['http_max_retry_count']
+        return self.options.http_max_retry_count
 
     @property
     def http_max_retry_duration(self):
-        if self.options.http_max_retry_duration is not None:
-            return self.options.http_max_retry_duration
-        return self.CONNECTION_RETRY_DEFAULTS['http_max_retry_duration']
+        return self.options.http_max_retry_duration

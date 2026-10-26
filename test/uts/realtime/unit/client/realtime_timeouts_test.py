@@ -173,10 +173,7 @@ async def test_rtc7_default_timeouts_applied():
     assert client.options.suspended_retry_timeout == 30000
 
     # DEVIATION: the spec asserts httpOpenTimeout == 4000 and httpRequestTimeout ==
-    # 10000 on the options. ably-python leaves both unset on the options and holds the
-    # defaults on the HTTP layer, in seconds rather than milliseconds. See
-    # deviations.md.
-    assert client.options.http_open_timeout is None
-    assert client.options.http_request_timeout is None
-    assert client.http.http_open_timeout == 4
-    assert client.http.http_request_timeout == 10
+    # 10000. ably-python's HTTP timeouts are in seconds rather than milliseconds, so the
+    # same defaults read back as 4 and 10. See deviations.md.
+    assert client.options.http_open_timeout == 4
+    assert client.options.http_request_timeout == 10

@@ -30,8 +30,8 @@ class TestHttpHttp(BaseAsyncTestCase):
 
     async def test_max_retry_attempts_and_timeouts_defaults(self):
         ably = create_http_client(token="foo")
-        assert 'http_open_timeout' in ably.http.CONNECTION_RETRY_DEFAULTS
-        assert 'http_request_timeout' in ably.http.CONNECTION_RETRY_DEFAULTS
+        assert ably.options.http_open_timeout == Defaults.http_open_timeout
+        assert ably.options.http_request_timeout == Defaults.http_request_timeout
 
         with mock.patch('httpx.AsyncClient.send', side_effect=httpx.RequestError('')) as send_mock:
             with pytest.raises(AblyException, match="network error"):
@@ -43,7 +43,7 @@ class TestHttpHttp(BaseAsyncTestCase):
 
     async def test_cumulative_timeout(self):
         ably = create_http_client(token="foo")
-        assert 'http_max_retry_duration' in ably.http.CONNECTION_RETRY_DEFAULTS
+        assert ably.options.http_max_retry_duration == Defaults.http_max_retry_duration
 
         ably.options.http_max_retry_duration = 0.5
 

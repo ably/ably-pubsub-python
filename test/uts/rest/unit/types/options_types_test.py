@@ -37,11 +37,11 @@ async def test_to3_client_options_attributes():
     assert options.auth_method == 'GET'
     assert options.tls is True
 
-    # DEVIATION: httpRequestTimeout and httpMaxRetryCount have no default on the options
-    # object; both are left unset and the effective defaults are applied downstream, the
-    # first by Http and the second by Options.__get_hosts via Defaults.http_max_retry_count.
-    assert options.http_request_timeout is None
-    assert options.http_max_retry_count is None
+    # DEVIATION: the spec asserts httpRequestTimeout == 10000. ably-python's
+    # http_request_timeout is in seconds rather than milliseconds, so the same default
+    # reads back as 10. See deviations.md.
+    assert options.http_request_timeout == 10
+    assert options.http_max_retry_count == 3
 
     assert options.use_binary_protocol is True
     assert options.idempotent_rest_publishing is True
@@ -54,7 +54,7 @@ async def test_to3_client_options_attributes():
     with pytest.raises(TypeError):
         Options(max_message_size=65536)
 
-    # The effective defaults the options leave unset: 10 seconds, and 3 hosts to try.
+    # The HTTP layer applies the defaults the options hold: 10 seconds, and 3 hosts to try.
     client = rest_client(mock_http_client())
     assert client.http.http_request_timeout == 10
     assert len(client.options.get_hosts()) == 3

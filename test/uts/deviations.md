@@ -1810,7 +1810,7 @@ final response is raised or returned.
 `ably/http/http.py:193` builds `timeout = (self.http_open_timeout,
 self.http_request_timeout)` and hands it to `httpx`, which reads both as **seconds**.
 TO3l4's `httpRequestTimeout` is milliseconds, default 10000, and
-`CONNECTION_RETRY_DEFAULTS` holds `10`. So a caller passing the value the published
+`Defaults.http_request_timeout` holds `10`. So a caller passing the value the published
 specification describes gets a deadline a thousand times longer than the one asked for:
 `http_request_timeout=3000` is three thousand seconds. The **defaults** come out right
 by coincidence — 10 seconds is TO3l4's 10000 ms, and `http_open_timeout`'s 4 is TO3l3's
@@ -1825,9 +1825,9 @@ Passing `3` in its place makes the same test pass in 3.1 seconds: the timeout fi
 retry goes to the fallback host and succeeds. So RSC15l2's fallback path is compliant and
 the unit is the whole of the defect.
 
-The same mismatch is recorded twice under *Adapted Tests*, at `TO3l1, TO3l5` and at
-`RTC7 (TO3l3, TO3l4)` in *REST behaviours asserted as they are*, where it is what makes
-the effective defaults unreadable from `options`. This is that defect seen from outside:
+The same mismatch is recorded twice under *Adapted Tests*, at `TO3l4, TO3l5` and at
+`RTC7 (TO3l3, TO3l4)` in *REST behaviours asserted as they are*, where it is why the
+defaults read back from `options` as 4 and 10. This is that defect seen from outside:
 the same line of `http.py`, reached through a public client option rather than through an
 attribute, so a caller is affected whether or not they ever read `options`. It is counted
 as one root cause, here, because it is the only gated test on it; neither Adapted Tests
@@ -1839,7 +1839,7 @@ row is counted again.
 fixed.
 
 **Status:** open bug. The fix converts at the boundary — `Http` dividing the option by
-1000 before it reaches `httpx`, with `CONNECTION_RETRY_DEFAULTS` restated in
+1000 before it reaches `httpx`, with the `Defaults` restated in
 milliseconds — and has to move `http_open_timeout` (TO3l3) with it, since both halves of
 the tuple are read the same way. That same line carries a second, filed defect:
 [#709](https://github.com/ably/ably-python/issues/709) is that the value, in whatever
@@ -2217,8 +2217,8 @@ pseudocode is not mistaken for non-compliance.
 | CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
 | TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:422` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
 | RTN15, RTN23 | A DISCONNECTED `ErrorInfo` needs no `statusCode` | `ConnectionManager.on_disconnected` evaluates `exception.status_code >= 500` unguarded, so a DISCONNECTED whose error omits `statusCode` raises `TypeError` in a task whose exception is only logged, and the connection silently stays CONNECTED. `DISCONNECTED_MESSAGE` supplies 400 | Open bug |
-| TO3l1, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's `httpRequestTimeout` is milliseconds and ably-python's `http_request_timeout` is seconds, on the value a caller passes as much as on the default — gated, with the measurement, under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests | Intentional for where the defaults are applied; the unit is an open bug, recorded there |
-| RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | Both `None` on `Options`; `Http.http_open_timeout` / `http_request_timeout` fall back to `CONNECTION_RETRY_DEFAULTS`, which holds 4 and 10 — seconds, where TO3l3 and TO3l4 count milliseconds. The three realtime timeouts the same test checks are defaulted on `Options` and match | Two faults in one row: the defaults are unreadable from `options`, and the unit reaches the wire — `rest/proxy/RSC15l2/timeout-triggers-fallback-0` measures a request outliving its configured timeout by a factor of a thousand. Both open; the unit is gated under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests |
+| TO3l4, TO3l5 | `httpRequestTimeout` defaults to 10000 and `httpMaxRetryCount` to 3 on the options object | Both are defaulted on `Options`. `http_max_retry_count` reads back as 3 and matches; `http_request_timeout` reads back as 10, because ably-python's is seconds where the spec's is milliseconds, on the value a caller passes as much as on the default — gated, with the measurement, under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests | The unit is an open bug, recorded there |
+| RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | 4 and 10: both are defaulted on `Options`, in seconds where TO3l3 and TO3l4 count milliseconds. The three realtime timeouts the same test checks are milliseconds and match | Open bug, and the unit reaches the wire — `rest/proxy/RSC15l2/timeout-triggers-fallback-0` measures a request outliving its configured timeout by a factor of a thousand. Gated under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests. Moving the HTTP durations to milliseconds is breaking, and is held back from 4.0.0 pending a decision on units across the options |
 | RTC1f | a `transportParams` boolean appears as `"true"` / `"false"` | `True` / `False`, because `WebSocketTransport.connect` builds the query string with `urllib.parse.urlencode`, which renders each value through `str()` (`websockettransport.py:89`). Integers are unaffected | Open bug. A caller can pass the strings directly, but a bool is what the spec's Stringifiable type admits |
 
 ### LiveObjects: the internal shapes the unit specifications assume — S-1 to S-6

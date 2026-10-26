@@ -55,6 +55,19 @@ class Options(AuthOptions):
         if realtime_request_timeout is None:
             realtime_request_timeout = Defaults.realtime_request_timeout
 
+        # RTC7: the HTTP defaults are resolved here too, so they read back from the options
+        if http_open_timeout is None:
+            http_open_timeout = Defaults.http_open_timeout
+
+        if http_request_timeout is None:
+            http_request_timeout = Defaults.http_request_timeout
+
+        if http_max_retry_count is None:
+            http_max_retry_count = Defaults.http_max_retry_count
+
+        if http_max_retry_duration is None:
+            http_max_retry_duration = Defaults.http_max_retry_duration
+
         if disconnected_retry_timeout is None:
             disconnected_retry_timeout = Defaults.disconnected_retry_timeout
 
@@ -329,8 +342,6 @@ class Options(AuthOptions):
         fallback_hosts = self.get_fallback_hosts()
 
         http_max_retry_count = self.http_max_retry_count
-        if http_max_retry_count is None:
-            http_max_retry_count = Defaults.http_max_retry_count
 
         # Shuffle
         fallback_hosts = list(fallback_hosts)
