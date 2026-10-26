@@ -3,15 +3,8 @@
 Spec points: TP1, TP2, TP3, TP3a, TP3b, TP3c, TP3d, TP3e, TP3f, TP3g, TP3h, TP3i, TP4, TP5
 """
 
-from datetime import datetime, timedelta
-
 from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 from test.uts.helpers.deviations import deviation, spec_error
-
-
-def datetime_from_ms(ms):
-    """The datetime ably-python decodes a wire timestamp into."""
-    return datetime.utcfromtimestamp(0) + timedelta(milliseconds=ms)
 
 
 def decode_protocol_message_presence(protocol_message):
@@ -158,8 +151,7 @@ def test_tp3_presence_from_json():
     assert msg.client_id == 'user-1'
     assert msg.connection_id == 'conn-1'
     assert msg.data == 'hello'
-    # NOTE: features.md types TP3g as `Time`, so a datetime is the idiomatic rendering.
-    assert msg.timestamp == datetime_from_ms(1234567890000)
+    assert msg.timestamp == 1234567890000
     assert msg.extras['headers']['x-key'] == 'x-value'
 
 

@@ -52,13 +52,13 @@ specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helper
 the objects builders and the synced-channel mock.
 
 The 142 gated Test IDs that record SDK non-compliance — 142 tests, 144 cases — reduce to
-**60 distinct root causes**, 20 on the REST side and 40 on the realtime side. Two further
-defects are recorded below with no test of their own, because the specification's test
-cannot discriminate (RTP18a) or has nothing to assert against (the timezone split on
-synthesized LEAVE timestamps), so the file carries **62 SDK root causes** in all. The remaining 11 gated Test IDs are
-specification faults, and reduce to 8. The objects tier records no SDK non-compliance;
-its specification faults are all corrected or worked around in tests that pass, and
-reduce to the seven candidate issues O.1–O.7, none of them filed.
+**60 distinct root causes**, 20 on the REST side and 40 on the realtime side. One further
+defect is recorded below with no test of its own, because the specification's test
+cannot discriminate (RTP18a), so the file carries **61 SDK root causes** in all. The
+remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
+records no SDK non-compliance; its specification faults are all corrected or worked
+around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
+them filed.
 
 Entries closed by a fix are removed rather than kept as history; `git log` holds that.
 
@@ -1677,26 +1677,6 @@ correcting the test does not read as a new discovery.
 
 **Status:** open bug, untested.
 
-#### A synthesized LEAVE's timestamp is timezone-aware; every other one is naive — no test
-
-**Spec points:** RTP19, RTP19a, against TP3g.
-
-`_synthesize_leaves` and `set_presence` build the LEAVE with `datetime.now(timezone.utc)`
-(`presence.py:586`, `:720`), while every wire-derived presence message gets a **naive**
-`datetime` from `_dt_from_ms_epoch`, which is built on `datetime.utcfromtimestamp(0)`
-(`types/presence.py:12-19`, `:182-184`). Comparing the two raises
-`TypeError: can't compare offset-naive and offset-aware datetimes`, verified directly.
-
-Nothing inside the library compares them, because synthesized leaves are emitted rather than
-stored, so this bites only application code — but any subscriber that sorts or compares the
-timestamps of the messages it receives will hit it. Related to the deprecation work in
-PR #656.
-
-**Tests affected:** none. `test_rtp19_synth_leave_null_id_timestamp` brackets the LEAVE with
-two aware `datetime.now(timezone.utc)` readings and passes.
-
-**Status:** open bug, untested.
-
 ### Auth
 
 #### A failed RTN22 reauth leaves no trace on the connection — 1 test
@@ -2599,7 +2579,7 @@ is missing accessors over correct behaviour. Within a tier the order is blast ra
 |---|---|---|
 | [#706](https://github.com/ably/ably-python/issues/706) | the fabricated `"None:0"` message id | 3.3 |
 | [#658](https://github.com/ably/ably-python/issues/658) | presence messages sent on reconnection before reattach | adjacent to 3.13, which is the other half of RTP17 automatic re-entry |
-| [#656](https://github.com/ably/ably-python/issues/656) | `utcfromtimestamp` deprecation | adjacent to 2.4 |
+| [#656](https://github.com/ably/ably-python/issues/656) | `utcfromtimestamp` deprecation | none: `PresenceMessage.timestamp` is now milliseconds since the epoch, the synthesized LEAVE's included, and no `utcfromtimestamp` remains |
 | [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712) | REST request timeout, token-request nonce reuse, single-host retry, `dispose()` teardown | adjacent to I.3, which is a second defect on the line #709 is about and is not covered by it; otherwise none, these having been filed from the REST derivation |
 
 Every reproduction below is prefixed by:
@@ -2704,14 +2684,6 @@ len(client.channels)            # 0
 hasattr(client.channels, 'foo') # True
 len(client.channels)            # 1
 ```
-
-**2.4 Synthesized LEAVE timestamps are timezone-aware; every other one is naive.** RTP19,
-RTP19a, TP3g. `presence.py:586` and `:720` use `datetime.now(timezone.utc)`, while every
-wire-derived `PresenceMessage.timestamp` comes from `_dt_from_ms_epoch`, built on
-`datetime.utcfromtimestamp(0)` (`types/presence.py:12-19`). Comparing them raises
-`TypeError: can't compare offset-naive and offset-aware datetimes`. Nothing inside the
-library compares them, so it bites only application code — but any subscriber that sorts the
-timestamps of the messages it receives will hit it. Related to #656. No gated test.
 
 **2.5 `Channels._on_channel_message` subscripts before it checks.** `channel.py:1038-1045`
 does `channel = self.__all[channel_name]` and only then `if not channel:`, so a message for

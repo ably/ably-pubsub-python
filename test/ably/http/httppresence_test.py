@@ -60,10 +60,10 @@ class TestPresence(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         assert presence_history.items[-4].data == '{ "test": "This is a JSONObject clientData payload"}'
         assert presence_history.items[-5].data == {"example": {"json": "Object"}}
 
-    async def test_timestamp_is_datetime(self):
+    async def test_timestamp_is_ms_since_epoch(self):
         presence_page = await self.channel.presence.get()
         member = presence_page.items[0]
-        assert isinstance(member.timestamp, datetime)
+        assert isinstance(member.timestamp, int)
 
     async def test_presence_message_has_correct_member_key(self):
         presence_page = await self.channel.presence.get()

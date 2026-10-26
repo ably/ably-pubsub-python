@@ -553,6 +553,27 @@ Example 4.0.0 code:
 pubsub_realtime_client = create_realtime_client(key='xxx')
 ```
 
+### `PresenceMessage.timestamp` is milliseconds since the epoch
+
+**This change is silent: comparing a timestamp with `==` against a `datetime` now returns
+`False` rather than raising.** `PresenceMessage.timestamp` is an `int` of milliseconds since
+the unix epoch, as `Message.timestamp` already is. 3.x returned a naive UTC `datetime` for a
+presence message received from Ably, and an aware one for a LEAVE the library synthesized.
+An ordering comparison such as `<` against a `datetime` raises `TypeError`. Convert the
+timestamp where you need a `datetime`:
+
+Example 3.x code:
+```python
+received_at = member.timestamp
+```
+
+Example 4.0.0 code:
+```python
+from datetime import datetime, timezone
+
+received_at = datetime.fromtimestamp(member.timestamp / 1000, tz=timezone.utc)
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
