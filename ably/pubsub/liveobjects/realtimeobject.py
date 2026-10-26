@@ -570,7 +570,7 @@ class RealtimeObject:
 
         modes = self._channel.modes if self._channel.state == ChannelState.ATTACHED else None  # RTO2a
         if not modes:
-            modes = (self._channel.options or {}).get('modes') or []  # RTO2b
+            modes = self._channel.options.modes or []  # RTO2b
         if mode not in modes:
             # RTO2a2, RTO2b2
             raise AblyException(f'"{mode.name}" channel mode must be set for this operation', 400, 40024)

@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1295 Test IDs
-(1304 tests, 1429 cases) pass, 150 (150 tests, 152 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1297 Test IDs
+(1306 tests, 1431 cases) pass, 148 (148 tests, 150 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,16 +45,16 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 66 are REST and 84 realtime, which is 67 REST cases
+within each. Of the gated Test IDs 64 are REST and 84 realtime, which is 65 REST cases
 and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 139 gated Test IDs that record SDK non-compliance — 139 tests, 141 cases — reduce to
-**59 distinct root causes**, 19 on the REST side and 40 on the realtime side. One further
+The 137 gated Test IDs that record SDK non-compliance — 137 tests, 139 cases — reduce to
+**58 distinct root causes**, 18 on the REST side and 40 on the realtime side. One further
 defect is recorded below with no test of its own, because the specification's test
-cannot discriminate (RTP18a), so the file carries **60 SDK root causes** in all. The
+cannot discriminate (RTP18a), so the file carries **59 SDK root causes** in all. The
 remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
 records no SDK non-compliance; its specification faults are all corrected or worked
 around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
@@ -1054,7 +1054,6 @@ option is gone, after RTN16d has done its first phase against the sandbox throug
 | RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_level` and `log_handler` as client options. The library logs through the standard `logging` module under the `ably.pubsub` logger, whose level and handlers are the idiomatic way to do both; `log_level`, which was stored on `Options` and read by nothing, was removed in 4.0.0, so passing either raises `TypeError` | 4 |
 | RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` is `get(self, limit=None)` (`ably/types/presence.py:216`), while `Presence.history` does take its documented params. `presence.get(client_id=...)` raises `TypeError: get() got an unexpected keyword argument 'client_id'`. The absence also forces the RSP5 decoding adaptation below | 4 (5 cases) |
 | TB4, RTL7h, RTP6e | `attachOnSubscribe`. `ChannelOptions.__init__` (`channeloptions.py:22-26`) takes only `cipher`, `params` and `modes`, and `subscribe()` on the channel, on presence and on annotations all end unconditionally with `await attach()`. This absence also forces the largest single adaptation in the suite, below | 3 |
-| RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
 | RTL7f | `echoMessages` in its client-filter form. The `echo_messages` option sends `echo=false` (RTC1a), which the server honours, but the client does not itself drop a message carrying its own `connectionId`, and that is the only form a mock-backed test can observe | 1 |
 | RTP12, RTP12a, RTP12c | `RealtimePresence#history`. The realtime *channel* does delegate `history` to the REST implementation; only the presence object is missing it | 2 |
 | RTN23c1, RTN23c2 | PING/PONG. `ProtocolMessageAction` stops at `ANNOTATION` (21), so PING (22) and PONG (23) are not modelled and action 22 matches no branch of `on_protocol_message` (`websockettransport.py:37-59`, `:143-199`). The message is counted as activity and discarded | 2 |
@@ -1869,7 +1868,6 @@ through an internal object to get at a value the specification makes public.
 | RTP17, RTP17h | a distinct `LocalPresenceMap` type keyed by `clientId` | `RealtimePresence._my_members`, the same `PresenceMap` class built with `member_key_fn=lambda msg: msg.client_id` (`presence.py:79-81`). The keying requirement is met; the newness check is not, and is gated above | all of `local_presence_map_test.py` |
 | RTP2d1, RTP2h1a, and the `Interface Under Test` blocks of all three presence-map specs | `put(message) -> PresenceMessage?` and `remove(message) -> PresenceMessage?` | both return `bool` (`presencemap.py:111`, `:159`); the message to emit is the caller's own, which `set_presence` appends to `broadcast_messages` when the return is true. `IS NOT null` is read as `is True`. `put` stores a *copy* with the action rewritten to PRESENT and leaves the caller's message untouched, so RTP2d1's "emit the original action" falls out for free | all of `presence_map_test.py` |
 | RTP19, and the `Interface Under Test` block of `presence_sync.md` | `endSync() -> List<PresenceMessage>`, the synthesized LEAVEs | `end_sync()` returns `(residual, absent)` of the *stored* members; the synthesis lives one level up in `RealtimePresence.set_presence` (`presence.py:575-587`). Tests reading only counts and clientIds concatenate the two lists exactly as `set_presence` does; tests reading the LEAVE itself drive a `RealtimePresence` and assert on what its subscribers receive | 4 in `presence_sync_test.py` |
-| TB2, RTS3b, RTS3c, RTS3c1, RTL16 | `channel.options` as a `ChannelOptions` | a dict keyed by wire names, because `RealtimeChannel` passes `ChannelOptions.to_dict()` to the REST `Channel` constructor (`channel.py:84`). Assertions read `channel.options['params']['rewind']`. On `ChannelOptions` itself the cipher attribute is spelled `cipher`, not `cipherParams`. `set_options_without_reattach` replaces the stored mapping wholesale rather than merging, which `test_rts3c_options_updated_existing` pins | 5 |
 | RTS2, RTS4c, RTS4d, RTS4e | `channels.exists(name)` and `channels.names` | `name in client.channels` (`Channels.__contains__`); the collection iterates over its channels rather than their names. Genuinely idiomatic spelling rather than an absence — recorded only because of the `__getattr__` hazard noted below | 6 |
 
 **Status:** open bugs of the missing-API kind, not of the wrong-behaviour kind. Adding the
@@ -3517,8 +3515,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 152 failures, 1577 passes and 27 skips with the variable
-set, and 179 skips and 1577 passes without it, the 1577 being 1429 derived cases and 148
+it. As of this writing that is 150 failures, 1579 passes and 27 skips with the variable
+set, and 177 skips and 1579 passes without it, the 1579 being 1431 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

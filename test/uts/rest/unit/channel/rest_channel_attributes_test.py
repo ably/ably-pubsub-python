@@ -7,7 +7,6 @@ CHO2, CHO2a, CHM2, CHM2a, CHM2b, CHM2c, CHM2d, CHM2e, CHM2f, CHM2g, CHM2h
 from ably.pubsub.types.channeldetails import ChannelDetails
 from ably.pubsub.types.channeloptions import ChannelOptions
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 
@@ -58,12 +57,7 @@ async def test_rsl9_channel_name_attribute():
 
 
 # UTS: rest/unit/RSL7/setoptions-updates-options-0
-@deviation
 async def test_rsl7_setoptions_updates_options():
-    # DEVIATION: the REST channel has no `set_options`. `ably/rest/channel.py` exposes only an
-    # `options` property whose setter expects the mapping of keyword arguments that
-    # `Channels.get` collected, so a `ChannelOptions` raises `TypeError` from
-    # `'cipher' in options`. `ably/realtime/channel.py` does implement `set_options`.
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
         on_request=lambda request: request.respond_with(200, []),
@@ -78,9 +72,7 @@ async def test_rsl7_setoptions_updates_options():
 
 
 # UTS: rest/unit/RSL7/setoptions-stores-options-1
-@deviation
 async def test_rsl7_setoptions_stores_options():
-    # DEVIATION: as above, `set_options` is absent from the REST channel.
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
         on_request=lambda request: request.respond_with(200, []),
@@ -91,9 +83,10 @@ async def test_rsl7_setoptions_stores_options():
 
     # Set options - the effect of channel options is primarily on encryption (RSL5),
     # which is not exercised here; the call completing is what the spec checks.
-    await channel.set_options(ChannelOptions())
+    options = ChannelOptions()
+    await channel.set_options(options)
 
-    assert channel.options is not None
+    assert channel.options is options
 
 
 # UTS: rest/unit/RSL8/status-get-correct-endpoint-0

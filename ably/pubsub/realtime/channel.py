@@ -71,7 +71,6 @@ class RealtimeChannel(EventEmitter, Channel):
         self.__channel_serial: str | None = None
         self.__retry_timer: Timer | None = None
         self.__error_reason: AblyException | None = None
-        self.__channel_options = channel_options or ChannelOptions()
         self.__params: dict[str, str] | None = None
         self.__modes: list[ChannelMode] = []  # Channel mode flags from ATTACHED message
 
@@ -84,8 +83,7 @@ class RealtimeChannel(EventEmitter, Channel):
         # will be disrupted if the user called .off() to remove all listeners
         self.__internal_state_emitter = EventEmitter()
 
-        # Pass channel options as dictionary to parent Channel class
-        Channel.__init__(self, realtime, name, self.__channel_options.to_dict())
+        Channel.__init__(self, realtime, name, channel_options)
 
         # Initialize presence for this channel
 
@@ -97,22 +95,21 @@ class RealtimeChannel(EventEmitter, Channel):
         # RTL27: the LiveObjects entry point for this channel
         self.__object = RealtimeObject(self)
 
+    # RTL16
     async def set_options(self, channel_options: ChannelOptions) -> None:
-        """Set channel options"""
+        """Replaces the channel's options, reattaching if their params or modes change.
+
+        The options are replaced whole rather than merged, so options without a cipher turn
+        encryption off.
+        """
         should_reattach = self.should_reattach_to_set_options(channel_options)
-        self.set_options_without_reattach(channel_options)
+        self._set_options(channel_options)
 
         if should_reattach:
             self._attach_impl()
             state_change = await self.__internal_state_emitter.once_async()
             if state_change.current in (ChannelState.SUSPENDED, ChannelState.FAILED):
                 raise state_change.reason
-
-    def set_options_without_reattach(self, channel_options: ChannelOptions) -> None:
-        """Internal method"""
-        self.__channel_options = channel_options
-        # Update parent class options
-        self.options = channel_options.to_dict()
 
     # RTL4
     async def attach(self) -> None:
@@ -172,7 +169,7 @@ class RealtimeChannel(EventEmitter, Channel):
         # RTL4c
         attach_msg = {
             "action": ProtocolMessageAction.ATTACH,
-            "params": self.__channel_options.params,
+            "params": self.options.params,
             "channel": self.name,
         }
 
@@ -946,9 +943,13 @@ class RealtimeChannel(EventEmitter, Channel):
 
     def should_reattach_to_set_options(self, new_options: ChannelOptions) -> bool:
         """Internal method"""
+        # RTL16a: only params or modes that differ from the current ones call for a reattach, and
+        # only while attaching or attached; the cipher never reaches the server
         if self.state != ChannelState.ATTACHING and self.state != ChannelState.ATTACHED:
             return False
-        return self.__channel_options != new_options
+        if new_options.params is not None and new_options.params != (self.options.params or {}):
+            return True
+        return new_options.modes is not None and set(new_options.modes) != set(self.options.modes or [])
 
     # RTL23
     @property
@@ -1016,7 +1017,7 @@ class RealtimeChannel(EventEmitter, Channel):
         self._check_pending_state()
 
     def _encode_flags(self) -> int | None:
-        if not self.__channel_options.modes and not self.__attach_resume:
+        if not self.options.modes and not self.__attach_resume:
             return None
 
         flags = 0
@@ -1024,8 +1025,8 @@ class RealtimeChannel(EventEmitter, Channel):
         if self.__attach_resume:
             flags |= Flag.ATTACH_RESUME
 
-        if self.__channel_options.modes:
-            flags |= encode_channel_mode(self.__channel_options.modes)
+        if self.options.modes:
+            flags |= encode_channel_mode(self.options.modes)
 
         return flags
 
@@ -1051,30 +1052,33 @@ class Channels(HttpChannels):
         name: str
             Channel name
         options: ChannelOptions or dict, optional
-            Channel options for the channel
+            Channel options for the channel. For an existing channel they replace its options (RTS3c)
         **kwargs:
             Additional keyword arguments to create ChannelOptions (e.g., cipher, params)
+
+        Raises
+        ------
+        AblyException
+            With code 40000 if the options for an existing channel would make it reattach (RTS3c1).
+            Use RealtimeChannel.set_options() for those.
         """
-        # Convert kwargs to ChannelOptions if provided
-        if kwargs and not options:
-            options = ChannelOptions(**kwargs)
-        elif options and isinstance(options, dict):
-            options = ChannelOptions.from_dict(options)
+        options = self._channel_options(options, kwargs)
 
         if name not in self.__all:
             channel = self.__all[name] = RealtimeChannel(self.__ably, name, options)
         else:
             channel = self.__all[name]
-            # Update options if channel is not attached or currently attaching
-            if options and channel.should_reattach_to_set_options(options):
-                raise AblyException(
-                    'Channels.get() cannot be used to set channel options that would cause the channel to '
-                    'reattach. Please, use RealtimeChannel.setOptions() instead.',
-                    400,
-                    40000
-                )
-            elif options:
-                channel.set_options_without_reattach(options)
+            if options is not None:
+                # RTS3c1
+                if channel.should_reattach_to_set_options(options):
+                    raise AblyException(
+                        'Channels.get() cannot be used to set channel options that would cause the channel to '
+                        'reattach. Please, use RealtimeChannel.set_options() instead.',
+                        400,
+                        40000
+                    )
+                # RTS3c
+                channel._set_options(options)
         return channel
 
     # RTS4

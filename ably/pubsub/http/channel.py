@@ -9,6 +9,7 @@ import msgpack
 from ably.pubsub.http.annotations import HttpAnnotations
 from ably.pubsub.request.paginatedresult import PaginatedResult, format_params
 from ably.pubsub.types.channeldetails import ChannelDetails
+from ably.pubsub.types.channeloptions import ChannelOptions
 from ably.pubsub.types.message import (
     Message,
     MessageAction,
@@ -33,12 +34,11 @@ log = logging.getLogger(__name__)
 class Channel:
     __annotations: HttpAnnotations
 
-    def __init__(self, ably, name, options):
+    def __init__(self, ably, name, options: Optional[ChannelOptions] = None):
         self.__ably = ably
         self.__name = name
         self.__base_path = '/channels/{}/'.format(parse.quote_plus(name, safe=':'))
-        self.__cipher = None
-        self.options = options
+        self._set_options(options or ChannelOptions())
         self.__presence = Presence(self)
         self.__annotations = HttpAnnotations(self)
 
@@ -48,7 +48,7 @@ class Channel:
         params = format_params({}, direction=direction, start=start, end=end, limit=limit)
         path = self.__base_path + 'messages' + params
 
-        message_handler = make_message_response_handler(self.__cipher)
+        message_handler = make_message_response_handler(self.cipher)
         return await PaginatedResult.paginated_query(
             self.ably.http, url=path, response_processor=message_handler)
 
@@ -73,7 +73,7 @@ class Channel:
                     400, 40012)
 
             if self.cipher:
-                m.encrypt(self.__cipher)
+                m.encrypt(self.cipher)
 
             request_body_list.append(m)
 
@@ -199,7 +199,7 @@ class Channel:
 
         # Encrypt if needed
         if self.cipher:
-            update_message.encrypt(self.__cipher)
+            update_message.encrypt(self.cipher)
 
         # Serialize the message
         request_body = update_message.as_dict(binary=self.ably.options.use_binary_protocol)
@@ -298,7 +298,7 @@ class Channel:
         response = await self.ably.http.get(path)
 
         # Create Message from the response
-        message_handler = make_single_message_response_handler(self.__cipher)
+        message_handler = make_single_message_response_handler(self.cipher)
         return message_handler(response)
 
     async def get_message_versions(self, serial_or_message, params=None):
@@ -335,7 +335,7 @@ class Channel:
         path = self.__base_path + 'messages/' + parse.quote_plus(serial, safe=':') + '/versions' + params_str
 
         # Create message handler for decoding
-        message_handler = make_message_response_handler(self.__cipher)
+        message_handler = make_message_response_handler(self.cipher)
 
         # Return paginated result
         return await PaginatedResult.paginated_query(
@@ -358,10 +358,13 @@ class Channel:
 
     @property
     def cipher(self):
+        """The cipher built from `options.cipher`, or None when the channel is not encrypted"""
         return self.__cipher
 
+    # TB2
     @property
-    def options(self):
+    def options(self) -> ChannelOptions:
+        """The channel's options, as last set"""
         return self.__options
 
     @property
@@ -372,15 +375,20 @@ class Channel:
     def annotations(self) -> HttpAnnotations:
         return self.__annotations
 
-    @options.setter
-    def options(self, options):
-        self.__options = options
+    # RSL7
+    async def set_options(self, options: ChannelOptions) -> None:
+        """Replaces the channel's options.
 
-        if options and 'cipher' in options:
-            cipher = options.get('cipher')
-            if cipher is not None:
-                cipher = get_cipher(cipher)
-            self.__cipher = cipher
+        The options are replaced whole rather than merged, so options without a cipher turn
+        encryption off.
+        """
+        self._set_options(options)
+
+    def _set_options(self, options: ChannelOptions) -> None:
+        self.__options = options
+        # The cipher carries the CBC chaining state from one message to the next, so it is built
+        # once per set of options rather than on every read
+        self.__cipher = get_cipher(options.cipher) if options.cipher is not None else None
 
 
 class Channels:
@@ -388,16 +396,32 @@ class Channels:
         self.__ably = rest
         self.__all: dict = OrderedDict()
 
-    def get(self, name, **kwargs):
+    @staticmethod
+    def _channel_options(options, kwargs) -> Optional[ChannelOptions]:
+        """What `get` was given - a ChannelOptions, a dict of its fields or keyword arguments - as a
+        ChannelOptions, or None if it was given no options"""
+        if options is None and kwargs:
+            return ChannelOptions(**kwargs)
+        if isinstance(options, dict):
+            return ChannelOptions.from_dict(options)
+        return options
+
+    # RSN3
+    def get(self, name, options: Optional[ChannelOptions] = None, **kwargs):
+        """Returns the channel called `name`, creating it if need be.
+
+        Options given for an existing channel replace its options (RSN3c).
+        """
         if isinstance(name, bytes):
             name = name.decode('ascii')
+        options = self._channel_options(options, kwargs)
 
         if name not in self.__all:
-            result = self.__all[name] = Channel(self.__ably, name, kwargs)
+            result = self.__all[name] = Channel(self.__ably, name, options)
         else:
             result = self.__all[name]
-            if len(kwargs) != 0:
-                result.options = kwargs
+            if options is not None:
+                result._set_options(options)
 
         return result
 

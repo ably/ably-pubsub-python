@@ -676,6 +676,45 @@ token = device.push.recipient['deviceToken']
 decoding a dict, where 3.x raised `TypeError` on any field the server added. A misspelled key
 in a dict you pass to `save()` is therefore ignored rather than rejected.
 
+### Setting channel options replaces them, cipher included
+
+**`set_options(ChannelOptions(params=...))` on an encrypted channel now turns encryption off.**
+`channel.set_options(options)`, and `channels.get(name, options)` on a channel that already
+exists, replace the channel's options whole rather than merging them, so options without a
+`cipher` leave the channel unencrypted. 3.x kept the old cipher whenever the new options left
+it out, and on a realtime channel even when they gave `cipher=None`. Pass the cipher again
+whenever you set the options of an encrypted channel:
+
+Example 3.x code:
+```python
+channel = realtime.channels.get('my-channel', ChannelOptions(cipher=cipher_params))
+await channel.set_options(ChannelOptions(params={'rewind': '1'}))
+```
+
+Example 4.0.0 code:
+```python
+channel = pubsub_realtime_client.channels.get('my-channel', ChannelOptions(cipher=cipher_params))
+await channel.set_options(ChannelOptions(cipher=cipher_params, params={'rewind': '1'}))
+```
+
+`channel.options` is now the `ChannelOptions` that was last set, rather than a dict, so read
+its attributes rather than its keys:
+
+Example 3.x code:
+```python
+rewind = channel.options['params']['rewind']
+```
+
+Example 4.0.0 code:
+```python
+rewind = channel.options.params['rewind']
+```
+
+HTTP channels now take a `ChannelOptions` too, through `channels.get(name, options)` or
+`await channel.set_options(options)`. `channels.get` raises when given options that would make
+an attaching or attached realtime channel reattach, which only a change to `params` or `modes`
+does; a change to the cipher alone no longer raises.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

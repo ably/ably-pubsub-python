@@ -209,7 +209,7 @@ class Presence:
         self.__base_path = f'/channels/{parse.quote_plus(channel.name)}/'
         self.__binary = channel.ably.options.use_binary_protocol
         self.__http = channel.ably.http
-        self.__cipher = channel.cipher
+        self.__channel = channel
 
     def _path_with_qs(self, rel_path, qs=None):
         path = rel_path
@@ -225,7 +225,7 @@ class Presence:
             qs['limit'] = limit
         path = self._path_with_qs(self.__base_path + 'presence', qs)
 
-        presence_handler = make_presence_response_handler(self.__cipher)
+        presence_handler = make_presence_response_handler(self.__channel.cipher)
         return await PaginatedResult.paginated_query(
             self.__http, url=path, response_processor=presence_handler)
 
@@ -247,7 +247,7 @@ class Presence:
 
         path = self._path_with_qs(self.__base_path + 'presence/history', qs)
 
-        presence_handler = make_presence_response_handler(self.__cipher)
+        presence_handler = make_presence_response_handler(self.__channel.cipher)
         return await PaginatedResult.paginated_query(
             self.__http, url=path, response_processor=presence_handler)
 
