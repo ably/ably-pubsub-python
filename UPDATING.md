@@ -574,6 +574,24 @@ from datetime import datetime, timezone
 received_at = datetime.fromtimestamp(member.timestamp / 1000, tz=timezone.utc)
 ```
 
+### `Stats.interval_time` is timezone-aware
+
+`Stats.interval_time` is now an aware `datetime` in UTC, where 3.x returned a naive one. An
+ordering comparison such as `<` against a naive `datetime` now raises `TypeError`, and `==`
+against one quietly returns `False`. Compare it with aware datetimes:
+
+Example 3.x code:
+```python
+if stat.interval_time >= datetime(2024, 1, 1):
+    ...
+```
+
+Example 4.0.0 code:
+```python
+if stat.interval_time >= datetime(2024, 1, 1, tzinfo=timezone.utc):
+    ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

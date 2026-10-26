@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
@@ -64,4 +64,5 @@ def granularity_from_interval_id(interval_id):
 
 def interval_from_interval_id(interval_id):
     granularity = granularity_from_interval_id(interval_id)
-    return datetime.strptime(interval_id, INTERVALS_FMT[granularity])
+    # TS12p: the intervalId is a UTC time
+    return datetime.strptime(interval_id, INTERVALS_FMT[granularity]).replace(tzinfo=timezone.utc)

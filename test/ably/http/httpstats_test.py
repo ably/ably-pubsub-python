@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -304,4 +304,4 @@ class TestHttpAppStats(TestHttpAppStatsSetup, BaseAsyncTestCase,
         stat = stats[0]
         assert stat.unit == 'minute'
         assert stat.interval_id == self.last_interval.strftime('%Y-%m-%d:%H:%M')
-        assert stat.interval_time == self.last_interval
+        assert stat.interval_time == self.last_interval.replace(tzinfo=timezone.utc)
