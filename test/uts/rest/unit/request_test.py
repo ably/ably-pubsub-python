@@ -19,8 +19,8 @@ from test.uts.helpers.mock_http import MockHttpClient
 SPEC_KEY = 'appId.keyId:keySecret'
 
 # The number of hosts a single request is tried against: the primary domain plus
-# fallbacks, capped at Defaults.http_max_retry_count
-HOST_ATTEMPTS = 3
+# up to Defaults.http_max_retry_count fallbacks (TO3l5)
+HOST_ATTEMPTS = 4
 
 
 def succeed(conn):

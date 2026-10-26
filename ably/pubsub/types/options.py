@@ -335,23 +335,19 @@ class Options(AuthOptions):
         """
         Return the list of hosts as they should be tried. First comes the main
         host. Then the fallback hosts in random order.
-        The returned list will have a length of up to http_max_retry_count.
+        The returned list will hold up to http_max_retry_count fallback hosts.
         """
         host = Defaults.get_hostname(self.endpoint)
         # REC2: Determine fallback hosts
         fallback_hosts = self.get_fallback_hosts()
-
-        http_max_retry_count = self.http_max_retry_count
 
         # Shuffle
         fallback_hosts = list(fallback_hosts)
         random.shuffle(fallback_hosts)
         self.__fallback_hosts = fallback_hosts
 
-        # First main host
-        hosts = [host] + fallback_hosts
-        hosts = hosts[:http_max_retry_count]
-        return hosts
+        # First main host, then TO3l5: http_max_retry_count counts the fallback hosts only
+        return [host] + fallback_hosts[:self.http_max_retry_count]
 
     def get_hosts(self):
         return self.__hosts

@@ -54,10 +54,11 @@ async def test_to3_client_options_attributes():
     with pytest.raises(TypeError):
         Options(max_message_size=65536)
 
-    # The HTTP layer applies the defaults the options hold: 10 seconds, and 3 hosts to try.
+    # The HTTP layer applies the defaults the options hold: 10 seconds, and the primary
+    # host plus 3 fallbacks to try (TO3l5).
     client = rest_client(mock_http_client())
     assert client.http.http_request_timeout == 10
-    assert len(client.options.get_hosts()) == 3
+    assert len(client.options.get_hosts()) == 4
 
     options = Options(
         key='appId.keyId:keySecret',

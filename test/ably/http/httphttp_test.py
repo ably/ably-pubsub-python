@@ -37,7 +37,8 @@ class TestHttpHttp(BaseAsyncTestCase):
             with pytest.raises(AblyException, match="network error"):
                 await ably.http.make_request('GET', '/', version=Defaults.protocol_version, skip_auth=True)
 
-            assert send_mock.call_count == Defaults.http_max_retry_count
+            # TO3l5: the primary host, then http_max_retry_count fallbacks
+            assert send_mock.call_count == Defaults.http_max_retry_count + 1
             assert send_mock.call_args == mock.call(mock.ANY)
         await ably.close()
 
@@ -70,7 +71,7 @@ class TestHttpHttp(BaseAsyncTestCase):
                 with pytest.raises(AblyException, match="network error"):
                     await ably.http.make_request('GET', '/', skip_auth=True)
 
-                assert send_mock.call_count == Defaults.http_max_retry_count
+                assert send_mock.call_count == Defaults.http_max_retry_count + 1
 
                 expected_urls_set = {
                     make_url(host)
@@ -169,7 +170,7 @@ class TestHttpHttp(BaseAsyncTestCase):
         with pytest.raises(AblyException):
             await ably.http.make_request('GET', '/', skip_auth=True)
 
-        assert mock_request.call_count == 3
+        assert mock_request.call_count == 4
 
         await ably.close()
 

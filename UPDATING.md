@@ -446,6 +446,26 @@ fallback host instead of hanging. If you publish large bodies over a slow link, 
 pubsub_http_client = create_http_client(key='xxx', http_request_timeout=30)
 ```
 
+### `http_max_retry_count` counts fallback hosts only
+
+In 3.x, `http_max_retry_count` capped the total number of hosts a request was tried
+against, the primary endpoint included, so the default of 3 meant the primary and two
+fallbacks. It now counts fallback hosts only, as in the Ably specification and the other
+Ably SDKs: a request goes to the primary endpoint and then to at most
+`http_max_retry_count` fallback hosts. The default of 3 therefore tries one more host than
+before, and `http_max_retry_count=0`, which used to fail every request, now tries the
+primary endpoint alone. To keep the 3.x number of attempts, subtract one:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', http_max_retry_count=3)
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', http_max_retry_count=2)
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

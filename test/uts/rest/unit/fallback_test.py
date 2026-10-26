@@ -82,10 +82,10 @@ async def test_rsc15a_fallback_random_order():
     assert all(host in DEFAULT_FALLBACK_HOSTS for host in fallback_hosts_used)
     assert len(set(fallback_hosts_used)) == len(fallback_hosts_used)
 
-    # NOTE: the spec queues six responses, for the primary and all five fallbacks.
-    # ably-python truncates the host list to http_max_retry_count (3 by default), so
-    # the primary and two fallbacks are tried.
-    assert len(requests) == 3
+    # NOTE: the spec queues six responses, for the primary and all five fallbacks, and
+    # asserts no count. TO3l5's http_max_retry_count (3 by default) caps the fallbacks
+    # tried, so the primary and three fallbacks are.
+    assert len(requests) == 4
 
     # The spec leaves verifying randomness to the implementation. Ordering is drawn once
     # per client, so several clients are built and their host orders compared.

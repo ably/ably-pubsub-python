@@ -136,7 +136,8 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
             How long (in seconds) the client keeps retrying a request across hosts before
             giving up. The default is 15 seconds.
         http_max_retry_count: int
-            The most hosts the client will try for a single request.
+            The most fallback hosts the client will try for a single request, after the
+            primary endpoint. The default is 3; 0 tries the primary endpoint only.
 
         **Protocol**
 
