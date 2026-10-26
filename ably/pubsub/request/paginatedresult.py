@@ -124,7 +124,8 @@ class HttpPaginatedResponse(PaginatedResult):
 
     @property
     def error_code(self):
-        return self.response.headers.get('X-Ably-Errorcode')
+        error_code = self.response.headers.get('X-Ably-Errorcode')
+        return int(error_code) if error_code is not None else None
 
     @property
     def error_message(self):

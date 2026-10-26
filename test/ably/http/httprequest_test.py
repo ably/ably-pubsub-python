@@ -85,7 +85,7 @@ class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
         assert isinstance(result, HttpPaginatedResponse)  # RSC19d
         assert result.status_code == 400  # HP4
         assert not result.success
-        assert result.error_code
+        assert isinstance(result.error_code, int)  # HP6
         assert result.error_message
 
     async def test_headers(self):

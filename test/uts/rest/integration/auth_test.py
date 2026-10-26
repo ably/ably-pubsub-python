@@ -140,8 +140,7 @@ async def test_rsa4_invalid_credentials_rejected(sandbox):
     result = await channel_status(client, channel_name)
 
     assert result.status_code == 401
-    # `error_code` is the raw `X-Ably-Errorcode` header, so a string.
-    assert result.error_code == '40400'
+    assert result.error_code == 40400
 
 
 # UTS: rest/integration/RSC10/token-renewal-expired-jwt-0

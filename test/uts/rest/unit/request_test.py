@@ -313,9 +313,7 @@ async def test_rsc19d_response_error_code_header():
 
     response = await client.request('GET', '/test', version='3')
 
-    # DEVIATION: the spec asserts errorCode == 40101, and HP6 types it as a number.
-    # error_code returns the raw X-Ably-Errorcode header value, so it is a string.
-    assert response.error_code == '40101'
+    assert response.error_code == 40101
 
 
 # UTS: rest/unit/RSC19d/response-error-message-header-3
@@ -470,8 +468,7 @@ async def test_rsc19e_http_error_no_fallback():
     # Should return the error response, not retry to fallback
     assert response.status_code == 400
     assert response.success is False
-    # DEVIATION: the spec asserts errorCode == 40000; error_code returns the raw header
-    assert response.error_code == '40000'
+    assert response.error_code == 40000
 
     # Only one request should have been made (no fallback)
     assert len(mock_http.captured_requests) == 1

@@ -592,6 +592,25 @@ if stat.interval_time >= datetime(2024, 1, 1, tzinfo=timezone.utc):
     ...
 ```
 
+### `HttpPaginatedResponse.error_code` is an `int`
+
+**This change is silent: comparing `error_code` with a string, as in `== '40101'`, now
+returns `False` rather than raising.** The `error_code` of the response that `request()`
+returns is now the `int` parsed from the `X-Ably-Errorcode` header, where 3.x returned the
+header's string. It is still `None` when the header is absent. Compare it with an `int`:
+
+Example 3.x code:
+```python
+if response.error_code == '40101':
+    ...
+```
+
+Example 4.0.0 code:
+```python
+if response.error_code == 40101:
+    ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
