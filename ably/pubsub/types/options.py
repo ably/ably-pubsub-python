@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 
 from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.authoptions import AuthOptions
-from ably.pubsub.util.exceptions import InvalidArgumentException
 
 log = logging.getLogger(__name__)
 
@@ -26,9 +25,9 @@ class VCDiffDecoder(ABC):
 
 
 class Options(AuthOptions):
-    def __init__(self, client_id=None, tls=True, rest_host=None, realtime_host=None, port=0,
+    def __init__(self, client_id=None, tls=True, port=0,
                  tls_port=0, use_binary_protocol=True, queue_messages=True, recover=False, endpoint=None,
-                 environment=None, http_open_timeout=None, http_request_timeout=None,
+                 http_open_timeout=None, http_request_timeout=None,
                  realtime_request_timeout=None, http_max_retry_count=None, http_max_retry_duration=None,
                  fallback_hosts=None, fallback_retry_timeout=None, disconnected_retry_timeout=None,
                  idempotent_rest_publishing=None, loop=None, auto_connect=True,
@@ -38,15 +37,6 @@ class Options(AuthOptions):
                  _test_options=None, **kwargs):
 
         super().__init__(**kwargs)
-
-        # REC1b1: endpoint is incompatible with deprecated options
-        if endpoint is not None:
-            if environment is not None or rest_host is not None or realtime_host is not None:
-                raise InvalidArgumentException(
-                    message='endpoint is incompatible with any of environment, rest_host or realtime_host',
-                    status_code=400,
-                    code=40106,
-                )
 
         # TODO check these defaults
         if fallback_retry_timeout is None:
@@ -74,43 +64,15 @@ class Options(AuthOptions):
         if connectivity_check_url is None:
             connectivity_check_url = Defaults.connectivity_check_url
 
-        connection_state_ttl = Defaults.connection_state_ttl
-
         if suspended_retry_timeout is None:
             suspended_retry_timeout = Defaults.suspended_retry_timeout
-
-        if environment is not None and rest_host is not None:
-            raise InvalidArgumentException(
-                message='specify rest_host or environment, not both',
-                status_code=400,
-                code=40106,
-            )
-
-        if environment is not None and realtime_host is not None:
-            raise InvalidArgumentException(
-                message='specify realtime_host or environment, not both',
-                status_code=400,
-                code=40106,
-            )
 
         if idempotent_rest_publishing is None:
             from ably.pubsub.version import api_version
             idempotent_rest_publishing = api_version >= '1.2'
 
-        if environment is not None and endpoint is None:
-            log.warning("environment client option is deprecated, please use endpoint instead")
-            endpoint = environment
-
-        # REC1d: restHost or realtimeHost option
-        # REC1d1: restHost takes precedence over realtimeHost
-        if rest_host is not None and endpoint is None:
-            log.warning("rest_host client option is deprecated, please use endpoint instead")
-            endpoint = rest_host
-        elif realtime_host is not None and endpoint is None:
-            # REC1d2: realtimeHost if restHost not specified
-            log.warning("realtime_host client option is deprecated, please use endpoint instead")
-            endpoint = realtime_host
-
+        # REC1a: the default routing policy. ably-python omits the deprecated environment,
+        # rest_host and realtime_host options (TO3k1-3), so REC1c and REC1d do not apply
         if endpoint is None:
             endpoint = Defaults.endpoint
 
@@ -137,7 +99,6 @@ class Options(AuthOptions):
         self.__idempotent_rest_publishing = idempotent_rest_publishing
         self.__loop = loop
         self.__auto_connect = auto_connect
-        self.__connection_state_ttl = connection_state_ttl
         self.__suspended_retry_timeout = suspended_retry_timeout
         self.__connectivity_check_url = connectivity_check_url
         self.__add_request_ids = add_request_ids
@@ -275,14 +236,6 @@ class Options(AuthOptions):
     @property
     def auto_connect(self):
         return self.__auto_connect
-
-    @property
-    def connection_state_ttl(self):
-        return self.__connection_state_ttl
-
-    @connection_state_ttl.setter
-    def connection_state_ttl(self, value):
-        self.__connection_state_ttl = value
 
     @property
     def suspended_retry_timeout(self):

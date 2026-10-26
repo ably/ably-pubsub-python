@@ -9,7 +9,6 @@ from ably.pubsub.server import create_http_client
 from ably.pubsub.types.authoptions import AuthOptions
 from ably.pubsub.types.options import Options
 from ably.pubsub.types.tokendetails import TokenDetails
-from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
@@ -86,11 +85,12 @@ async def test_to3_client_options_attributes():
 def test_to3_client_options_custom_hosts():
     options = Options(
         key='appId.keyId:keySecret',
-        rest_host='custom.ably.example.com',
+        # NOTE: the spec sets restHost, which ably-python omits (TO3k2); endpoint names the
+        # same host
+        endpoint='custom.ably.example.com',
         fallback_hosts=['fallback1.example.com', 'fallback2.example.com'],
     )
 
-    # rest_host is deprecated in favour of endpoint (REC1d), which is where it is held
     assert options.endpoint == 'custom.ably.example.com'
     # The fallbacks are kept as given, in the random order RSC15a tries them in
     assert sorted(options.fallback_hosts) == ['fallback1.example.com', 'fallback2.example.com']
@@ -184,9 +184,10 @@ async def test_to_conflicting_options_validation():
     assert client.auth.auth_options.auth_callback is auth_callback
 
     # Case 2: restHost + endpoint conflict
-    with pytest.raises(AblyException) as excinfo:
+    # NOTE: ably-python omits restHost (TO3k2), so there is no conflict to construct; the
+    # option itself is rejected
+    with pytest.raises(TypeError):
         Options(key='appId.keyId:keySecret', rest_host='custom.host.com', endpoint='test')
-    assert 'rest_host' in excinfo.value.message or 'endpoint' in excinfo.value.message
 
     # Case 3: no auth options
     # The missing-credentials check is a constructor argument check, so it raises ValueError

@@ -5,22 +5,13 @@ from ably.pubsub.types.options import Options
 from ably.pubsub.util.exceptions import AblyException
 
 
-# REC1b1: endpoint is incompatible with deprecated options
-def test_options_should_fail_early_with_incompatible_client_options():
-    # REC1b1: endpoint with environment
-    with pytest.raises(AblyException) as exinfo:
-        Options(endpoint="foo", environment="foo")
-    assert exinfo.value.code == 40106
-
-    # REC1b1: endpoint with rest_host
-    with pytest.raises(AblyException) as exinfo:
-        Options(endpoint="foo", rest_host="foo")
-    assert exinfo.value.code == 40106
-
-    # REC1b1: endpoint with realtime_host
-    with pytest.raises(AblyException) as exinfo:
-        Options(endpoint="foo", realtime_host="foo")
-    assert exinfo.value.code == 40106
+# TO3k1-3: the deprecated environment, rest_host and realtime_host options are omitted,
+# and with them the duplicate auth_token and the unused connection_state_ttl
+@pytest.mark.parametrize('option', ['environment', 'rest_host', 'realtime_host', 'auth_token',
+                                    'connection_state_ttl'])
+def test_options_should_reject_removed_options(option):
+    with pytest.raises(TypeError):
+        Options(**{option: 'foo'})
 
 
 # REC1a
@@ -68,56 +59,6 @@ def test_options_should_return_an_ipv6_address():
 def test_options_should_return_localhost():
     opts = Options(endpoint="localhost")
     assert opts.get_host() == "localhost"
-    assert not opts.get_fallback_hosts()
-
-
-# REC1c1: environment with rest_host or realtime_host is invalid
-def test_options_should_fail_with_environment_and_rest_or_realtime_host():
-    # REC1c1: environment with rest_host
-    with pytest.raises(AblyException) as exinfo:
-        Options(environment="foo", rest_host="bar")
-    assert exinfo.value.code == 40106
-
-    # REC1c1: environment with realtime_host
-    with pytest.raises(AblyException) as exinfo:
-        Options(environment="foo", realtime_host="bar")
-    assert exinfo.value.code == 40106
-
-
-# REC1c2: environment defines production routing policy ID
-def test_options_with_environment_should_return_routing_policy_hostnames():
-    opts = Options(environment="foo")
-    # REC1c2: primary domain is [id].realtime.ably.net
-    assert opts.get_host() == "foo.realtime.ably.net"
-    # REC2c5: fallback domains for production routing policy ID via environment
-    assert "foo.a.fallback.ably-realtime.com" in opts.get_fallback_hosts()
-    assert "foo.e.fallback.ably-realtime.com" in opts.get_fallback_hosts()
-
-
-# REC1d1: rest_host takes precedence for primary domain
-def test_options_with_rest_host_should_return_rest_host():
-    opts = Options(rest_host="custom.example.com")
-    # REC1d1: primary domain is the value of the restHost option
-    assert opts.get_host() == "custom.example.com"
-    # REC2c6: fallback domains for restHost is empty
-    assert not opts.get_fallback_hosts()
-
-
-# REC1d2: realtime_host if rest_host not specified
-def test_options_with_realtime_host_should_return_realtime_host():
-    opts = Options(realtime_host="custom.example.com")
-    # REC1d2: primary domain is the value of the realtimeHost option
-    assert opts.get_host() == "custom.example.com"
-    # REC2c6: fallback domains for realtimeHost is empty
-    assert not opts.get_fallback_hosts()
-
-
-# REC1d1: rest_host takes precedence over realtime_host
-def test_options_with_rest_host_takes_precedence_over_realtime_host():
-    opts = Options(rest_host="rest.example.com", realtime_host="realtime.example.com")
-    # REC1d1: restHost takes precedence
-    assert opts.get_host() == "rest.example.com"
-    # REC2c6: fallback domains is empty
     assert not opts.get_fallback_hosts()
 
 
@@ -206,7 +147,6 @@ def test_options_localhost_no_fallback_hosts():
     ({'key': 'appId.keyId:keySecret', 'key_name': 'appId.keyId'}, 401),
     ({'token_details': 'not-token-details'}, 401),
     ({'token': 'a-token', 'use_token_auth': False}, 401),
-    ({'key': 'appId.keyId:keySecret', 'endpoint': 'foo', 'environment': 'foo'}, 400),
 ])
 def test_invalid_client_arguments_raise_40106(kwargs, status_code):
     with pytest.raises(AblyException) as exinfo:

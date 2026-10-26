@@ -43,6 +43,13 @@ def connect_successfully(conn):
     conn.respond_with_success()
 
 
+# TO3k1, TO3k2 and TO3k3 let a library with no backwards-compatibility requirement omit
+# the deprecated environment, restHost and realtimeHost options, and ably-python 4 does.
+OMITTED_HOST_OPTIONS_SKIP = (
+    'environment, restHost and realtimeHost are optional and deprecated (features.md TO3k1-3), '
+    'and ably-python omits them, so the REC1 and REC2 behaviour they select does not apply.')
+
+
 def new_mock():
     return MockHttpClient(on_connection_attempt=connect_successfully)
 
@@ -529,6 +536,7 @@ async def test_rec1b4_production_routing_policy():
 
 
 # UTS: rest/unit/REC1b1/endpoint-conflicts-environment-0
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1b1_endpoint_conflicts_environment():
     with pytest.raises(AblyException) as excinfo:
         rest_client(new_mock(), endpoint='test', environment='production')
@@ -541,6 +549,7 @@ async def test_rec1b1_endpoint_conflicts_environment():
 
 
 # UTS: rest/unit/REC1b1/endpoint-conflicts-resthost-1
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1b1_endpoint_conflicts_resthost():
     with pytest.raises(AblyException) as excinfo:
         rest_client(new_mock(), endpoint='test', rest_host='custom.host.com')
@@ -552,6 +561,7 @@ async def test_rec1b1_endpoint_conflicts_resthost():
 
 
 # UTS: rest/unit/REC1b1/endpoint-conflicts-realtimehost-2
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1b1_endpoint_conflicts_realtimehost():
     with pytest.raises(AblyException) as excinfo:
         rest_client(new_mock(), endpoint='test', realtime_host='custom.realtime.com')
@@ -572,6 +582,7 @@ async def test_rec1b1_endpoint_conflicts_fallback_default():
 
 
 # UTS: rest/unit/REC1c2/environment-sets-primary-domain-0
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1c2_environment_sets_primary_domain():
     mock_http = new_mock()
     mock_http.queue_response(200, TIME_BODY)
@@ -584,6 +595,7 @@ async def test_rec1c2_environment_sets_primary_domain():
 
 
 # UTS: rest/unit/REC1c1/environment-conflicts-resthost-0
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1c1_environment_conflicts_resthost():
     with pytest.raises(AblyException) as excinfo:
         rest_client(new_mock(), environment='sandbox', rest_host='custom.host.com')
@@ -595,6 +607,7 @@ async def test_rec1c1_environment_conflicts_resthost():
 
 
 # UTS: rest/unit/REC1c1/environment-conflicts-realtimehost-1
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1c1_environment_conflicts_realtimehost():
     with pytest.raises(AblyException) as excinfo:
         rest_client(new_mock(), environment='sandbox', realtime_host='custom.realtime.com')
@@ -606,6 +619,7 @@ async def test_rec1c1_environment_conflicts_realtimehost():
 
 
 # UTS: rest/unit/REC1d1/resthost-sets-primary-domain-0
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1d1_resthost_sets_primary_domain():
     mock_http = new_mock()
     mock_http.queue_response(200, TIME_BODY)
@@ -618,6 +632,7 @@ async def test_rec1d1_resthost_sets_primary_domain():
 
 
 # UTS: rest/unit/REC1d2/realtimehost-sets-primary-domain-0
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1d2_realtimehost_sets_primary_domain():
     mock_http = new_mock()
     mock_http.queue_response(200, TIME_BODY)
@@ -630,6 +645,7 @@ async def test_rec1d2_realtimehost_sets_primary_domain():
 
 
 # UTS: rest/unit/REC1d/resthost-precedence-over-realtimehost-0
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec1d_resthost_precedence_over_realtimehost():
     mock_http = new_mock()
     mock_http.queue_response(200, TIME_BODY)
@@ -750,6 +766,7 @@ async def test_rec2c4_production_endpoint_fallback_domains():
 
 
 # UTS: rest/unit/REC2c5/production-environment-fallback-domains-0
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec2c5_production_environment_fallback_domains():
     mock_http = new_mock()
     mock_http.queue_response(500, error_body(500))
@@ -765,6 +782,7 @@ async def test_rec2c5_production_environment_fallback_domains():
 
 
 # UTS: rest/unit/REC2c6/custom-resthost-no-fallbacks-0
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec2c6_custom_resthost_no_fallbacks():
     mock_http = new_mock()
     mock_http.queue_response(500, error_body(500))
@@ -780,6 +798,7 @@ async def test_rec2c6_custom_resthost_no_fallbacks():
 
 
 # UTS: rest/unit/REC2c6/custom-realtimehost-no-fallbacks-1
+@pytest.mark.skip(reason=OMITTED_HOST_OPTIONS_SKIP)
 async def test_rec2c6_custom_realtimehost_no_fallbacks():
     mock_http = new_mock()
     mock_http.queue_response(500, error_body(500))

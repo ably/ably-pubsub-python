@@ -33,9 +33,9 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1304 Test IDs
-(1313 tests, 1438 cases) pass, 153 (153 tests, 155 cases) are gated behind
-`RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1292 Test IDs
+(1301 tests, 1426 cases) pass, 153 (153 tests, 155 cases) are gated behind
+`RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
 while their passing parts count among the passing tests and cases. Every gated test has
@@ -2003,8 +2003,9 @@ through their setups.
 `ConnectionDetails.from_dict` parses `connectionStateTtl` (`types/connectiondetails.py:19`)
 and nothing ever reads it. `ConnectionManager.start_suspend_timer`
 (`connectionmanager.py:745`) uses `Defaults.connection_state_ttl` — 120000 — directly, and
-no client option overrides it (`types/options.py:64` accepts the keyword and then discards
-it). A server that shortens or lengthens the TTL is ignored.
+no client option overrides it (TO3 defines none, and the `Options.connection_state_ttl`
+property that copied the default and was read by nothing was removed in 4.0.0). A server
+that shortens or lengthens the TTL is ignored.
 
 **Tests affected:** every test that has to reach a SUSPENDED connection — nine across the
 connection, channel and presence suites — sends the specification's `connectionStateTtl` and
@@ -2207,7 +2208,6 @@ pseudocode is not mistaken for non-compliance.
 | RSL2, RSL11b, RSL15b | `:` is `%3A` | Left literal, from `safe=':'`. RFC 3986 allows `:` in a path segment and Ably uses it for namespaces, so the server receives the same value | Intentional |
 | RTC12 / RSC1, RSC1a, RSC1c | A string constructor argument is an API key when it contains `:` and a token when it does not | `AblyRest.__init__` treats its first positional argument as a key unconditionally and hands it to `AuthOptions.set_key`, which requires exactly two colon-separated parts, so a token string raises 40101/401 "key of not len 2 parameters". A token is supplied through the separate `token` or `token_details` arguments. The empty-string case is compliant | Intentional / SDK-wide: the constructor takes credentials as distinct named arguments and has no string-sniffing path to restore |
 | RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
-| REC1b1, REC1c1 | Code 40000, or a message containing "invalid" or "conflict" | 400/40106 with a specific message. The features spec mandates no code | Cosmetic |
 | RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000 | Cosmetic; worth aligning cross-SDK |
 | RSH1a | Empty `recipient` or `data` rejected with code 40000, the error reaching the caller from the server | `PushAdmin.publish` validates its arguments itself and raises before touching the HTTP layer: an empty or non-dict `recipient` or `data` raises an `AblyException` with 400/40000, the code the server gives, which is also a `ValueError`. So no request is made and there is no server error; the integration tier's `test_rsh1a_push_publish_invalid_recipient` asserts the local error's code | Compliant: RSH1a asks for empty values to be "immediately rejected". The specification's test would need a recipient the SDK will send and the server will reject, an unknown `transportType` say, to exercise the server-side path it describes |
 | HP6 | `errorCode` is a number | The raw header string, `'40101'` | Open bug, trivial |
@@ -2273,7 +2273,7 @@ largest, the typed views, has its own section at the end of this file.
 ## Mock Infrastructure Limitations
 
 Tests that cannot be implemented as written, kept as skipped stubs carrying their Test
-IDs so the specification's coverage is still accounted for. Fifteen in total, none of
+IDs so the specification's coverage is still accounted for. Twenty-seven in total, none of
 them from `uts/objects`. Two of the
 entries are caused by the SDK rather than by the mock, but they land here because the
 effect is the same: no test can observe the behaviour.
@@ -2350,6 +2350,24 @@ the mock cannot show it. Letting `RecordedUrl` fall back to a hand-parsed URL wh
 Optional per TO3k7, and `REC1b1` and `REC2a1` scope their checks to libraries that
 support it, so these are skipped as not applicable rather than recorded as
 deviations.
+
+### `environment`, `restHost` and `realtimeHost` are omitted — 12 tests
+
+**Spec points:** REC1b1 (`endpoint-conflicts-environment-0`, `-resthost-1`,
+`-realtimehost-2`), REC1c1 (two), REC1c2, REC1d, REC1d1, REC1d2, REC2c5, and REC2c6 (two),
+all in `fallback_test.py`.
+
+TO3k1, TO3k2 and TO3k3 mark the three options optional and deprecated, and say a library
+with no backwards-compatibility requirement may omit them. ably-python 4.0.0 is a breaking
+release and omits them, so `endpoint` is the only way to name a host, passing any of the
+three raises `TypeError`, and the REC1 and REC2 clauses that only they select do not apply.
+The tests are skipped as not applicable, as the `fallbackHostsUseDefault` ones are.
+
+Four tests elsewhere use one of the three only to name a host, and pass with `endpoint` in
+its place, which REC1b2 resolves to the same host: `TG/pagination-relative-urls-5`,
+`TO3/client-options-custom-hosts-1` and `RTN17g/empty-fallback-set-error-0` each carry a
+NOTE saying so, and `TO/conflicting-options-validation-1` asserts the `TypeError` for its
+restHost-and-endpoint case, there being no conflict left to construct.
 
 ## Investigated and not defects
 
@@ -3517,8 +3535,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 155 failures, 1586 passes and 15 skips with the variable
-set, and 170 skips and 1586 passes without it, the 1586 being 1438 derived cases and 148
+it. As of this writing that is 155 failures, 1574 passes and 27 skips with the variable
+set, and 182 skips and 1574 passes without it, the 1574 being 1426 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

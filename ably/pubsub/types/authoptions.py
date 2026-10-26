@@ -3,7 +3,7 @@ from ably.pubsub.util.exceptions import AblyException
 
 class AuthOptions:
     def __init__(self, auth_callback=None, auth_url=None, auth_method='GET',
-                 auth_token=None, auth_headers=None, auth_params=None,
+                 token=None, auth_headers=None, auth_params=None,
                  key_name=None, key_secret=None, key=None, query_time=False,
                  token_details=None, use_token_auth=None,
                  default_token_params=None):
@@ -18,7 +18,7 @@ class AuthOptions:
         self.auth_options['key_secret'] = key_secret
         self.set_key(key)
 
-        self.__auth_token = auth_token
+        self.__token = token
         self.__token_details = token_details
         self.__use_token_auth = use_token_auth
         default_token_params = default_token_params or {}
@@ -97,13 +97,14 @@ class AuthOptions:
     def key_secret(self, value):
         self.auth_options['key_secret'] = value
 
+    # TO3j2
     @property
-    def auth_token(self):
-        return self.__auth_token
+    def token(self):
+        return self.__token
 
-    @auth_token.setter
-    def auth_token(self, value):
-        self.__auth_token = value
+    @token.setter
+    def token(self, value):
+        self.__token = value
 
     @property
     def auth_headers(self):

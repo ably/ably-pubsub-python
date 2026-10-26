@@ -208,9 +208,10 @@ async def test_rtn17g_empty_fallback_set_error(monkeypatch):
         conn.respond_with_refused()
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
-    # REC2c2: a custom domain has no fallback set of its own
+    # REC2c2: a custom domain has no fallback set of its own. The spec sets realtimeHost,
+    # which ably-python omits (TO3k3); endpoint names the same host
     client = fallback_client(
-        mock_ws, realtime_host='custom.example.com', realtime_request_timeout=300,
+        mock_ws, endpoint='custom.example.com', realtime_request_timeout=300,
         disconnected_retry_timeout=60000)
 
     client.connect()

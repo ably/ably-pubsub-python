@@ -50,17 +50,10 @@ class DefaultPubSubHttpClient(PubSubHttpClient):
           - `client_id`: Undocumented
           - `endpoint`: Endpoint specifies either a routing policy name or
             fully qualified domain name to connect to Ably.
-          - `rest_host`: Deprecated: this property is deprecated and will
-            be removed in a future version. The host to connect to.
-            Defaults to rest.ably.io
-          - `environment`: Deprecated: this property is deprecated and
-            will be removed in a future version. The environment to use.
-            Defaults to 'production'
           - `port`: The port to connect to. Defaults to 80
           - `tls_port`: The tls_port to connect to. Defaults to 443
           - `tls`: Specifies whether the client should use TLS. Defaults
             to True
-          - `auth_token`: Undocumented
           - `auth_callback`: Undocumented
           - `auth_url`: Undocumented
         """
@@ -71,7 +64,7 @@ class DefaultPubSubHttpClient(PubSubHttpClient):
                                            "Provider either a key or key_name & key_secret", 401, 40106)
         # RSA4: a key given alongside a token is kept, to renew the token with
         if token is not None:
-            options = Options(key=key, auth_token=token, **kwargs)
+            options = Options(key=key, token=token, **kwargs)
         elif token_details is not None:
             if not isinstance(token_details, TokenDetails):
                 raise InvalidArgumentException("token_details must be an instance of TokenDetails", 401, 40106)

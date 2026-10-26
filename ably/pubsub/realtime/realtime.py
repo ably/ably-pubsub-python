@@ -55,13 +55,6 @@ class DefaultPubSubRealtimeClient(DefaultPubSubHttpClient, PubSubRealtimeClient)
         **kwargs: client options
             endpoint: str
                 Endpoint specifies either a routing policy name or fully qualified domain name to connect to Ably.
-            realtime_host: str
-                Deprecated: this property is deprecated and will be removed in a future version.
-                Enables a non-default Ably host to be specified for realtime connections.
-                For development environments only. The default value is realtime.ably.io.
-            environment: str
-                Deprecated: this property is deprecated and will be removed in a future version.
-                Enables a custom environment to be used with the Ably service. Defaults to `production`
             realtime_request_timeout: float
                 Timeout (in milliseconds) for the wait of acknowledgement for operations performed via a realtime
                 connection. Operations include establishing a connection with Ably, or sending a HEARTBEAT,
@@ -77,9 +70,6 @@ class DefaultPubSubRealtimeClient(DefaultPubSubHttpClient, PubSubRealtimeClient)
                 An array of fallback hosts to be used in the case of an error necessitating the use of an
                 alternative host. If you have been provided a set of custom fallback hosts by Ably, please specify
                 them here.
-            connection_state_ttl: float
-                The duration that Ably will persist the connection state for when a Realtime client is abruptly
-                disconnected.
             suspended_retry_timeout: float
                 When the connection enters the SUSPENDED state, after this delay, if the state is still SUSPENDED,
                 the client library attempts to reconnect automatically. The default is 30 seconds.

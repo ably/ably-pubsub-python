@@ -196,11 +196,9 @@ async def auth_callback(token_params):
 The factories raised a bare `ValueError` in 3.x when given no means of authenticating, a
 `key` together with `key_name` or `key_secret`, a `token_details` that is not a
 `TokenDetails`, or `use_token_auth=False` without a key. In 4.0.0 each raises an
-`AblyException` with code 40106 and status 401. Combining `endpoint` with `environment`,
-`rest_host` or `realtime_host` still raises an `AblyException` with code 40106 and status
-400. `push.admin.publish` raised `TypeError` for a `recipient` or `data` that is not a dict
-and `ValueError` for an empty one, and now raises an `AblyException` with code 40000 and
-status 400 for all four.
+`AblyException` with code 40106 and status 401. `push.admin.publish` raised `TypeError`
+for a `recipient` or `data` that is not a dict and `ValueError` for an empty one, and now
+raises an `AblyException` with code 40000 and status 400 for all four.
 
 These exceptions are also a `ValueError`, so `except ValueError` still catches them, but
 `except TypeError` no longer catches the `push.admin.publish` ones:
@@ -487,6 +485,35 @@ logger.setLevel(logging.DEBUG)
 logger.addHandler(logging.StreamHandler())
 
 pubsub_http_client = create_http_client(key='xxx')
+```
+
+### Deprecated and duplicate options are removed
+
+These options were deprecated in 3.x, or duplicated another option, and are gone in 4.0.0.
+Passing any of them raises `TypeError`:
+
+- `environment`: pass the same value as `endpoint`, so `environment='sandbox'` becomes
+  `endpoint='sandbox'`.
+- `rest_host` and `realtime_host`: pass the host as `endpoint`, which one host now serves
+  for both REST and realtime.
+- `auth_token`: pass the token as `token`, the name the factories document. The token is now
+  read back as `client.options.token` rather than `client.options.auth_token`.
+- `connection_state_ttl`: this was never accepted as an option, and the
+  `client.options.connection_state_ttl` property, which nothing read, is removed. The value
+  the server sends is on `connection.connection_details.connection_state_ttl`.
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', environment='sandbox')
+realtime = AblyRealtime(key='xxx', realtime_host='custom.ably.example.com')
+rest = AblyRest(auth_token='xxx')
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', endpoint='sandbox')
+pubsub_realtime_client = create_realtime_client(key='xxx', endpoint='custom.ably.example.com')
+pubsub_http_client = create_http_client(token='xxx')
 ```
 
 ## Version 2.x to 3.0.0

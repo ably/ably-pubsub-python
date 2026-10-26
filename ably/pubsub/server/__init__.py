@@ -115,8 +115,7 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
             cannot be changed once the client has authenticated.
         endpoint: str
             Either a routing policy name or a fully qualified domain name to connect to.
-            Defaults to `main`. Incompatible with `environment`, `rest_host` and
-            `realtime_host`.
+            Defaults to `main`.
         tls: bool
             Whether the client should use TLS. Defaults to True.
         port: int
@@ -155,13 +154,6 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
             Add a `request_id` query parameter to every request, which makes a request
             traceable in Ably's logs. Defaults to False.
 
-        **Deprecated**
-
-        rest_host: str
-            Deprecated: this option will be removed in a future version. Use `endpoint`.
-        environment: str
-            Deprecated: this option will be removed in a future version. Use `endpoint`.
-
     Returns
     -------
     PubSubHttpClient
@@ -170,9 +162,8 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     Raises
     ------
     AblyException
-        With code 40106, if no means of authenticating is given, if `key` is combined
-        with `key_name` or `key_secret`, or if `endpoint` is combined with
-        `environment`, `rest_host` or `realtime_host`. It is also a ValueError.
+        With code 40106, if no means of authenticating is given, or if `key` is
+        combined with `key_name` or `key_secret`. It is also a ValueError.
     IncompatibleClientIdException
         If `client_id` conflicts with the client ID of `token_details`.
     """
@@ -239,11 +230,6 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
             The decoder used to apply delta-encoded messages on channels configured with
             `params={"delta": "vcdiff"}`. Pass an :class:`AblyVCDiffDecoder`.
 
-        **Deprecated**
-
-        realtime_host: str
-            Deprecated: this option will be removed in a future version. Use `endpoint`.
-
     Returns
     -------
     PubSubRealtimeClient
@@ -252,9 +238,8 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
     Raises
     ------
     AblyException
-        With code 40106, if no means of authenticating is given, if `key` is combined
-        with `key_name` or `key_secret`, or if `endpoint` is combined with
-        `environment`, `rest_host` or `realtime_host`. It is also a ValueError.
+        With code 40106, if no means of authenticating is given, or if `key` is
+        combined with `key_name` or `key_secret`. It is also a ValueError.
     """
     with factory_construction():
         return _DefaultPubSubRealtimeClient(**kwargs)
