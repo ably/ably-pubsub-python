@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1292 Test IDs
-(1301 tests, 1426 cases) pass, 153 (153 tests, 155 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1295 Test IDs
+(1304 tests, 1429 cases) pass, 150 (150 tests, 152 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,16 +45,16 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 69 are REST and 84 realtime, which is 70 REST cases
+within each. Of the gated Test IDs 66 are REST and 84 realtime, which is 67 REST cases
 and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 142 gated Test IDs that record SDK non-compliance — 142 tests, 144 cases — reduce to
-**60 distinct root causes**, 20 on the REST side and 40 on the realtime side. One further
+The 139 gated Test IDs that record SDK non-compliance — 139 tests, 141 cases — reduce to
+**59 distinct root causes**, 19 on the REST side and 40 on the realtime side. One further
 defect is recorded below with no test of its own, because the specification's test
-cannot discriminate (RTP18a), so the file carries **61 SDK root causes** in all. The
+cannot discriminate (RTP18a), so the file carries **60 SDK root causes** in all. The
 remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
 records no SDK non-compliance; its specification faults are all corrected or worked
 around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
@@ -1053,7 +1053,6 @@ option is gone, after RTN16d has done its first phase against the sandbox throug
 | RTL25, RTL25a, RTL25b | `RealtimeChannel#whenState`. `Connection._when_state` exists (private, awaitable), so this is a gap on the channel rather than a house style; the tests are written against a `channel.when_state(state)` matching the shape the connection already has | 4 |
 | RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_level` and `log_handler` as client options. The library logs through the standard `logging` module under the `ably.pubsub` logger, whose level and handlers are the idiomatic way to do both; `log_level`, which was stored on `Options` and read by nothing, was removed in 4.0.0, so passing either raises `TypeError` | 4 |
 | RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` is `get(self, limit=None)` (`ably/types/presence.py:216`), while `Presence.history` does take its documented params. `presence.get(client_id=...)` raises `TypeError: get() got an unexpected keyword argument 'client_id'`. The absence also forces the RSP5 decoding adaptation below | 4 (5 cases) |
-| TP3a, TP3d, TP3g | Presence attributes defaulted from the encapsulating ProtocolMessage. There is no ProtocolMessage type; `ably/realtime/channel.py:751-761` passes the presence array through without context. Matters for synthesized-leave detection and `memberKey` | 3 |
 | TB4, RTL7h, RTP6e | `attachOnSubscribe`. `ChannelOptions.__init__` (`channeloptions.py:22-26`) takes only `cipher`, `params` and `modes`, and `subscribe()` on the channel, on presence and on annotations all end unconditionally with `await attach()`. This absence also forces the largest single adaptation in the suite, below | 3 |
 | RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
 | RTL7f | `echoMessages` in its client-filter form. The `echo_messages` option sends `echo=false` (RTC1a), which the server honours, but the client does not itself drop a message carrying its own `connectionId`, and that is the only form a mock-backed test can observe | 1 |
@@ -2392,6 +2391,15 @@ method, or at the calling level". ably-python uses the calling level
 (`presencemap.py:140-142`), which is what RTP19 needs. The three RTP19 cases the
 specification distinguishes all come out right.
 
+### A presence message does take its missing fields from the ProtocolMessage
+
+TP3a, TP3d and TP3g were gated as unimplemented, on the reading that the realtime channel
+hands the `presence` array to `from_encoded_array` with no context. It does not:
+`RealtimeChannel._on_message` first calls `Message.update_inner_message_fields`, which
+fills each presence entry's missing `id`, `connectionId` and `timestamp` from the
+ProtocolMessage, and `test/unit/message_test.py` covers it. The derived tests' decoding
+helper skipped that call; it now makes it, and the three tests pass.
+
 ### RTL18 delta recovery matches the specification exactly
 
 Verified end to end: the recovery ATTACH carries the `channelSerial` of the last batch that
@@ -3513,8 +3521,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 155 failures, 1574 passes and 27 skips with the variable
-set, and 182 skips and 1574 passes without it, the 1574 being 1426 derived cases and 148
+it. As of this writing that is 152 failures, 1577 passes and 27 skips with the variable
+set, and 179 skips and 1577 passes without it, the 1577 being 1429 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's
