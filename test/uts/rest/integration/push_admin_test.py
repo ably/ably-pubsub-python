@@ -8,6 +8,7 @@ import pytest
 
 from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.server import AblyException, DeviceDetails, PushChannelSubscription
+from ably.pubsub.types.device import DevicePushDetails
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 
@@ -23,17 +24,13 @@ DEVICE_TOKEN = '740f4707bebcf74f9b7c25d48e3358945f6aa01da5ddb387462c7eaf61bb78ad
 
 def apns_device(device_id, client_id=None, device_token=DEVICE_TOKEN, platform='ios',
                 form_factor='phone'):
-    """The specifications' `DeviceDetails(... push: DevicePushDetails(recipient: ...))`.
-
-    There is no `DevicePushDetails` type in ably-python; `DeviceDetails.push` is
-    the plain dict the wire carries, so the recipient goes in directly.
-    """
+    """The specifications' `DeviceDetails(... push: DevicePushDetails(recipient: ...))`."""
     return DeviceDetails(
         id=device_id,
         client_id=client_id,
         platform=platform,
         form_factor=form_factor,
-        push={'recipient': {'transportType': 'apns', 'deviceToken': device_token}},
+        push=DevicePushDetails(recipient={'transportType': 'apns', 'deviceToken': device_token}),
     )
 
 
@@ -90,7 +87,7 @@ async def test_rsh1b3_save_and_get_device(sandbox):
         assert saved.id == device_id
         assert saved.platform == 'ios'
         assert saved.form_factor == 'phone'
-        assert saved.push['recipient']['transportType'] == 'apns'
+        assert saved.push.recipient['transportType'] == 'apns'
 
         retrieved = await registrations.get(device_id)
         assert isinstance(retrieved, DeviceDetails)
@@ -113,10 +110,10 @@ async def test_rsh1b3_update_device_registration(sandbox):
         updated = await registrations.save(apns_device(device_id, device_token=token_v2))
 
         assert updated.id == device_id
-        assert updated.push['recipient']['deviceToken'] == token_v2
+        assert updated.push.recipient['deviceToken'] == token_v2
 
         retrieved = await registrations.get(device_id)
-        assert retrieved.push['recipient']['deviceToken'] == token_v2
+        assert retrieved.push.recipient['deviceToken'] == token_v2
     finally:
         await remove_device_quietly(client, device_id)
 
@@ -144,7 +141,7 @@ async def test_rsh1b2_list_devices_filtered(sandbox):
         id=device_id,
         platform='android',
         form_factor='tablet',
-        push={'recipient': {'transportType': 'gcm', 'registrationToken': f'token-{random_id()}'}},
+        push=DevicePushDetails(recipient={'transportType': 'gcm', 'registrationToken': f'token-{random_id()}'}),
     ))
     await registrations.save(apns_device(decoy_id))
     try:

@@ -654,6 +654,28 @@ For the same reason a `PaginatedResult` no longer has a `response` attribute. Th
 `HttpPaginatedResponse` that `request()` returns keeps `status_code`, `success`,
 `error_code`, `error_message` and `headers`, so read those instead of `response`.
 
+### `DeviceDetails.push` is a `DevicePushDetails`
+
+`DeviceDetails.push` is now a `DevicePushDetails`, with `recipient`, `state` and
+`error_reason` attributes, where 3.x returned the dict the server sent. `error_reason` is an
+`AblyException`. Indexing it, as in `device.push['recipient']`, now raises `TypeError`.
+Read the attributes instead. A device can still be built or saved with `push` given as a
+dict:
+
+Example 3.x code:
+```python
+token = device.push['recipient']['deviceToken']
+```
+
+Example 4.0.0 code:
+```python
+token = device.push.recipient['deviceToken']
+```
+
+`DeviceDetails` and `PushChannelSubscription` now also ignore fields they do not know when
+decoding a dict, where 3.x raised `TypeError` on any field the server added. A misspelled key
+in a dict you pass to `save()` is therefore ignored rather than rejected.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

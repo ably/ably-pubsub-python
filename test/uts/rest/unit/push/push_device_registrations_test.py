@@ -9,7 +9,7 @@ import msgpack
 import pytest
 
 from ably.pubsub.request.paginatedresult import PaginatedResult
-from ably.pubsub.types.device import DeviceDetails
+from ably.pubsub.types.device import DeviceDetails, DevicePushDetails
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
@@ -61,10 +61,9 @@ async def test_rsh1b1_get_device_details():
     assert device.form_factor == 'phone'
     assert device.platform == 'ios'
     assert device.metadata['model'] == 'iPhone 14'
-    # NOTE: the spec models push as a DevicePushDetails object. DeviceDetails.push is a
-    # plain dict here, so the same values are read by key.
-    assert device.push['recipient']['transportType'] == 'apns'
-    assert device.push['state'] == 'Active'
+    assert isinstance(device.push, DevicePushDetails)
+    assert device.push.recipient['transportType'] == 'apns'
+    assert device.push.state == 'Active'
 
 
 # UTS: rest/unit/RSH1b1/get-unknown-device-error-1
@@ -205,7 +204,7 @@ async def test_rsh1b3_save_put_device_details():
         client_id='client-abc',
         platform='ios',
         form_factor='phone',
-        push={'recipient': {'transportType': 'apns', 'deviceToken': 'token-123'}},
+        push=DevicePushDetails(recipient={'transportType': 'apns', 'deviceToken': 'token-123'}),
     )
 
     result = await client.push.admin.device_registrations.save(device)
@@ -225,7 +224,7 @@ async def test_rsh1b3_save_put_device_details():
 
     assert isinstance(result, DeviceDetails)
     assert result.id == 'device-001'
-    assert result.push['state'] == 'Active'
+    assert result.push.state == 'Active'
 
 
 # UTS: rest/unit/RSH1b3/save-updates-existing-1
@@ -263,7 +262,7 @@ async def test_rsh1b3_save_updates_existing():
         id='device-001',
         platform='ios',
         form_factor='phone',
-        push={'recipient': {'transportType': 'apns', 'deviceToken': 'token-old'}},
+        push=DevicePushDetails(recipient={'transportType': 'apns', 'deviceToken': 'token-old'}),
     )
 
     result1 = await client.push.admin.device_registrations.save(device)
@@ -272,13 +271,13 @@ async def test_rsh1b3_save_updates_existing():
         id='device-001',
         platform='ios',
         form_factor='phone',
-        push={'recipient': {'transportType': 'apns', 'deviceToken': 'token-new'}},
+        push=DevicePushDetails(recipient={'transportType': 'apns', 'deviceToken': 'token-new'}),
     )
 
     result2 = await client.push.admin.device_registrations.save(updated_device)
 
-    assert result1.push['recipient']['deviceToken'] == 'token-old'
-    assert result2.push['recipient']['deviceToken'] == 'token-new'
+    assert result1.push.recipient['deviceToken'] == 'token-old'
+    assert result2.push.recipient['deviceToken'] == 'token-new'
     assert request_count == 2
 
 
@@ -297,7 +296,7 @@ async def test_rsh1b3_save_error_propagated():
         id='device-001',
         platform='ios',
         form_factor='phone',
-        push={'recipient': {}},
+        push=DevicePushDetails(recipient={}),
     )
 
     with pytest.raises(AblyException) as excinfo:

@@ -4,7 +4,7 @@ Spec points: RSH7a, RSH7b, RSH7c, RSH7d
 
 DEVIATION: ably-python implements neither the PushChannel interface (RSH7, the `push`
 field on a channel) nor LocalDevice (RSH8). `ably/rest/channel.py` gives a channel no
-`push`, `DefaultPubSubHttpClient` no `device`, and `ably/types/device.py` defines only `DeviceDetails`.
+`push`, `DefaultPubSubHttpClient` no `device`, and `ably/types/device.py` defines no `LocalDevice`.
 Both tests here therefore depart from the specification and are gated behind
 RUN_DEVIATIONS, against the same spelling
 [test/uts/rest/unit/push/push_channels_test.py](../unit/push/push_channels_test.py)
@@ -32,6 +32,7 @@ Errors*.
 """
 
 from ably.pubsub.server import AblyException, DeviceDetails
+from ably.pubsub.types.device import DevicePushDetails
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import random_id
@@ -93,13 +94,11 @@ async def test_rsh7a_subscribe_unsubscribe_device(sandbox):
     device_token = 'test-apns-token-' + random_id()
 
     # A device has to be registered before a device channel subscription will take.
-    # There is no `DevicePushDetails` type in ably-python; `DeviceDetails.push` is the
-    # plain dict the wire carries, so the recipient goes in directly.
     registration = await client.push.admin.device_registrations.save(DeviceDetails(
         id=device_id,
         platform='ios',
         form_factor='phone',
-        push={'recipient': {'transportType': 'apns', 'deviceToken': device_token}},
+        push=DevicePushDetails(recipient={'transportType': 'apns', 'deviceToken': device_token}),
     ))
     try:
         # SPEC FAULT: the specification's own comment says the deviceIdentityToken is
