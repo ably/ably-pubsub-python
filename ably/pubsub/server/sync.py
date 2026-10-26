@@ -44,6 +44,7 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     Accepts every option :func:`ably.pubsub.server.create_http_client` does — see there
     for credentials, token authentication, connection and HTTP behaviour — and behaves
     identically, without the event loop. The realtime-only options have no effect here.
+    It logs to the `ably.pubsub` logger, as that function describes.
 
     Returns
     -------

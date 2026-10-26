@@ -26,7 +26,7 @@ class VCDiffDecoder(ABC):
 
 
 class Options(AuthOptions):
-    def __init__(self, client_id=None, log_level=0, tls=True, rest_host=None, realtime_host=None, port=0,
+    def __init__(self, client_id=None, tls=True, rest_host=None, realtime_host=None, port=0,
                  tls_port=0, use_binary_protocol=True, queue_messages=True, recover=False, endpoint=None,
                  environment=None, http_open_timeout=None, http_request_timeout=None,
                  realtime_request_timeout=None, http_max_retry_count=None, http_max_retry_duration=None,
@@ -115,7 +115,6 @@ class Options(AuthOptions):
             endpoint = Defaults.endpoint
 
         self.__client_id = client_id
-        self.__log_level = log_level
         self.__tls = tls
         self.__port = port
         self.__tls_port = tls_port
@@ -154,14 +153,6 @@ class Options(AuthOptions):
     @client_id.setter
     def client_id(self, value):
         self.__client_id = value
-
-    @property
-    def log_level(self):
-        return self.__log_level
-
-    @log_level.setter
-    def log_level(self, value):
-        self.__log_level = value
 
     @property
     def tls(self):

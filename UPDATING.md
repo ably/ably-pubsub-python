@@ -466,6 +466,29 @@ Example 4.0.0 code:
 pubsub_http_client = create_http_client(key='xxx', http_max_retry_count=2)
 ```
 
+### The `log_level` option is removed
+
+`log_level` was stored on the client options and never read, so it changed nothing. It is
+gone, and passing it raises `TypeError`. The library logs through Python's standard
+`logging` module, to the `ably.pubsub` logger and the loggers beneath it, so configure that
+logger instead to set the level or to choose where records go:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', log_level=logging.DEBUG)
+```
+
+Example 4.0.0 code:
+```python
+import logging
+
+logger = logging.getLogger('ably.pubsub')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
+
+pubsub_http_client = create_http_client(key='xxx')
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

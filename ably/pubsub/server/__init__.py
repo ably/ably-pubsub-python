@@ -60,6 +60,11 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     of `key`, `token` or `token_details` to authenticate, or configure token auth through
     `auth_callback` or `auth_url`.
 
+    The client logs through the standard :mod:`logging` module, to the `ably.pubsub` logger
+    and the loggers beneath it, and adds no handler of its own beyond a `NullHandler`.
+    Configure that logger to choose the level and where records go, for example
+    ``logging.getLogger('ably.pubsub').setLevel(logging.DEBUG)``.
+
     Parameters
     ----------
     **kwargs: client options
@@ -149,8 +154,6 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         add_request_ids: bool
             Add a `request_id` query parameter to every request, which makes a request
             traceable in Ably's logs. Defaults to False.
-        log_level: int
-            Verbosity of the library's own logging. Defaults to 0.
 
         **Deprecated**
 
@@ -183,6 +186,7 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
     Everything the HTTP client does, plus subscribing to channels and entering presence.
     Accepts every option :func:`create_http_client` does — see there for credentials,
     token authentication, connection and HTTP behaviour — and the following in addition.
+    It logs to the `ably.pubsub` logger, as :func:`create_http_client` describes.
 
     Parameters
     ----------
