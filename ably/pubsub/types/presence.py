@@ -206,7 +206,7 @@ class PresenceMessage(EncodeDataMixin):
 
 class Presence:
     def __init__(self, channel):
-        self.__base_path = f'/channels/{parse.quote_plus(channel.name)}/'
+        self.__base_path = channel.base_path
         self.__binary = channel.ably.options.use_binary_protocol
         self.__http = channel.ably.http
         self.__channel = channel

@@ -125,7 +125,7 @@ async def test_rsl11b_url_encodes_serial():
     request = captured_requests[0]
     # DEVIATION RSL11b: the spec asserts the serial is encoded as encodeURIComponent
     # would, giving "serial%2Fwith%3Aspecial%2Bchars". ably-python encodes the serial
-    # with `quote_plus(serial, safe=':')`, so the colon travels literally. A colon is a
+    # with `quote(serial, safe=':')`, so the colon travels literally. A colon is a
     # legal path character, so the server still receives the same serial; the slash and
     # the plus, which would otherwise change the serial, are both encoded.
     assert wire_path(request) == (

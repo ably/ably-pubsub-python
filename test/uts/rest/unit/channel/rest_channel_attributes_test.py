@@ -128,12 +128,8 @@ async def test_rsl8_status_special_chars_encoded():
     assert request.method == 'GET'
 
     # DEVIATION: the spec asserts the path ends with "/channels/" + encode_uri_component(name).
-    # `Channel.status` in `ably/rest/channel.py` interpolates the raw name into
-    # `f'/channels/{self.name}'` and encodes nothing; the escaping visible below is httpx
-    # normalising the URL on the way out. For this name the wire form still reaches the right
-    # channel, differing from encodeURIComponent only in leaving ":" unescaped, which RFC 3986
-    # permits in a path segment. Names containing "/", "?" or "#" are genuinely mis-routed --
-    # see the report accompanying this suite.
+    # `Channel.status` leaves ":" unescaped, as every REST path does, which RFC 3986 permits in
+    # a path segment, so the name still reaches the right channel.
     assert str(request.url).endswith('/channels/namespace:my%20channel')
     # request.url.path is the percent-decoded path, so it carries the name verbatim
     assert request.url.path == f'/channels/{channel_name}'

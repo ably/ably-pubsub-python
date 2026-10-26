@@ -732,6 +732,24 @@ Example 4.0.0 code:
 channel = pubsub_http_client.channels.get('my_channel')
 ```
 
+### A space in a channel name reaches the channel it names over HTTP
+
+3.x wrote a space in a channel name as `+` in HTTP request paths, which the Ably service reads
+as a literal plus, so HTTP publishes, history, presence, annotations, message reads and
+`status()` for `my channel` all went to a different channel, `my+channel`, from the one
+realtime clients attach to. 4.0.0 writes the space as `%20`, so they reach `my channel`.
+Messages that 3.x stored over HTTP for such a name are in the `+` channel, and stay reachable
+by that name:
+
+Example 4.0.0 code:
+```python
+stored_by_3x = pubsub_http_client.channels.get('my+channel')
+history = await stored_by_3x.history()
+```
+
+`status()` now escapes the channel name too, so a name containing `/`, `?` or `#` no longer
+addresses the wrong resource.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

@@ -37,7 +37,8 @@ class Channel:
     def __init__(self, ably, name, options: Optional[ChannelOptions] = None):
         self.__ably = ably
         self.__name = name
-        self.__base_path = '/channels/{}/'.format(parse.quote_plus(name, safe=':'))
+        # RSL2: quote_plus is form encoding, and its `+` for a space is a literal plus in a path
+        self.__base_path = '/channels/{}/'.format(parse.quote(name, safe=':'))
         self._set_options(options or ChannelOptions())
         self.__presence = Presence(self)
         self.__annotations = HttpAnnotations(self)
@@ -156,7 +157,8 @@ class Channel:
     async def status(self):
         """Retrieves current channel active status with no. of publishers, subscribers, presence_members etc"""
 
-        path = f'/channels/{self.name}'
+        # RSL8
+        path = '/channels/{}'.format(parse.quote(self.name, safe=':'))
         response = await self.ably.http.get(path)
         obj = response.to_native()
         return ChannelDetails.from_dict(obj)
@@ -210,7 +212,7 @@ class Channel:
             request_body = msgpack.packb(request_body, use_bin_type=True)
 
         # Build path with params
-        path = self.__base_path + 'messages/{}'.format(parse.quote_plus(message.serial, safe=':'))
+        path = self.__base_path + 'messages/{}'.format(parse.quote(message.serial, safe=':'))
         if params:
             params = {k: str(v).lower() if isinstance(v, bool) else v for k, v in params.items()}
             path += '?' + parse.urlencode(params)
@@ -292,7 +294,7 @@ class Channel:
             )
 
         # Build the path
-        path = self.__base_path + 'messages/' + parse.quote_plus(serial, safe=':')
+        path = self.__base_path + 'messages/' + parse.quote(serial, safe=':')
 
         # Make the request
         response = await self.ably.http.get(path)
@@ -332,7 +334,7 @@ class Channel:
 
         # Build the path
         params_str = format_params({}, **params) if params else ''
-        path = self.__base_path + 'messages/' + parse.quote_plus(serial, safe=':') + '/versions' + params_str
+        path = self.__base_path + 'messages/' + parse.quote(serial, safe=':') + '/versions' + params_str
 
         # Create message handler for decoding
         message_handler = make_message_response_handler(self.cipher)

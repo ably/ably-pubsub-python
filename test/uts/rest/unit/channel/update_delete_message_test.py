@@ -305,7 +305,7 @@ async def test_rsl15b_serial_url_encoded_path():
     request = captured_requests[0]
 
     # DEVIATION: the spec asserts encode_uri_component(serial), which escapes ':' as %3A.
-    # Channel._send_update escapes the serial with `parse.quote_plus(serial, safe=':')`, so
+    # Channel._send_update escapes the serial with `parse.quote(serial, safe=':')`, so
     # '/' becomes %2F but ':' is left as-is. ':' is a legal path character and Ably serials
     # carry it, so both forms name the same serial once the server decodes them.
     assert raw_path(request) == f'/channels/{channel_name}/messages/serial%2Fspecial:chars'
