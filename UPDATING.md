@@ -715,6 +715,23 @@ HTTP channels now take a `ChannelOptions` too, through `channels.get(name, optio
 an attaching or attached realtime channel reattach, which only a change to `params` or `modes`
 does; a change to the cipher alone no longer raises.
 
+### Channels are no longer attributes of the channels collection
+
+`client.channels.my_channel` used to get or create the channel called `my_channel`, because the
+collection answered any attribute it did not define with a channel of that name. That made a
+typo, or even `hasattr(client.channels, ...)`, create a channel. In 4.0.0 an unknown attribute
+raises `AttributeError`, so get the channel by name instead:
+
+Example 3.x code:
+```python
+channel = rest.channels.my_channel
+```
+
+Example 4.0.0 code:
+```python
+channel = pubsub_http_client.channels.get('my_channel')
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

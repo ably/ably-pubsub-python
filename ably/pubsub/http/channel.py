@@ -428,9 +428,6 @@ class Channels:
     def __getitem__(self, key):
         return self.get(key)
 
-    def __getattr__(self, name):
-        return self.get(name)
-
     def __contains__(self, item):
         if isinstance(item, Channel):
             name = item.name

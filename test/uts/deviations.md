@@ -1868,7 +1868,6 @@ through an internal object to get at a value the specification makes public.
 | RTP17, RTP17h | a distinct `LocalPresenceMap` type keyed by `clientId` | `RealtimePresence._my_members`, the same `PresenceMap` class built with `member_key_fn=lambda msg: msg.client_id` (`presence.py:79-81`). The keying requirement is met; the newness check is not, and is gated above | all of `local_presence_map_test.py` |
 | RTP2d1, RTP2h1a, and the `Interface Under Test` blocks of all three presence-map specs | `put(message) -> PresenceMessage?` and `remove(message) -> PresenceMessage?` | both return `bool` (`presencemap.py:111`, `:159`); the message to emit is the caller's own, which `set_presence` appends to `broadcast_messages` when the return is true. `IS NOT null` is read as `is True`. `put` stores a *copy* with the action rewritten to PRESENT and leaves the caller's message untouched, so RTP2d1's "emit the original action" falls out for free | all of `presence_map_test.py` |
 | RTP19, and the `Interface Under Test` block of `presence_sync.md` | `endSync() -> List<PresenceMessage>`, the synthesized LEAVEs | `end_sync()` returns `(residual, absent)` of the *stored* members; the synthesis lives one level up in `RealtimePresence.set_presence` (`presence.py:575-587`). Tests reading only counts and clientIds concatenate the two lists exactly as `set_presence` does; tests reading the LEAVE itself drive a `RealtimePresence` and assert on what its subscribers receive | 4 in `presence_sync_test.py` |
-| RTS2, RTS4c, RTS4d, RTS4e | `channels.exists(name)` and `channels.names` | `name in client.channels` (`Channels.__contains__`); the collection iterates over its channels rather than their names. Genuinely idiomatic spelling rather than an absence — recorded only because of the `__getattr__` hazard noted below | 6 |
 
 **Status:** open bugs of the missing-API kind, not of the wrong-behaviour kind. Adding the
 accessors would leave every assertion above unchanged; only the spelling would move.
@@ -2167,7 +2166,7 @@ pseudocode is not mistaken for non-compliance.
 | Subject | Note |
 |---|---|
 | DISCONNECTED as a restable state | RTN15a retries a drop from CONNECTED through `loop.call_soon` (`connectionmanager.py:668`) with no time passing, so DISCONNECTED is left within the same turn of the event loop and a listener registered afterwards never sees it. The heartbeat specification says so itself, under "Verifying Transient States"; tests record the whole sequence with `connection.on(...)` and assert `CONTAINS_IN_ORDER`. Where a test needs the connection to *rest* in DISCONNECTED it fails the immediate retry and raises `disconnected_retry_timeout`. Correct RTN15a behaviour |
-| `Channels.__getattr__` | `ably/rest/channel.py:408` answers **any** unknown attribute with `self.get(name)`, so reading an attribute that does not exist creates a channel named after it and never raises — `hasattr(channels, 'get_derived')` is `True`, and mutates the collection. Consequences: a typo becomes a phantom channel, and `client.channels.get_derived(...)` fails with `TypeError: 'RealtimeChannel' object is not callable` rather than `AttributeError`. No test loses coverage to it, because no derived test names an attribute the collection does not define; it is recorded because it silently changes what a probing test measures. `Channels.__iter__` is annotated `Iterator[str]` but yields `Channel` objects, which is a second, smaller instance |
+| `Channels.__iter__` | annotated `Iterator[str]`, but yields the `Channel` objects rather than their names |
 | `RealtimeChannel.publish()` | positional-only (`*args`, `channel.py:342`). The keyword form the specifications write raises `ValueError`, although `RestChannel.publish()` accepts it. Every test uses the positional form |
 | ACK `res` | every ACK in the specifications is written `res: { "serials": [...] }`, a single object. `WebSocketTransport` (`websockettransport.py:191-193`) reads `res` as a list, one entry per acknowledged ProtocolMessage, which matches the protocol definition. The specification's single object is shorthand for the one-message case |
 | `subscribe` before `connect` | all eight `message_field_population.md` tests subscribe in their setup, before `client.connect()`. `subscribe` awaits `attach()`, which raises 90001 unless the connection is CONNECTING, CONNECTED or DISCONNECTED, so the derived tests connect first. Nothing they assert depends on the order |
@@ -2671,21 +2670,6 @@ e.on('alpha', listener); e.on('beta', listener); e.off('alpha', listener)
 The registry needs an `(event, listener)` key holding a list per key.
 `test/uts/realtime/unit/channels/channel_subscribe_test.py -k rtl8b`
 `test/uts/realtime/unit/presence/realtime_presence_subscribe_test.py -k rtp7b`
-
-**2.3 `Channels.__getattr__` answers any unknown attribute by creating a channel.**
-`ably/rest/channel.py:408` is `return self.get(name)`, so `hasattr(client.channels, 'x')`
-is always `True` **and creates a channel called `x`**. A typo becomes a phantom channel,
-`client.channels.get_derived(...)` raises `TypeError: 'RealtimeChannel' object is not
-callable` rather than `AttributeError`, and any code that probes the collection mutates it.
-No derived test loses coverage to it, because none names an attribute the collection does
-not define — that constraint is itself the evidence. `Channels.__iter__` is annotated
-`Iterator[str]` and yields `Channel` objects, which is the same carelessness one size down.
-No gated test; reproduce with:
-```python
-len(client.channels)            # 0
-hasattr(client.channels, 'foo') # True
-len(client.channels)            # 1
-```
 
 **2.5 `Channels._on_channel_message` subscripts before it checks.** `channel.py:1038-1045`
 does `channel = self.__all[channel_name]` and only then `if not channel:`, so a message for

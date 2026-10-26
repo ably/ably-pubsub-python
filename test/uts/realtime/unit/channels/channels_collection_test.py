@@ -4,9 +4,7 @@ Spec points: RTS1, RTS2, RTS3a, RTS4c, RTS4d, RTS4e
 
 The specification's `channels.exists(name)` and `channels.names` are spelled
 `name in channels` and iteration over the collection in ably-python, and
-`channels.release(name)` is synchronous. Reading an attribute the collection
-does not define creates a channel of that name (`Channels.__getattr__` in
-`ably/rest/channel.py`), so these tests never name one that is not there.
+`channels.release(name)` is synchronous.
 """
 
 import asyncio

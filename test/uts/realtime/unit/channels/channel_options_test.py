@@ -255,9 +255,7 @@ async def test_rtl16a_triggers_reattach():
 @deviation
 async def test_rts5a_creates_derived_channel():
     # DEVIATION: `Channels.get_derived` is absent (`ably/realtime/channel.py:964`), as is
-    # `DeriveOptions`. `Channels.__getattr__` (`ably/rest/channel.py:408`) answers any
-    # unknown attribute with a channel of that name, so the call raises
-    # `TypeError: 'RealtimeChannel' object is not callable` rather than AttributeError.
+    # `DeriveOptions`, so the import fails before the call would raise AttributeError.
     from ably.pubsub.server import DeriveOptions
 
     base_channel_name = 'test-RTS5a'
