@@ -97,6 +97,9 @@ def catch_all(func):
             return await func(*args, **kwargs)
         except Exception as e:
             log.exception(e)
+            if isinstance(e, AblyException):
+                # Raised as it is, so that its own __cause__ is kept rather than replaced by itself
+                raise
             raise AblyException.from_exception(e) from e
 
     return wrapper

@@ -141,6 +141,33 @@ HTTP status in `code`. They now carry them the right way round:
 
 If you branch on `code` or `status_code` for any of these, compare against the 4.0.0 values.
 
+### Network errors and timeouts are raised as `AblyException`
+
+In 3.x a request that got no response, because the host could not be reached or did not
+answer in time, raised the `httpx` exception itself from most methods, such as `request`,
+`publish`, `history` and `auth.authorize`. In 4.0.0 every method raises an `AblyException`:
+code 50003 and status 504 for a timeout, and code 80000 and status 500 for any other
+network error. The `httpx` exception is its `cause`. A timeout or network error reaching
+an `auth_url` is an `AblyException` with code 40170 and status 401, as for any other
+`auth_url` failure.
+
+Example 3.x code:
+```python
+try:
+    await rest.channels.get('my-channel').publish('event', 'data')
+except httpx.TimeoutException:
+    ...
+```
+
+Example 4.0.0 code:
+```python
+try:
+    await pubsub_http_client.channels.get('my-channel').publish('event', 'data')
+except AblyException as e:
+    if e.code == 50003:
+        ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

@@ -6,6 +6,8 @@ import uuid
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+import httpx
+
 from ably.pubsub.types.options import Options
 
 if TYPE_CHECKING:
@@ -410,8 +412,12 @@ class Auth:
         url = clean_url
 
         from ably.pubsub.request.http import Response
-        resp = await self.ably.http.request_external(
-            method=method, url=url, headers=headers, params=params, body=body)
+        try:
+            resp = await self.ably.http.request_external(
+                method=method, url=url, headers=headers, params=params, body=body)
+        except httpx.RequestError as e:
+            # RSA4e: a timeout or network error reaching the auth_url is a 40170
+            raise AblyAuthException("auth_url request failed", 401, 40170, cause=e) from e
         response = Response(resp)
 
         AblyException.raise_for_response(response)

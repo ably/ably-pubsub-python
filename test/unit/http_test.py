@@ -1,9 +1,13 @@
 import httpx
 import pytest
 
+from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.server import create_http_client
 from ably.pubsub.types.testoptions import TestOptions
 from ably.pubsub.util.exceptions import AblyException
+from test.uts.helpers.client import await_connection_state, close_open_clients, realtime_client
+from test.uts.helpers.mock_http import MockHttpClient
+from test.uts.helpers.mock_websocket import MockWebSocket
 
 
 def test_http_get_rest_hosts_works_when_fallback_realtime_host_is_set():
@@ -54,11 +58,32 @@ async def test_http_surfaces_transport_connection_errors():
     transport = RecordingTransport(refuse)
     ably = create_http_client(token="foo", _test_options=TestOptions(http_transport=transport))
 
-    with pytest.raises(AblyException):
+    with pytest.raises(AblyException) as excinfo:
         await ably.time()
 
+    # RSC19e: the httpx error is wrapped, and kept as the cause
+    assert excinfo.value.code == 80000
+    assert excinfo.value.status_code == 500
+    assert isinstance(excinfo.value.cause, httpx.ConnectError)
+    assert excinfo.value.__cause__ is excinfo.value.cause
     # Every host is tried before the error is surfaced (RSC15l)
     assert len(transport.requests) == len(ably.http.get_hosts())
+    await ably.close()
+
+
+async def test_http_surfaces_transport_timeouts_as_50003():
+    def time_out(request):
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    transport = RecordingTransport(time_out)
+    ably = create_http_client(key="appId.keyId:keySecret", _test_options=TestOptions(http_transport=transport))
+
+    with pytest.raises(AblyException) as excinfo:
+        await ably.channels.get('test').publish('event', 'data')
+
+    assert excinfo.value.code == 50003
+    assert excinfo.value.status_code == 504
+    assert isinstance(excinfo.value.cause, httpx.TimeoutException)
     await ably.close()
 
 
@@ -86,3 +111,41 @@ async def test_auth_url_requests_go_through_the_client_http_layer():
     assert 'Authorization' not in auth_requests[0].headers
     assert 'X-Ably-Version' not in auth_requests[0].headers
     await ably.close()
+
+
+async def test_auth_url_network_errors_are_40170():
+    def respond(request):
+        if request.url.host == 'auth.example.com':
+            raise httpx.ConnectError("connection refused", request=request)
+        return httpx.Response(200, json=[1500000000000])
+
+    transport = RecordingTransport(respond)
+    ably = create_http_client(auth_url='https://auth.example.com/token',
+                              _test_options=TestOptions(http_transport=transport))
+
+    # RSA4e: a network error reaching the auth_url is a 40170, with the httpx error as the cause
+    with pytest.raises(AblyException) as excinfo:
+        await ably.auth.authorize()
+
+    assert excinfo.value.code == 40170
+    assert excinfo.value.status_code == 401
+    assert isinstance(excinfo.value.cause, httpx.ConnectError)
+    await ably.close()
+
+
+async def test_realtime_token_request_network_errors_reach_the_connection_wrapped():
+    mock_http = MockHttpClient(on_connection_attempt=lambda conn: conn.respond_with_refused())
+    mock_ws = MockWebSocket()
+    client = realtime_client(mock_ws, mock_http, key="appId.keyId:keySecret", use_token_auth=True,
+                             disconnected_retry_timeout=600000)
+    try:
+        client.connect()
+        await await_connection_state(client, ConnectionState.DISCONNECTED)
+
+        # RSA4c: a failed TokenRequest exchange is an auth error, so the connection is not
+        # left holding the httpx exception
+        assert isinstance(client.connection.error_reason, AblyException)
+        assert client.connection.error_reason.code == 80019
+        assert mock_ws.connection_attempts == []
+    finally:
+        await close_open_clients()
