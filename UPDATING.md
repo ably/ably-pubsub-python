@@ -168,6 +168,29 @@ except AblyException as e:
         ...
 ```
 
+### An `AblyException` raised by an `auth_callback` is no longer rewritten
+
+In 3.x any exception an `auth_callback` raised reached the caller as an `AblyException` with
+code 40170 and status 401, the original only in its `cause`. In 4.0.0 an `AblyException` the
+callback raises reaches the caller unchanged; any other exception is still wrapped as 40170.
+On a realtime client, a callback error with status 403 now fails the connection, with an
+80019 whose status is 403 and whose `cause` is the callback's error, whether it happens while
+connecting, on a reauth or in an explicit `authorize()` call. 3.x went `DISCONNECTED` and
+retried. Every 80019 the connection reports now carries the auth provider's error as its
+`cause`.
+
+If you check for 40170 after `request_token` or `authorize` to find a failure in your own
+callback, check the code your callback raised instead. Raise a status 403 only for a client
+that should stop connecting:
+
+Example 4.0.0 code:
+```python
+async def auth_callback(token_params):
+    if not await user_may_connect():
+        raise AblyException('Access revoked', 403, 40300)
+    return await fetch_token(token_params)
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

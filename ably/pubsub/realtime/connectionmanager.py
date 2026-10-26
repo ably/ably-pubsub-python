@@ -487,11 +487,11 @@ class ConnectionManager(EventEmitter):
         elif exception.status_code == 403:
             msg = 'Client configured authentication provider returned 403; failing the connection'
             log.error(f'ConnectionManager.on_error_from_authorize(): {msg}')
-            self.notify_state(ConnectionState.FAILED, AblyException(msg, 403, 80019))
+            self.notify_state(ConnectionState.FAILED, AblyException(msg, 403, 80019, cause=exception))
         else:
             msg = 'Client configured authentication provider request failed'
             log.warning(f'ConnectionManager.on_error_from_authorize: {msg}')
-            self.notify_state(self.__fail_state, AblyException(msg, 401, 80019))
+            self.notify_state(self.__fail_state, AblyException(msg, 401, 80019, cause=exception))
 
     async def on_closed(self) -> None:
         if self.transport:

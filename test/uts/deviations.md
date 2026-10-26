@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1289 Test IDs
-(1298 tests, 1423 cases) pass, 168 (168 tests, 170 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1293 Test IDs
+(1302 tests, 1427 cases) pass, 164 (164 tests, 166 cases) are gated behind
 `RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,19 +45,19 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 79 are REST and 89 realtime, which is 80 REST cases
-and 90 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+within each. Of the gated Test IDs 79 are REST and 85 realtime, which is 80 REST cases
+and 86 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 157 gated Test IDs that record SDK non-compliance — 157 tests, 159 cases — reduce to
-**69 distinct root causes**, 26 on the REST side and 43 on the realtime side. Three further
+The 153 gated Test IDs that record SDK non-compliance — 153 tests, 155 cases — reduce to
+**68 distinct root causes**, 26 on the REST side and 42 on the realtime side. Three further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
 synthesized LEAVE timestamps), or is worked around in the setup of every test that
 would otherwise trip over it (`enterClient` on an anonymous connection), so the file
-carries **72 SDK root causes** in all. The remaining 11 gated Test IDs are
+carries **71 SDK root causes** in all. The remaining 11 gated Test IDs are
 specification faults, and reduce to 8. The objects tier records no SDK non-compliance;
 its specification faults are all corrected or worked around in tests that pass, and
 reduce to the seven candidate issues O.1–O.7, none of them filed.
@@ -1735,37 +1735,14 @@ seconds rather than the default ten.
 token string, or leaves `_configure_client_id` alone where the fetched token carries no
 clientId of its own.
 
-#### An authCallback error is always rewritten as 401/40170, so RSA4d is unreachable — 4 tests
-
-**Spec points:** RSA4d, RSA4d1.
-
-`ably/rest/auth.py:182-187` wraps **every** exception an authCallback raises as
-`AblyException("auth_callback raised an exception", 401, 40170, cause=e)`, discarding the
-original `statusCode`. `ConnectionManager.on_error_from_authorize` (`connectionmanager.py:479-491`)
-then branches on `exception.status_code == 403` to reach FAILED, and that branch can never be
-taken for an authCallback: the status is always 401, so a 403 goes to the `__fail_state`
-(DISCONNECTED) with an 80019/401 instead. RSA4d requires FAILED with 80019/**403** and
-`cause` set to the 403, both during the connect sequence and during an RTN22 reauth.
-
-| Test | Observed |
-|---|---|
-| `connection_auth_test.py::test_rsa4d_callback_403_causes_failed` | `Timed out waiting for connection state failed; it was disconnected` |
-| `connection_auth_test.py::test_rsa4d_callback_403_reauth_causes_failed` | `Timed out waiting for connection state failed; it was connected` |
-| `auth_callback_errors_test.py::test_rsa4d_callback_403_connecting_failed` | `Timed out waiting for connection state failed; it was disconnected` |
-| `auth_callback_errors_test.py::test_rsa4d_callback_403_reauth_failed` | `Timed out waiting for connection state failed; it was connected` |
-
-**Status:** open bug. Preserving the callback error's `statusCode` — or letting an
-`AblyException` from the callback through unwrapped — also restores the `cause` chain
-recorded under Adapted Tests.
-
 #### A failed RTN22 reauth leaves no trace on the connection — 1 test
 
 **Spec points:** RSA4c1, RSA4c3.
 
 `WebSocketTransport.on_protocol_message` (`websockettransport.py:170-175`) handles a server
-AUTH by awaiting `auth.authorize()` inside a bare `except Exception` that only logs. Nothing
-reaches `on_error_from_authorize`, so no 80019 is built and `connection.errorReason` stays
-as it was.
+AUTH by awaiting `auth.authorize()` inside a bare `except Exception` that only logs. Only a
+403, which `authorize()` hands on for RSA4d, reaches `on_error_from_authorize`; any other
+failure builds no 80019, and `connection.errorReason` stays as it was.
 
 **Tests affected:** `test_rsa4c3_callback_error_stays_connected` —
 `Timed out waiting for errorReason to be set`.
@@ -2158,31 +2135,19 @@ either — see the UTS Spec Error above. The three want closing together.
 **Status:** open bug. It is the reason the fake clock exists in this suite at all; see
 the fake-time section at the end of this file.
 
-### An 80019 from a failed auth carries no `cause`, and a slow callback is not attributed
+### A slow authCallback is not attributed to the auth provider
 
-**Spec points:** RSA4c, RSA4c1, RSA4c2.
+**Spec points:** RSA4c, RSA4c2.
 
-Two adaptations with one underlying theme — an auth failure reaches the right state with the
-wrong explanation.
+RSA4c treats an auth attempt that outruns `realtimeRequestTimeout` as an auth error, giving
+DISCONNECTED with 80019/401. ably-python applies no timeout to the callback —
+`await auth_callback(token_params)` is unbounded — and the CONNECTING transition timer
+(`connectionmanager.py:699-724`) ends the attempt instead, with the generic 504/50003 it
+raises for any connect that does not complete in time. Test:
+`test_rsa4c2_callback_timeout_connecting_disconnected`, asserting 50003/504 on a
+`FakeClock`.
 
-- `ConnectionManager.on_error_from_authorize` builds
-  `AblyException('Client configured authentication provider request failed', 401, 80019)`
-  with no `cause` argument, so the error the authCallback raised survives only in the log.
-  RSA4c1/RSA4c2 require `cause` to be set to the underlying error. Same root cause as the
-  RSA4d entry above: `request_token`'s wrapper loses the original error's shape, and
-  `on_error_from_authorize` then drops what is left. Adapted, not gated, because the state,
-  code and status are all correct and worth guarding — only the `cause` link is missing.
-  Tests: `test_rsa4c2_callback_error_causes_disconnected`,
-  `test_rsa4c2_callback_error_connecting_disconnected`.
-- RSA4c treats an auth attempt that outruns `realtimeRequestTimeout` as an auth error,
-  giving DISCONNECTED with 80019/401. ably-python applies no timeout to the callback —
-  `await auth_callback(token_params)` is unbounded — and the CONNECTING transition timer
-  (`connectionmanager.py:699-724`) ends the attempt instead, with the generic 504/50003 it
-  raises for any connect that does not complete in time. Test:
-  `test_rsa4c2_callback_timeout_connecting_disconnected`, asserting 50003/504 on a
-  `FakeClock`.
-
-**Status:** open bugs, cosmetic in effect — the connection recovers either way, but the
+**Status:** open bug, cosmetic in effect — the connection recovers either way, but the
 error does not say the auth provider is at fault.
 
 ### A token error with no means to renew reports the renewal failure, not the server's error
@@ -2861,16 +2826,13 @@ each request and bypasses the client's own HTTP layer entirely — no client-sco
 observe or stub it. Two issues in one line. The derived tests reach it only through
 `monkeypatch`; the three REC3 tests are skipped stubs.
 
-**2.8 An authCallback error is always rewritten as 401/40170, so RSA4d is unreachable.**
-RSA4d, RSA4d1. `rest/auth.py:182-187` wraps every callback exception as
-`AblyException(…, 401, 40170, cause=e)`, discarding the original status, and
-`on_error_from_authorize` branches on `status_code == 403` to reach FAILED — a branch an
-authCallback can never take. A 403 from an auth provider therefore gives DISCONNECTED with
-80019/401 where the spec requires FAILED with 80019/403. The same wrapper is why the 80019
-carries no `cause`, and why RSA4f's non-`AblyException` (`AttributeError: 'int' object has
-no attribute 'key_name'`) reaches `Connection#errorReason` with no `code` at all. One issue,
-three symptoms.
-`test/uts/realtime/unit/auth -k "rsa4d or rsa4f_callback_invalid_type_format"`
+**2.8 An authCallback result of the wrong type reaches `errorReason` as an `AttributeError`.**
+RSA4f, RSA4c2. `Auth.request_token` has no RSA4f type check, so a callback returning `12345`
+falls through to `token_request.key_name` and raises `AttributeError`, which `try_host`'s
+`except AblyException` does not catch. `connect_base` then records it as
+`Connection#errorReason`, with no `code` at all, where the spec requires DISCONNECTED with
+80019/401.
+`test/uts/realtime/unit/auth -k rsa4f_callback_invalid_type_format`
 
 ### Tier 3 — silently wrong data
 
@@ -3692,8 +3654,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 170 failures, 1571 passes and 15 skips with the variable
-set, and 185 skips and 1571 passes without it, the 1571 being 1423 derived cases and 148
+it. As of this writing that is 166 failures, 1575 passes and 15 skips with the variable
+set, and 181 skips and 1575 passes without it, the 1575 being 1427 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

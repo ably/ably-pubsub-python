@@ -149,3 +149,19 @@ async def test_realtime_token_request_network_errors_reach_the_connection_wrappe
         assert mock_ws.connection_attempts == []
     finally:
         await close_open_clients()
+
+
+async def test_auth_callback_ably_exceptions_are_passed_through():
+    error = AblyException('Account disabled', 403, 40300)
+
+    async def auth_callback(params):
+        raise error
+
+    ably = create_http_client(auth_callback=auth_callback)
+
+    # RSA4e: only an error that is not already an AblyException becomes a 40170
+    with pytest.raises(AblyException) as excinfo:
+        await ably.auth.authorize()
+
+    assert excinfo.value is error
+    await ably.close()

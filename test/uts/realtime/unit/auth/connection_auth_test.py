@@ -157,10 +157,8 @@ async def test_rsa4c2_callback_error_causes_disconnected():
     assert client.connection.error_reason is not None
     assert client.connection.error_reason.code == 80019
     assert client.connection.error_reason.status_code == 401
-    # RSA4c1 requires `cause` to carry the underlying 50000 error.
-    # `ConnectionManager.on_error_from_authorize` builds the 80019 without one,
-    # so the callback's own error is only in the log.
-    assert client.connection.error_reason.cause is None
+    assert client.connection.error_reason.cause is not None
+    assert client.connection.error_reason.cause.code == 50000
 
 
 # UTS: realtime/unit/RSA4c3/callback-error-stays-connected-0
@@ -202,7 +200,6 @@ async def test_rsa4c3_callback_error_stays_connected():
 
 
 # UTS: realtime/unit/RSA4d/callback-403-causes-failed-0
-@deviation
 async def test_rsa4d_callback_403_causes_failed():
     async def auth_callback(params):
         raise AblyException('Account disabled', 403, 40300)
@@ -221,7 +218,6 @@ async def test_rsa4d_callback_403_causes_failed():
 
 
 # UTS: realtime/unit/RSA4d/callback-403-reauth-causes-failed-1
-@deviation
 async def test_rsa4d_callback_403_reauth_causes_failed():
     auth_callback_count = 0
 

@@ -153,7 +153,14 @@ class Auth:
         return expires < timestamp + token_details.TOKEN_EXPIRY_BUFFER
 
     async def authorize(self, token_params: dict | None = None, auth_options=None):
-        return await self.__authorize_when_necessary(token_params, auth_options, force=True)
+        try:
+            return await self.__authorize_when_necessary(token_params, auth_options, force=True)
+        except AblyException as e:
+            # RSA4d, RSA4d1: a 403 from the auth provider fails the connection, even
+            # while the token it holds is still valid
+            if self.ably._is_realtime and e.status_code == 403:
+                self.ably.connection.connection_manager.on_error_from_authorize(e)
+            raise
 
     async def request_token(self, token_params: dict | None = None,
                             # auth_options
@@ -186,6 +193,9 @@ class Auth:
             log.debug("using token auth with authCallback")
             try:
                 token_request = await auth_callback(token_params)
+            except AblyException:
+                # RSA4d, RSA4e: an error the callback gives as an AblyException is kept as it is
+                raise
             except Exception as e:
                 raise AblyException("auth_callback raised an exception", 401, 40170, cause=e) from e
         elif auth_url:
@@ -214,7 +224,7 @@ class Auth:
                 raise AblyAuthException(msg, 401, 40170, cause=e) from e
         elif isinstance(token_request, str):
             if len(token_request) == 0:
-                raise AblyAuthException("Token string is empty", 401, 4017)
+                raise AblyAuthException("Token string is empty", 401, 40170)
             return TokenDetails(token=token_request)
         elif token_request is None:
             raise AblyAuthException("Token string was None", 401, 40170)
