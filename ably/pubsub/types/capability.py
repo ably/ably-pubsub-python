@@ -76,7 +76,7 @@ class Capability(MutableMapping):
         self[resource] = list(operations)
 
     def add_operation_to_resource(self, operation, resource):
-        self.setdefault(resource, []).append(operation)
+        self[resource] = self.get(resource, set()) | {operation}
 
     def __str__(self):
         return Capability.c14n(self)

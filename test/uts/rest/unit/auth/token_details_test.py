@@ -8,7 +8,6 @@ import time
 import pytest
 
 from ably.pubsub.types.authoptions import AuthOptions
-from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
@@ -428,13 +427,5 @@ async def test_rsa16a_reflects_capability():
 
     assert client.auth.token_details is not None
 
-    # DEVIATION: the spec asserts the stringified JSON
-    # '{"channel1":["publish","subscribe"],"channel2":["subscribe"]}'.
-    # `TokenDetails.capability` is a parsed `Capability` throughout ably-python, an
-    # established SDK-wide choice, so the same capability is asserted in that form.
-    capability = client.auth.token_details.capability
-    assert isinstance(capability, Capability)
-    assert capability.to_dict() == {
-        'channel1': ['publish', 'subscribe'],
-        'channel2': ['subscribe'],
-    }
+    assert client.auth.token_details.capability == (
+        '{"channel1":["publish","subscribe"],"channel2":["subscribe"]}')

@@ -330,6 +330,33 @@ A bare `token` string carries no client ID the client can read, so it cannot be 
 client is created. A realtime client still checks it against the client ID the server reports
 when the connection opens, and fails the connection with 40102 if they conflict.
 
+### `TokenDetails.capability` is a JSON string
+
+`TokenDetails.capability` now holds the capability as the JSON string the Ably service returned,
+exactly as it was sent, or `None` where none is known. 3.x parsed it into a `Capability`. Wrap
+the string in `Capability` where you indexed or compared it:
+
+Example 3.x code:
+```python
+token_details = await rest.auth.request_token()
+operations = token_details.capability['my-channel']
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import Capability
+
+token_details = await pubsub_http_client.auth.request_token()
+operations = Capability(token_details.capability)['my-channel']
+```
+
+`Capability` is unchanged as the way to build a `capability` token param, and its
+`add_operation_to_resource` method now works where 3.x raised `AttributeError`. A `TokenDetails`
+you construct yourself with a dict or `Capability` stores it as canonical JSON, and
+`TokenDetails.to_dict()` now gives the capability as that string rather than as a dict. So an
+auth server that returns `to_dict()` to its clients from an `auth_url` now sends the capability
+as a JSON string, the form the Ably service itself returns, rather than as a JSON object.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

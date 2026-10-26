@@ -20,7 +20,10 @@ class TokenDetails:
             self.__expires = expires
         self.__token = token
         self.__issued = issued
-        self.__capability = Capability(capability or {})
+        # TD5, RSA16a: the capability JSON as the server sent it, not a canonical form
+        if capability is not None and not isinstance(capability, str):
+            capability = str(Capability(capability))
+        self.__capability = capability
         self.__client_id = client_id
 
     @property
@@ -48,7 +51,7 @@ class TokenDetails:
             'expires': self.expires,
             'token': self.token,
             'issued': self.issued,
-            'capability': self.capability.to_dict(),
+            'capability': self.capability,
             'clientId': self.client_id,
         }
 
