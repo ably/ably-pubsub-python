@@ -95,10 +95,10 @@ class Channel:
         else:
             raise TypeError(f'Unexpected type {type(arg)}')
 
-    async def publish_message(self, message, params=None, timeout=None):
-        return await self.publish_messages([message], params, timeout=timeout)
+    async def publish_message(self, message, params=None):
+        return await self.publish_messages([message], params)
 
-    async def publish_messages(self, messages, params=None, timeout=None):
+    async def publish_messages(self, messages, params=None):
         request_body = self.__publish_request_body(messages)
         if not self.ably.options.use_binary_protocol:
             request_body = json.dumps(request_body, separators=(',', ':'))
@@ -109,7 +109,7 @@ class Channel:
         if params:
             params = {k: str(v).lower() if isinstance(v, bool) else v for k, v in params.items()}
             path += '?' + parse.urlencode(params)
-        response = await self.ably.http.post(path, body=request_body, timeout=timeout)
+        response = await self.ably.http.post(path, body=request_body)
 
         # Parse response to extract serials
         result_data = response.to_native()
@@ -117,9 +117,9 @@ class Channel:
             return PublishResult.from_dict(result_data)
         return PublishResult()
 
-    async def publish_name_data(self, name, data, timeout=None):
+    async def publish_name_data(self, name, data):
         messages = [Message(name, data)]
-        return await self.publish_messages(messages, timeout=timeout)
+        return await self.publish_messages(messages)
 
     async def publish(self, *args, **kwargs):
         """Publishes a message on this channel.
@@ -259,7 +259,7 @@ class Channel:
         """
         return await self._send_update(message, MessageAction.MESSAGE_APPEND, operation, params)
 
-    async def get_message(self, serial_or_message, timeout=None):
+    async def get_message(self, serial_or_message):
         """Retrieves a single message by its serial.
 
         Parameters:
@@ -291,7 +291,7 @@ class Channel:
         path = self.__base_path + 'messages/' + parse.quote_plus(serial, safe=':')
 
         # Make the request
-        response = await self.ably.http.get(path, timeout=timeout)
+        response = await self.ably.http.get(path)
 
         # Create Message from the response
         message_handler = make_single_message_response_handler(self.__cipher)

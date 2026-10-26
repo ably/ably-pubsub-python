@@ -689,15 +689,13 @@ class RealtimeChannel(EventEmitter, Channel):
         """
         return await self._send_update(message, MessageAction.MESSAGE_APPEND, operation, params)
 
-    async def get_message(self, serial_or_message, timeout=None):
+    async def get_message(self, serial_or_message):
         """Retrieves a single message by its serial using the REST API.
 
         Parameters
         ----------
         serial_or_message : str or Message
             Either a string serial or a Message object with a serial field.
-        timeout : float, optional
-            Timeout for the request.
 
         Returns
         -------
@@ -710,7 +708,7 @@ class RealtimeChannel(EventEmitter, Channel):
             If the serial is missing or the message cannot be retrieved.
         """
         # Delegate to parent Channel (REST) implementation
-        return await Channel.get_message(self, serial_or_message, timeout=timeout)
+        return await Channel.get_message(self, serial_or_message)
 
     async def get_message_versions(self, serial_or_message, params=None):
         """Retrieves version history for a message using the REST API.

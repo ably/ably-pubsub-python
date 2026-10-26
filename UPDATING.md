@@ -413,6 +413,26 @@ the client applied defaults of its own. They now read back the values in effect:
 15 by default. The timeouts and the retry duration are still in seconds. Code that tested an
 option for `None`, to tell whether it had been set, will no longer find it so.
 
+### Requests no longer take a `timeout` argument
+
+`time()`, `stats()`, a REST channel's `publish()`, `publish_message()`, `publish_messages()`
+and `publish_name_data()`, `get_message()` on REST and realtime channels, and
+`push.admin.publish()` accepted a `timeout` keyword argument that was never applied: every
+request used the client's `http_open_timeout` and `http_request_timeout` whatever was passed.
+The argument is gone, and passing it raises `TypeError`. `stats()` also loses its unused
+`paginated` argument. Set the timeouts on the client instead:
+
+Example 3.x code:
+```python
+await rest.time(timeout=5)
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', http_request_timeout=5)
+await pubsub_http_client.time()
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

@@ -172,7 +172,7 @@ class Http:
 
     @reauth_if_expired
     async def make_request(self, method, path, version=None, headers=None, body=None,
-                           skip_auth=False, timeout=None, raise_on_error=True):
+                           skip_auth=False, raise_on_error=True):
 
         if body is not None and type(body) not in (bytes, str):
             body = self.dump_body(body)
@@ -260,29 +260,29 @@ class Http:
         """
         return await self.__client.request(method=method, url=url, headers=headers, params=params, data=body)
 
-    async def delete(self, url, headers=None, skip_auth=False, timeout=None):
+    async def delete(self, url, headers=None, skip_auth=False):
         result = await self.make_request('DELETE', url, headers=headers,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
-    async def get(self, url, headers=None, skip_auth=False, timeout=None):
+    async def get(self, url, headers=None, skip_auth=False):
         result = await self.make_request('GET', url, headers=headers,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
-    async def patch(self, url, headers=None, body=None, skip_auth=False, timeout=None):
+    async def patch(self, url, headers=None, body=None, skip_auth=False):
         result = await self.make_request('PATCH', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
-    async def post(self, url, headers=None, body=None, skip_auth=False, timeout=None):
+    async def post(self, url, headers=None, body=None, skip_auth=False):
         result = await self.make_request('POST', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
-    async def put(self, url, headers=None, body=None, skip_auth=False, timeout=None):
+    async def put(self, url, headers=None, body=None, skip_auth=False):
         result = await self.make_request('PUT', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
     @property

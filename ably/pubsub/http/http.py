@@ -103,7 +103,7 @@ class DefaultPubSubHttpClient(PubSubHttpClient):
 
     @catch_all
     async def stats(self, direction: Optional[str] = None, start=None, end=None, params: Optional[dict] = None,
-                    limit: Optional[int] = None, paginated=None, unit=None, timeout=None):
+                    limit: Optional[int] = None, unit=None):
         """Returns the stats for this application"""
         formatted_params = format_params(params, direction=direction, start=start, end=end, limit=limit, unit=unit)
         url = '/stats' + formatted_params
@@ -111,9 +111,9 @@ class DefaultPubSubHttpClient(PubSubHttpClient):
             self.http, url=url, response_processor=stats_response_processor)
 
     @catch_all
-    async def time(self, timeout: Optional[float] = None) -> float:
+    async def time(self) -> float:
         """Returns the current server time in ms since the unix epoch"""
-        r = await self.http.get('/time', skip_auth=True, timeout=timeout)
+        r = await self.http.get('/time', skip_auth=True)
         AblyException.raise_for_response(r)
         return r.to_native()[0]
 

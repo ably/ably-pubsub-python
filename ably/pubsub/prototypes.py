@@ -65,11 +65,11 @@ class PubSubHttpClient(Protocol):
         ...
 
     async def stats(self, direction: str | None = None, start=None, end=None, params: dict | None = None,
-                    limit: int | None = None, paginated=None, unit=None, timeout=None) -> PaginatedResult:
+                    limit: int | None = None, unit=None) -> PaginatedResult:
         """Return the stats for this application."""
         ...
 
-    async def time(self, timeout: float | None = None) -> float:
+    async def time(self) -> float:
         """Return the current server time in ms since the unix epoch."""
         ...
 
