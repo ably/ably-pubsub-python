@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1294 Test IDs
-(1303 tests, 1428 cases) pass, 163 (163 tests, 165 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1297 Test IDs
+(1306 tests, 1431 cases) pass, 160 (160 tests, 162 cases) are gated behind
 `RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,19 +45,19 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 79 are REST and 84 realtime, which is 80 REST cases
+within each. Of the gated Test IDs 76 are REST and 84 realtime, which is 77 REST cases
 and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 152 gated Test IDs that record SDK non-compliance — 152 tests, 154 cases — reduce to
-**67 distinct root causes**, 26 on the REST side and 41 on the realtime side. Three further
+The 149 gated Test IDs that record SDK non-compliance — 149 tests, 151 cases — reduce to
+**66 distinct root causes**, 25 on the REST side and 41 on the realtime side. Three further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
 synthesized LEAVE timestamps), or is worked around in the setup of every test that
 would otherwise trip over it (`enterClient` on an anonymous connection), so the file
-carries **70 SDK root causes** in all. The remaining 11 gated Test IDs are
+carries **69 SDK root causes** in all. The remaining 11 gated Test IDs are
 specification faults, and reduce to 8. The objects tier records no SDK non-compliance;
 its specification faults are all corrected or worked around in tests that pass, and
 reduce to the seven candidate issues O.1–O.7, none of them filed.
@@ -1879,7 +1879,6 @@ which is about a client that *does* configure `clientId: "*"`.
 
 | Spec points | Behaviour |
 |---|---|
-| RSA15a, RSA15c | A mismatch between `ClientOptions.clientId` and a statically supplied `TokenDetails.clientId` is never detected. `Auth.__init__` only falls back to the token's clientId; `_configure_client_id`, which would raise, is reached only after a *fetched* token |
 | RSA12a | A token with a **null** clientId is rejected when `ClientOptions.clientId` is set, with 40102 "Client ID cannot be changed to 'None'". RSA15a constrains only non-wildcard token clientIds. Needs a `new_client_id is not None` guard |
 | RSA7, RSA16c | A clientId learned from a token is treated as immutable, so `authorize()` to a token with a different clientId raises 40102. RSA15 scopes immutability to a clientId set in `ClientOptions`. `_configure_client_id` uses `self.client_id or self.auth_options.client_id`, conflating the two. Possibly deliberate — worth a maintainer's call |
 | RSA5c, RSA6c | `create_token_request()` ignores `default_token_params`. The merge lives in `Auth.request_token` only, so a direct call yields `ttl=None` and `capability=None`. RSA5, RSA5b, RSA5d, RSA6, RSA6b and RSA6d all pass, so the nullability requirement itself is met |
@@ -3626,8 +3625,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 165 failures, 1576 passes and 15 skips with the variable
-set, and 180 skips and 1576 passes without it, the 1576 being 1428 derived cases and 148
+it. As of this writing that is 162 failures, 1579 passes and 15 skips with the variable
+set, and 177 skips and 1579 passes without it, the 1579 being 1431 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

@@ -77,6 +77,12 @@ class Auth:
 
         if options.token_details:
             self.__token_details = options.token_details
+            # RSA15a, RSA15c: the token's clientId is known before any request, so check it now
+            token_client_id = options.token_details.client_id
+            if options.client_id is not None and token_client_id not in (None, '*', options.client_id):
+                raise IncompatibleClientIdException(
+                    f"clientId '{options.client_id}' in the client options does not match the "
+                    f"token's clientId '{token_client_id}'", 400, 40102)
         elif options.auth_token:
             self.__token_details = TokenDetails(token=options.auth_token)
         else:

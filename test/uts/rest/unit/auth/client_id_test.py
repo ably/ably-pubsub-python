@@ -201,19 +201,18 @@ async def test_rsa12_wildcard_clientid():
 
 
 # UTS: rest/unit/RSA7/clientid-mismatch-error-1
-@deviation
 async def test_rsa7_clientid_mismatch_error():
     # Case 2 of the spec's table: ClientOptions 'client-a' against a token
-    # naming 'client-b'. ably-python never compares the two for a statically
-    # supplied TokenDetails, so no error is reported at construction or at use.
-    client = rest_client(channel_details_mock(), client_id='client-a',
-                         token_details=TokenDetails(
-                             token='mismatched-token',
-                             expires=now() + 3600000,
-                             client_id='client-b',
-                         ))
-
+    # naming 'client-b'. The specification leaves the timing of the detection to
+    # the implementation, constructor or first use; ably-python detects it at
+    # construction, so the constructor is what fails.
     with pytest.raises(AblyException) as excinfo:
+        client = rest_client(channel_details_mock(), client_id='client-a',
+                             token_details=TokenDetails(
+                                 token='mismatched-token',
+                                 expires=now() + 3600000,
+                                 client_id='client-b',
+                             ))
         await client.channels.get('test').status()
 
     message = excinfo.value.message or ''
@@ -221,7 +220,6 @@ async def test_rsa7_clientid_mismatch_error():
 
 
 # UTS: rest/unit/RSA15a/token-clientid-must-match-0
-@deviation
 async def test_rsa15a_token_clientid_must_match():
     client_match = rest_client(channel_details_mock(), client_id='my-client',
                                token_details=TokenDetails(
@@ -232,7 +230,6 @@ async def test_rsa15a_token_clientid_must_match():
 
     assert client_match.auth.client_id == 'my-client'
 
-    # ably-python constructs this client without complaint.
     with pytest.raises(AblyException) as excinfo:
         rest_client(channel_details_mock(), client_id='my-client',
                     token_details=TokenDetails(
@@ -257,19 +254,17 @@ async def test_rsa15b_wildcard_token_permits_any():
 
 
 # UTS: rest/unit/RSA15c/incompatible-clientid-error-0
-@deviation
 async def test_rsa15c_incompatible_clientid_error():
     # The spec defers to the RSA15a mismatch case: a REST operation under a
     # TokenDetails whose clientId is incompatible must fail with code 40102.
-    # ably-python performs the operation instead.
-    client = rest_client(channel_details_mock(), client_id='client-a',
-                         token_details=TokenDetails(
-                             token='incompatible-token',
-                             expires=now() + 3600000,
-                             client_id='client-b',
-                         ))
-
+    # ably-python detects the mismatch at construction, as in RSA7 above.
     with pytest.raises(AblyException) as excinfo:
+        client = rest_client(channel_details_mock(), client_id='client-a',
+                             token_details=TokenDetails(
+                                 token='incompatible-token',
+                                 expires=now() + 3600000,
+                                 client_id='client-b',
+                             ))
         await client.channels.get('test').status()
 
     assert excinfo.value.code == 40102

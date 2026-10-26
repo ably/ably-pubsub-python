@@ -169,6 +169,8 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         With code 40106, if no means of authenticating is given, if `key` is combined
         with `key_name` or `key_secret`, or if `endpoint` is combined with
         `environment`, `rest_host` or `realtime_host`. It is also a ValueError.
+    IncompatibleClientIdException
+        If `client_id` conflicts with the client ID of `token_details`.
     """
     with factory_construction():
         return _DefaultPubSubHttpClient(**kwargs)

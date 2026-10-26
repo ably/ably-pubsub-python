@@ -308,6 +308,28 @@ Example 4.0.0 code:
 await pubsub_http_client.auth.authorize({'ttl': 3600000})
 ```
 
+### A `token_details` whose client ID conflicts with `client_id` is rejected
+
+Creating a client with both a `client_id` and a `token_details` whose own client ID is a different
+one, and is not the wildcard `*`, now raises an `IncompatibleClientIdException` (code 40102) from
+the factory. 3.x built the client: an HTTP client then sent requests under a token for the other
+client ID, and a realtime client failed only once it connected. Make the two agree, or leave
+`client_id` out and let the client take the token's.
+
+Example 3.x code:
+```python
+rest = AblyRest(token_details=token_details_for_bob, client_id='alice')
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(token_details=token_details_for_bob)
+```
+
+A bare `token` string carries no client ID the client can read, so it cannot be checked when the
+client is created. A realtime client still checks it against the client ID the server reports
+when the connection opens, and fails the connection with 40102 if they conflict.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
