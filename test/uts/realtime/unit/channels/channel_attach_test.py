@@ -153,9 +153,8 @@ async def test_rtl4h_attach_while_detaching():
     # detach and makes the pending detach fail with 90000
     with pytest.raises(AblyException) as detach_error:
         await asyncio.wait_for(detach_future, OPERATION_TIMEOUT)
-    # The 90000 the library passes lands in `status_code` and the 409 in `code`,
-    # the two being the other way round in `AblyException(message, status_code, code)`
-    assert detach_error.value.status_code == 90000
+    assert detach_error.value.code == 90000
+    assert detach_error.value.status_code == 409
 
     await asyncio.wait_for(attach_future, OPERATION_TIMEOUT)
 

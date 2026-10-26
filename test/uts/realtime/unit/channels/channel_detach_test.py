@@ -208,9 +208,8 @@ async def test_rtl5b_detach_failed_errors():
     with pytest.raises(AblyException) as error:
         await asyncio.wait_for(channel.detach(), OPERATION_TIMEOUT)
 
-    # The 90001 the library passes lands in `status_code` and the 400 in `code`,
-    # the two being the other way round in `AblyException(message, status_code, code)`
-    assert error.value.status_code == 90001
+    assert error.value.code == 90001
+    assert error.value.status_code == 400
     assert channel.state == ChannelState.FAILED
 
 

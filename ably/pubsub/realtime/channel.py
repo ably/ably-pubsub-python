@@ -244,7 +244,7 @@ class RealtimeChannel(EventEmitter, Channel):
             self._notify_state(ChannelState.DETACHED)
             return
         elif self.state == ChannelState.FAILED:
-            raise AblyException("Unable to detach; channel state = failed", 90001, 400)
+            raise AblyException("Unable to detach; channel state = failed", 400, 90001)
         else:
             self._request_state(ChannelState.DETACHING)
 
@@ -258,7 +258,7 @@ class RealtimeChannel(EventEmitter, Channel):
         if new_state == ChannelState.DETACHED:
             return
         elif new_state == ChannelState.ATTACHING:
-            raise AblyException("Detach request superseded by a subsequent attach request", 90000, 409)
+            raise AblyException("Detach request superseded by a subsequent attach request", 409, 90000)
         else:
             raise state_change.reason
 

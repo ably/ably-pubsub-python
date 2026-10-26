@@ -81,11 +81,11 @@ class EncodeDataMixin:
             elif encoding == ENC_VCDIFF:
                 if not context or not context.vcdiff_decoder:
                     log.error('Message cannot be decoded as no VCDiff decoder available')
-                    raise AblyException('VCDiff decoder not available', 40019, 40019)
+                    raise AblyException('VCDiff decoder not available', 400, 40019)
 
                 if not context.base_payload:
                     log.error('VCDiff decoding requires base payload')
-                    raise AblyException('VCDiff decode failure', 40018, 40018)
+                    raise AblyException('VCDiff decode failure', 400, 40018)
 
                 try:
                     # Convert base payload to bytes if it's a string
@@ -108,7 +108,7 @@ class EncodeDataMixin:
 
                 except Exception as e:
                     log.error(f'VCDiff decode failed: {e}')
-                    raise AblyException('VCDiff decode failure', 40018, 40018) from e
+                    raise AblyException('VCDiff decode failure', 400, 40018) from e
 
             elif encoding.startswith(f'{CipherData.ENCODING_ID}+'):
                 if not cipher:

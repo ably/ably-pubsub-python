@@ -124,6 +124,23 @@ await pubsub_realtime_client.channels.get('my-channel').detach()
 pubsub_realtime_client.channels.release('my-channel')
 ```
 
+### Some errors had their `code` and `status_code` the wrong way round
+
+Ten errors the library raised itself carried the Ably error code in `status_code` and the
+HTTP status in `code`. They now carry them the right way round:
+
+| Error | 3.x `status_code`, `code` | 4.0.0 `status_code`, `code` |
+|---|---|---|
+| Detaching a `FAILED` realtime channel | 90001, 400 | 400, 90001 |
+| A detach superseded by an attach | 90000, 409 | 409, 90000 |
+| A queued message failed with no reason given | 80000, 500 | 500, 80000 |
+| A NACK with no error | 50001, 500 | 500, 50001 |
+| A vcdiff delta with no decoder configured | 40019, 40019 | 400, 40019 |
+| A vcdiff delta that cannot be decoded | 40018, 40018 | 400, 40018 |
+| `ChannelOptions` given params or options that are not a dict | 40000, 400 | 400, 40000 |
+
+If you branch on `code` or `status_code` for any of these, compare against the 4.0.0 values.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

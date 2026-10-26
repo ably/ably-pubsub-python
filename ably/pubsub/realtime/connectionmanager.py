@@ -343,7 +343,7 @@ class ConnectionManager(EventEmitter):
             f"ConnectionManager.fail_queued_messages(): discarding {len(self.queued_messages)} messages;" +
             f" reason = {err}"
         )
-        error = err or AblyException("Connection failed", 80000, 500)
+        error = err or AblyException("Connection failed", 500, 80000)
         while len(self.queued_messages) > 0:
             pending_msg = self.queued_messages.pop()
             log.exception(
@@ -538,7 +538,7 @@ class ConnectionManager(EventEmitter):
             err: Error information from the server
         """
         if not err:
-            err = AblyException('Unable to send message; channel not responding', 50001, 500)
+            err = AblyException('Unable to send message; channel not responding', 500, 50001)
 
         log.error(f'ConnectionManager.on_nack(): serial={serial}, count={count}, err={err}')
         self.pending_message_queue.complete_messages(serial, count, None, err)

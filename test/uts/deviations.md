@@ -2041,34 +2041,6 @@ asserting `clientId == 'my-client'` with the spec expectation in a comment.
 Adapted rather than gated because the behaviour is stable and the rest of each test —
 action, channel, payload — is worth running.
 
-### `AblyException`'s status code and code are transposed at six sites
-
-The constructor is `AblyException(message, status_code, code)` (`util/exceptions.py:15`).
-Six raises put the Ably error code in the status slot and the HTTP status in the code slot,
-so the resulting exception reports each as the other:
-
-| Site | As written | Should be |
-|---|---|---|
-| `realtime/channel.py:203` | `AblyException("Unable to detach; channel state = failed", 90001, 400)` | `400, 90001` |
-| `realtime/channel.py:217` | `AblyException("Detach request superseded by a subsequent attach request", 90000, 409)` | `409, 90000` |
-| `realtime/connectionmanager.py:343` | `AblyException("Connection failed", 80000, 500)` | `500, 80000` |
-| `types/mixins.py:84` | `AblyException('VCDiff decoder not available', 40019, 40019)` | `400, 40019` |
-| `types/mixins.py:88` | `AblyException('VCDiff decode failure', 40018, 40018)` | `400, 40018` |
-| `types/mixins.py:111` | `AblyException('VCDiff decode failure', 40018, 40018) from e` | `400, 40018` |
-
-The two neighbours that get it right — `channel.py:860` (`408, 90007`) and
-`message.py:304` (`400, 40018`, for the sibling of the `mixins.py` errors) — make this a
-repeated slip rather than a misunderstanding of the constructor.
-
-**Tests affected:** `test_rtl5b_detach_failed_errors` and `test_rtl4h_attach_while_detaching`
-assert on `status_code` with a comment recording the transposition.
-`test_rtn7d_fail_disconnected_no_queue`, `test_rtn7e_pending_fail_closed` and
-`test_rtn7e_multiple_pending_fail` assert only what the specification asks — that a code is
-present — so they pass; the wrong value is recorded here rather than asserted.
-
-**Status:** open bug. A mechanical fix, and a caller branching on `status_code` today gets a
-five-digit number.
-
 ### A refused connection and a connect timeout reach no failure path
 
 **Spec points:** RTN14d most directly; the same defect shapes RTN14e, RTN14f, RTN14h,
@@ -2900,16 +2872,6 @@ carries no `cause`, and why RSA4f's non-`AblyException` (`AttributeError: 'int' 
 no attribute 'key_name'`) reaches `Connection#errorReason` with no `code` at all. One issue,
 three symptoms.
 `test/uts/realtime/unit/auth -k "rsa4d or rsa4f_callback_invalid_type_format"`
-
-**2.9 `AblyException`'s status code and code are transposed at six sites.** The constructor
-is `(message, status_code, code)`. `channel.py:203` (`90001, 400`), `channel.py:217`
-(`90000, 409`), `connectionmanager.py:343` (`80000, 500`), `mixins.py:84` (`40019, 40019`),
-`mixins.py:88` and `:111` (`40018, 40018`). `channel.py:860` (`408, 90007`) and
-`message.py:304` (`400, 40018`) are right, so it is a repeated slip rather than a
-misunderstanding. A caller branching on `status_code` today gets a five-digit number.
-Mechanical fix. No gated test — three adapted tests assert the wrong values deliberately
-(`channel_detach_test.py -k "rtl5b or rtl4h"`), so they turn red when it is fixed, which is
-the signal wanted.
 
 ### Tier 3 — silently wrong data
 
