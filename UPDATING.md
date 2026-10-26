@@ -191,6 +191,37 @@ async def auth_callback(token_params):
     return await fetch_token(token_params)
 ```
 
+### Invalid arguments raise `AblyException`
+
+The factories raised a bare `ValueError` in 3.x when given no means of authenticating, a
+`key` together with `key_name` or `key_secret`, a `token_details` that is not a
+`TokenDetails`, or `use_token_auth=False` without a key. In 4.0.0 each raises an
+`AblyException` with code 40106 and status 401. Combining `endpoint` with `environment`,
+`rest_host` or `realtime_host` still raises an `AblyException` with code 40106 and status
+400. `push.admin.publish` raised `TypeError` for a `recipient` or `data` that is not a dict
+and `ValueError` for an empty one, and now raises an `AblyException` with code 40000 and
+status 400 for all four.
+
+These exceptions are also a `ValueError`, so `except ValueError` still catches them, but
+`except TypeError` no longer catches the `push.admin.publish` ones:
+
+Example 3.x code:
+```python
+try:
+    await rest.push.admin.publish(recipient, data)
+except TypeError:
+    ...
+```
+
+Example 4.0.0 code:
+```python
+try:
+    await pubsub_http_client.push.admin.publish(recipient, data)
+except AblyException as e:
+    if e.code == 40000:
+        ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

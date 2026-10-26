@@ -71,14 +71,10 @@ async def test_rtc12_constructor_string_detection():
 async def test_rtc12_invalid_arguments_error():
     mock_ws = succeeding_mock()
 
-    # DEVIATION: the spec expects error code 40106 when no valid credentials are
-    # provided. ably-python rejects the options in the constructor instead, with a
-    # plain ValueError that carries no Ably error code. This mirrors the REST suite's
-    # `RSC1b/no-auth-method-error-0`.
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         realtime_client(mock_ws, key=None)
 
-    assert 'key is missing' in str(excinfo.value)
+    assert excinfo.value.code == 40106
 
     assert mock_ws.connection_attempts == []
 

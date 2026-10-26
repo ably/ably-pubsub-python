@@ -68,14 +68,13 @@ async def test_rsh1a_push_publish_clientid(sandbox):
 async def test_rsh1a_push_publish_invalid_recipient(sandbox):
     client = sandbox_rest_client(sandbox.key(0).key_str)
 
-    # NOTE: the spec expects the server to reject the empty recipient and the
-    # error to carry a `code`. `PushAdmin.publish` validates the recipient
-    # itself (`ably/rest/push.py:57`) and raises `ValueError` before any request
-    # is made, so there is no server error and no code to read. See the RSH1a row
-    # under Adapted Tests -> REST behaviours asserted as they are, in
-    # test/uts/deviations.md.
-    with pytest.raises(ValueError):
+    # NOTE: the spec expects the server to reject the empty recipient.
+    # `PushAdmin.publish` rejects it itself, with the 40000 the server would
+    # give, before any request is made (RSH1a: "immediately rejected").
+    with pytest.raises(AblyException) as excinfo:
         await client.push.admin.publish({}, {'notification': {'title': 'Test'}})
+
+    assert excinfo.value.code is not None
 
 
 # UTS: rest/integration/RSH1b3/save-and-get-device-0

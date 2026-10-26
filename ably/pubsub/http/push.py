@@ -7,6 +7,7 @@ from ably.pubsub.types.channelsubscription import (
     channels_response_processor,
 )
 from ably.pubsub.types.device import DeviceDetails, device_details_response_processor
+from ably.pubsub.util.exceptions import InvalidArgumentException
 
 
 class Push:
@@ -47,16 +48,16 @@ class PushAdmin:
         - `data`: the data of the notification
         """
         if not isinstance(recipient, dict):
-            raise TypeError(f'Unexpected {type(recipient)} recipient, expected a dict')
+            raise InvalidArgumentException(f'Unexpected {type(recipient)} recipient, expected a dict', 400, 40000)
 
         if not isinstance(data, dict):
-            raise TypeError(f'Unexpected {type(data)} data, expected a dict')
+            raise InvalidArgumentException(f'Unexpected {type(data)} data, expected a dict', 400, 40000)
 
         if not recipient:
-            raise ValueError('recipient is empty')
+            raise InvalidArgumentException('recipient is empty', 400, 40000)
 
         if not data:
-            raise ValueError('data is empty')
+            raise InvalidArgumentException('data is empty', 400, 40000)
 
         body = data.copy()
         body.update({'recipient': recipient})

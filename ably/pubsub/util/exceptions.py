@@ -111,3 +111,11 @@ class AblyAuthException(AblyException):
 
 class IncompatibleClientIdException(AblyException):
     pass
+
+
+class InvalidArgumentException(AblyException, ValueError):
+    """Arguments the library rejects before making any request (RSC1b, RSH1a).
+
+    Also a ValueError, which is what 3.x raised for them, so `except ValueError` still
+    catches it.
+    """

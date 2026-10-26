@@ -137,9 +137,9 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         }
 
         publish = self.ably.push.admin.publish
-        with pytest.raises(TypeError):
+        with pytest.raises(AblyException):
             await publish('ablyChannel', data)
-        with pytest.raises(TypeError):
+        with pytest.raises(AblyException):
             await publish(recipient, 25)
         with pytest.raises(ValueError):
             await publish({}, data)
