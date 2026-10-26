@@ -20,7 +20,6 @@ from test.uts.helpers.client import (
     realtime_client,
 )
 from test.uts.helpers.clock import FakeClock, settle
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import (
     ERROR_MESSAGE,
     MockWebSocket,
@@ -284,7 +283,6 @@ async def test_rtn13d_ping_deferred_connecting():
 
 
 # UTS: realtime/unit/RTN13d/ping-deferred-disconnected-1
-@deviation
 async def test_rtn13d_ping_deferred_disconnected():
     clock = FakeClock()
     attempts = []
@@ -310,8 +308,7 @@ async def test_rtn13d_ping_deferred_disconnected():
     ping_task = asyncio.ensure_future(client.connection.ping())
     await settle()
 
-    # RTN13d: a ping requested while DISCONNECTED waits for the connection.
-    # ably-python admits only CONNECTED and CONNECTING and errors at once
+    # RTN13d: a ping requested while DISCONNECTED waits for the connection
     deferred = not ping_task.done()
 
     await clock.advance(600)
@@ -348,7 +345,6 @@ async def test_rtn13b_deferred_ping_error_failed():
 
 
 # UTS: realtime/unit/RTN13b/deferred-ping-error-suspended-5
-@deviation
 async def test_rtn13b_deferred_ping_error_suspended():
     clock = FakeClock()
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_dns_error())
@@ -362,8 +358,7 @@ async def test_rtn13b_deferred_ping_error_suspended():
     ping_task = asyncio.ensure_future(client.connection.ping())
     await settle()
 
-    # RTN13d: the ping waits for the connection rather than failing where the
-    # specification expects it to be deferred
+    # RTN13d: the ping waits for the connection rather than failing at once
     deferred = not ping_task.done()
 
     await clock.advance(CONNECTION_STATE_TTL + 1000)
@@ -376,7 +371,6 @@ async def test_rtn13b_deferred_ping_error_suspended():
 
 
 # UTS: realtime/unit/RTN13c/deferred-ping-timeout-1
-@deviation
 async def test_rtn13c_deferred_ping_timeout():
     clock = FakeClock()
     attempts = []
@@ -404,6 +398,5 @@ async def test_rtn13c_deferred_ping_timeout():
     assert error is not None
     assert 'timeout' in str(error).lower()
     # RTN13c with RTN13d: a deferred ping's timeout runs from the HEARTBEAT going
-    # out, not from the call. ably-python starts `wait_for` when `ping()` is
-    # called, so the ping expires while the connection is still establishing
+    # out, not from the call
     assert failed_after >= timeout_in_secs * 0.9

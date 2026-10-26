@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1299 Test IDs
-(1308 tests, 1433 cases) pass, 146 (146 tests, 148 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1302 Test IDs
+(1311 tests, 1436 cases) pass, 143 (143 tests, 145 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,16 +45,16 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 64 are REST and 82 realtime, which is 65 REST cases
-and 83 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+within each. Of the gated Test IDs 64 are REST and 79 realtime, which is 65 REST cases
+and 80 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 135 gated Test IDs that record SDK non-compliance — 135 tests, 137 cases — reduce to
-**57 distinct root causes**, 18 on the REST side and 39 on the realtime side. One further
+The 132 gated Test IDs that record SDK non-compliance — 132 tests, 134 cases — reduce to
+**56 distinct root causes**, 18 on the REST side and 38 on the realtime side. One further
 defect is recorded below with no test of its own, because the specification's test
-cannot discriminate (RTP18a), so the file carries **58 SDK root causes** in all. The
+cannot discriminate (RTP18a), so the file carries **57 SDK root causes** in all. The
 remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
 records no SDK non-compliance; its specification faults are all corrected or worked
 around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
@@ -1252,34 +1252,6 @@ that the first merely permitted.
 **Status:** open bug. Clearing `__error_reason` on entry to CONNECTED closes it, and turns
 the adapted RTN25 unit test round to the specification's option A, so that test's
 adaptation goes with the fix.
-
-#### `ping()` rejects DISCONNECTED instead of deferring, and charges the wait to the caller — 3 tests
-
-**Spec points:** RTN13b, RTN13c, RTN13d.
-
-Two defects in the same method.
-
-- RTN13b errors only for INITIALIZED, SUSPENDED, CLOSING, CLOSED and FAILED, and RTN13d
-  defers a ping requested while CONNECTING *or DISCONNECTED* until the connection is
-  CONNECTED. `ConnectionManager.ping` (`connectionmanager.py:362`) admits only CONNECTED
-  and CONNECTING and raises `AblyException("Cannot send ping request. Calling ping in
-  invalid state", 400, 40000)` for DISCONNECTED. Note that
-  `deferred-ping-error-suspended-5` would otherwise pass for the wrong reason: its only
-  stated assertion is that an error arrives, and one does — just immediately, rather than
-  when the connection suspends.
-- RTN13c with RTN13d requires a deferred ping's timeout to run "from when the HEARTBEAT is
-  actually sent, not when `ping()` is called". `ping()` enters
-  `asyncio.wait_for(pending_ping.future, self.__timeout_in_secs)` (`:375`) as soon as it is
-  called, so the whole CONNECTING period is charged against it and a ping requested while
-  connecting can expire before its HEARTBEAT has gone out.
-
-**Tests affected:** `test_rtn13d_ping_deferred_disconnected` and
-`test_rtn13b_deferred_ping_error_suspended` fail with "the ping errored instead of waiting
-for the connection"; `test_rtn13c_deferred_ping_timeout` fails with
-`assert 0.096… >= (0.4 * 0.9)` — the error arrived 96 ms after CONNECTED where a 400 ms
-`realtimeRequestTimeout` should have run from that point.
-
-**Status:** open bug.
 
 ### Channels
 
@@ -2765,13 +2737,6 @@ NACK as `reason`, where the spec requires `resumed` true and a 91004 naming the 
 the NACK as `cause`. Local to one method.
 `test/uts/realtime/unit/presence/realtime_presence_reentry_test.py -k rtp17e`
 
-**3.14 `ping()` rejects DISCONNECTED, and charges the connect wait to the caller's timeout.**
-RTN13b, RTN13c, RTN13d. `ConnectionManager.ping` (`:362`) admits only CONNECTED and
-CONNECTING where RTN13d requires a ping from DISCONNECTED to be deferred; and `:375` enters
-`asyncio.wait_for` as soon as `ping()` is called, so a ping requested while CONNECTING can
-expire before its HEARTBEAT has gone out.
-`test/uts/realtime/unit/connection/connection_ping_test.py -k "rtn13b_deferred or rtn13c or rtn13d"`
-
 **3.15 A failed RTN22 reauth leaves no trace on the connection.** RSA4c1, RSA4c3.
 `websockettransport.py:170-175` awaits `auth.authorize()` inside a bare `except Exception`
 that only logs, so nothing reaches `on_error_from_authorize` and `errorReason` stays as it
@@ -3452,8 +3417,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 148 failures, 1581 passes and 27 skips with the variable
-set, and 175 skips and 1581 passes without it, the 1581 being 1433 derived cases and 148
+it. As of this writing that is 145 failures, 1584 passes and 27 skips with the variable
+set, and 172 skips and 1584 passes without it, the 1584 being 1436 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

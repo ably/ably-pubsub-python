@@ -769,6 +769,19 @@ except AblyException:
     ...
 ```
 
+### `connection.ping()` waits for a disconnected connection
+
+`await connection.ping()` raised an `AblyException` with code 40000 at once when the connection
+was `DISCONNECTED`. In 4.0.0 it waits for the connection to reconnect, as it already did while
+`CONNECTING`, and then times out `realtime_request_timeout` after its heartbeat goes out. It
+still fails if the connection becomes `SUSPENDED`, `CLOSED` or `FAILED` first, which can be up to
+two minutes later. Bound the wait yourself if you need an answer sooner:
+
+Example 4.0.0 code:
+```python
+response_time_ms = await asyncio.wait_for(pubsub_realtime_client.connection.ping(), timeout=5)
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
