@@ -611,6 +611,28 @@ if response.error_code == 40101:
     ...
 ```
 
+### `HttpPaginatedResponse.headers` is a read-only mapping
+
+The `headers` of the response that `request()` returns is now a read-only mapping from header
+name to value, looked up case-insensitively, where 3.x returned a list of `(name, value)`
+pairs. As before, names are lower-cased and a header sent more than once has its values
+joined with `', '`. Iterating over the mapping itself now yields only the names, so look a
+header up by name, or iterate over `.items()`:
+
+Example 3.x code:
+```python
+for name, value in response.headers:
+    ...
+```
+
+Example 4.0.0 code:
+```python
+request_id = response.headers.get('X-Request-Id')
+
+for name, value in response.headers.items():
+    ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

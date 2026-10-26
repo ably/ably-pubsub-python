@@ -1,5 +1,6 @@
 import calendar
 import logging
+from collections.abc import Mapping
 from urllib.parse import urlencode
 
 from ably.pubsub.request.http import Request
@@ -40,6 +41,31 @@ def format_params(params=None, direction=None, start=None, end=None, limit=None,
         raise ValueError("'end' parameter has to be greater than or equal to 'start'")
 
     return '?' + urlencode(params) if params else ''
+
+
+class ResponseHeaders(Mapping):
+    """The headers of a response, read-only and looked up by name case-insensitively (HP8).
+
+    Names iterate lower-cased, and a header sent more than once reads as its values joined
+    with ', '.
+    """
+
+    def __init__(self, headers):
+        self.__headers = {name.lower(): value for name, value in headers.items()}
+
+    def __getitem__(self, name):
+        if not isinstance(name, str):
+            raise KeyError(name)
+        return self.__headers[name.lower()]
+
+    def __iter__(self):
+        return iter(self.__headers)
+
+    def __len__(self):
+        return len(self.__headers)
+
+    def __repr__(self):
+        return f'{type(self).__name__}({self.__headers!r})'
 
 
 class PaginatedResult:
@@ -133,4 +159,4 @@ class HttpPaginatedResponse(PaginatedResult):
 
     @property
     def headers(self):
-        return list(self.response.headers.items())
+        return ResponseHeaders(self.response.headers)

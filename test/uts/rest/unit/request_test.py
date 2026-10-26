@@ -349,12 +349,10 @@ async def test_rsc19d_response_headers_accessible():
 
     response = await client.request('GET', '/test', version='3')
 
-    # DEVIATION: the spec (and HP8) expects a map keyed by header name. `headers` is a
-    # list of (name, value) pairs, with the names lower-cased by httpx.
-    headers = dict(response.headers)
-    assert headers['content-type'] == 'application/json'
-    assert headers['x-request-id'] == 'req-123'
-    assert headers['x-custom-header'] == 'custom-value'
+    headers = response.headers
+    assert headers['Content-Type'] == 'application/json'
+    assert headers['X-Request-Id'] == 'req-123'
+    assert headers['X-Custom-Header'] == 'custom-value'
 
 
 # UTS: rest/unit/RSC19d/response-items-decoded-5

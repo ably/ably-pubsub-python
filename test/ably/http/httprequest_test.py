@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 import httpx
 import pytest
 import respx
@@ -69,7 +71,8 @@ class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
         assert result.success is True        # HP5
         assert result.error_code is None     # HP6
         assert result.error_message is None  # HP7
-        assert isinstance(result.headers, list)   # HP7
+        assert isinstance(result.headers, Mapping)   # HP8
+        assert result.headers['Content-Type'] == result.headers['content-type']
 
     @dont_vary_protocol
     async def test_not_found(self):
