@@ -89,7 +89,6 @@ async def test_rtn2e_callback_error_prevents_connect():
 
 
 # UTS: realtime/unit/RTN2e/callback-params-include-clientid-2
-@deviation
 async def test_rtn2e_callback_params_include_clientid():
     received_params = None
 
@@ -107,9 +106,7 @@ async def test_rtn2e_callback_params_include_clientid():
     assert received_params is not None
     # `TokenParams` is a plain dict here, and ably-python spells its members
     # snake_case throughout, so `client_id` is the idiomatic rendering of the
-    # specification's `clientId`. The deviation is that the member is absent:
-    # `Auth.__init__` leaves `client_id` unset on a realtime client, so
-    # `_ensure_valid_auth_credentials` never puts it in the token params.
+    # specification's `clientId`.
     assert received_params['client_id'] == 'my-client-id'
 
 

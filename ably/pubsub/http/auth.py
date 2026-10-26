@@ -41,12 +41,10 @@ class Auth:
         self.__auth_options = options
         self.__clock = select_clock(options)
 
-        if not self.ably._is_realtime:
-            self.__client_id = options.client_id
-            if not self.__client_id and options.token_details:
-                self.__client_id = options.token_details.client_id
-        else:
-            self.__client_id = None
+        # RSA7b1, RTC17: a configured clientId holds from the start, on realtime clients too
+        self.__client_id = options.client_id
+        if not self.__client_id and options.token_details:
+            self.__client_id = options.token_details.client_id
         self.__client_id_validated: bool = False
 
         self.__basic_credentials: str | None = None

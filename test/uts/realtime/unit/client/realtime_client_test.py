@@ -139,11 +139,7 @@ async def test_rtc17_client_id_attribute():
 
     assert client.client_id == 'explicit-client-id'
 
-    # DEVIATION: the spec asserts `client.clientId == client.auth.clientId`.
-    # `DefaultPubSubRealtimeClient.client_id` reads the client options, while `Auth.client_id` is
-    # held at None for a realtime client until the server confirms one in a CONNECTED
-    # message, so the two disagree before the connection is established.
-    assert client.auth.client_id is None
+    assert client.client_id == client.auth.client_id
 
 
 # UTS: realtime/unit/RTC1a/echo-messages-option-0

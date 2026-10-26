@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1293 Test IDs
-(1302 tests, 1427 cases) pass, 164 (164 tests, 166 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1294 Test IDs
+(1303 tests, 1428 cases) pass, 163 (163 tests, 165 cases) are gated behind
 `RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,19 +45,19 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 79 are REST and 85 realtime, which is 80 REST cases
-and 86 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+within each. Of the gated Test IDs 79 are REST and 84 realtime, which is 80 REST cases
+and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 153 gated Test IDs that record SDK non-compliance — 153 tests, 155 cases — reduce to
-**68 distinct root causes**, 26 on the REST side and 42 on the realtime side. Three further
+The 152 gated Test IDs that record SDK non-compliance — 152 tests, 154 cases — reduce to
+**67 distinct root causes**, 26 on the REST side and 41 on the realtime side. Three further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
 synthesized LEAVE timestamps), or is worked around in the setup of every test that
 would otherwise trip over it (`enterClient` on an anonymous connection), so the file
-carries **71 SDK root causes** in all. The remaining 11 gated Test IDs are
+carries **70 SDK root causes** in all. The remaining 11 gated Test IDs are
 specification faults, and reduce to 8. The objects tier records no SDK non-compliance;
 its specification faults are all corrected or worked around in tests that pass, and
 reduce to the seven candidate issues O.1–O.7, none of them filed.
@@ -1751,22 +1751,6 @@ failure builds no 80019, and `connection.errorReason` stays as it was.
 ably-python's behaviour the correct one, in which case this entry closes as a spec change
 rather than a fix.
 
-#### TokenParams passed to an authCallback carry no clientId on a realtime client — 1 test
-
-**Spec points:** RSA12a, RTN2e.
-
-`Auth.__init__` (`ably/rest/auth.py:36-41`) sets `self.__client_id = None` when
-`ably._is_realtime`, deferring the clientId to the CONNECTED `connectionDetails`.
-`_ensure_valid_auth_credentials` only adds `token_params['client_id']` when
-`self.client_id is not None`, so an authCallback on a realtime client is called with the
-clientId missing entirely, even though `ClientOptions.clientId` was set. The REST client does
-pass it, so the SDK is inconsistent with itself. The snake_case key is idiomatic translation,
-not the deviation; the absent member is.
-
-**Tests affected:** `test_rtn2e_callback_params_include_clientid` — `KeyError: 'client_id'`.
-
-**Status:** open bug.
-
 #### RSA4f invalid-format validation is not implemented — 1 test
 
 **Spec points:** RSA4f, RSA4c2.
@@ -2328,7 +2312,6 @@ pseudocode is not mistaken for non-compliance.
 | RTN15, RTN23 | A DISCONNECTED `ErrorInfo` needs no `statusCode` | `ConnectionManager.on_disconnected` evaluates `exception.status_code >= 500` unguarded, so a DISCONNECTED whose error omits `statusCode` raises `TypeError` in a task whose exception is only logged, and the connection silently stays CONNECTED. `DISCONNECTED_MESSAGE` supplies 400 | Open bug |
 | TO3l1, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's `httpRequestTimeout` is milliseconds and ably-python's `http_request_timeout` is seconds, on the value a caller passes as much as on the default — gated, with the measurement, under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests | Intentional for where the defaults are applied; the unit is an open bug, recorded there |
 | RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | Both `None` on `Options`; `Http.http_open_timeout` / `http_request_timeout` fall back to `CONNECTION_RETRY_DEFAULTS`, which holds 4 and 10 — seconds, where TO3l3 and TO3l4 count milliseconds. The three realtime timeouts the same test checks are defaulted on `Options` and match | Two faults in one row: the defaults are unreadable from `options`, and the unit reaches the wire — `rest/proxy/RSC15l2/timeout-triggers-fallback-0` measures a request outliving its configured timeout by a factor of a thousand. Both open; the unit is gated under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests |
-| RTC17 (RSA7b1) | `client.clientId == client.auth.clientId` | `AblyRealtime.client_id` reads `options.client_id` and returns the configured value, while `Auth.__init__` sets `self.__client_id = None` whenever `ably._is_realtime` (`rest/auth.py:34-41`), deferring it to whatever a CONNECTED confirms. The two disagree on a client that has not connected | Open bug. RSA12b only allows the realtime clientId to be unknown while it has not been *configured* |
 | RTC1f | a `transportParams` boolean appears as `"true"` / `"false"` | `True` / `False`, because `WebSocketTransport.connect` builds the query string with `urllib.parse.urlencode`, which renders each value through `str()` (`websockettransport.py:89`). Integers are unaffected | Open bug. A caller can pass the strings directly, but a bool is what the spec's Stringifiable type admits |
 
 ### LiveObjects: the internal shapes the unit specifications assume — S-1 to S-6
@@ -2951,14 +2934,7 @@ was. **Hold this one**: specification#466 would make the current behaviour corre
 two UTS specs disagree about it today.
 `test/uts/realtime/unit/auth/connection_auth_test.py -k rsa4c3_callback_error_stays_connected`
 
-**3.16 TokenParams passed to an authCallback carry no clientId on a realtime client.**
-RSA12a, RTN2e. `Auth.__init__` nulls `client_id` for a realtime client (`rest/auth.py:36-41`)
-and `_ensure_valid_auth_credentials` only adds it when non-null, so an auth server never
-learns the configured clientId. The REST client does pass it. The same nulling is why
-`client.client_id` and `client.auth.client_id` disagree before CONNECTED (RTC17).
-`test/uts/realtime/unit/auth/connection_auth_test.py -k rtn2e`
-
-**3.17 No 40171 log at instantiation with a non-renewable token.** RSA4a1. Requires an
+**3.16 No 40171 log at instantiation with a non-renewable token.** RSA4a1. Requires an
 info-level record carrying 40171 and the TI5 help URL; the SDK logs at debug with no code,
 and `grep -rn href ably/` finds no help URLs at all. Small, and the TI5 half is a gap of its
 own.
@@ -3651,8 +3627,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 166 failures, 1575 passes and 15 skips with the variable
-set, and 181 skips and 1575 passes without it, the 1575 being 1427 derived cases and 148
+it. As of this writing that is 165 failures, 1576 passes and 15 skips with the variable
+set, and 180 skips and 1576 passes without it, the 1576 being 1428 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

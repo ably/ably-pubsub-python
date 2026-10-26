@@ -270,6 +270,22 @@ Example 4.0.0 auth server code:
 client_id = request.args.get('clientId')
 ```
 
+### A realtime client knows its configured `client_id` before it connects
+
+A realtime client built with a `client_id` now reports it from `auth.client_id` as soon as it is
+created, as an HTTP client always has. 3.x held `auth.client_id` at `None` until the connection
+reached `CONNECTED`. A realtime client built with a `token_details` that carries a client ID
+likewise reports that ID straight away.
+
+Because the client ID is known when the first token is requested, a realtime client now passes
+it to its `auth_callback` as `client_id` in the token params, and to its `auth_url` as
+`clientId`, which 3.x did not do. An auth server or callback that issues tokens from those params
+now issues them for that client ID. Check that it does not reject or override a client ID it was
+not expecting.
+
+Code that read `auth.client_id` before connecting to tell whether the client was connected
+should check `connection.state` instead.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
