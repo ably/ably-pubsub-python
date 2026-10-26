@@ -1904,7 +1904,6 @@ which is about a client that *does* configure `clientId: "*"`.
 | RSA16c | No local expiry detection without a server time offset, which an authCallback client never obtains. See the RSA4b1 spec error above; here the specification asserts renewal *does* happen, so there is no green reading |
 | RSA16d | A failed renewal leaves the invalidated token in place — `_ensure_valid_auth_credentials` assigns only on success |
 | RSA16d | `authorize()` cannot switch a client back to basic auth: `_ensure_valid_auth_credentials` sets `Method.TOKEN` unconditionally, and `AuthOptions.replace` drops `use_token_auth`, which is stored outside the options dict |
-| RSA8c1a, RSA12b | `TokenParams` reach the `auth_url` under the SDK's internal snake_case names: `Auth._ensure_valid_auth_credentials` sets `token_params['client_id']` and `token_request_from_auth_url` passes the dict straight to the query string, so an auth server sees `client_id`, not `clientId` |
 
 ### Options
 

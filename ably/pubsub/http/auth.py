@@ -409,10 +409,28 @@ class Auth:
     def _random_nonce(self):
         return uuid.uuid4().hex[:16]
 
+    @staticmethod
+    def _auth_url_token_params(token_params):
+        """Returns the token params under their wire names and in their wire forms (RSA8c1a)"""
+        params = {}
+        for name, value in token_params.items():
+            if value is None:
+                continue
+            if name == 'client_id':
+                name = 'clientId'
+            elif name == 'ttl' and isinstance(value, timedelta):
+                value = int(value.total_seconds() * 1000)
+            elif name == 'capability' and not isinstance(value, str):
+                value = str(Capability(value))
+            params[name] = value
+        return params
+
     async def token_request_from_auth_url(self, method: str, url: str, token_params,
                                           headers, auth_params):
         # Extract URL parameters using utility function
         clean_url, url_params = extract_url_params(url)
+
+        token_params = self._auth_url_token_params(token_params)
 
         body = None
         params = None

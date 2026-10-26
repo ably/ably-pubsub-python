@@ -125,15 +125,10 @@ async def test_rsa12a_clientid_passed_to_callback():
 
 
 # UTS: rest/unit/RSA12b/clientid-sent-to-authurl-0
-# DEVIATION: two departures, either of which alone fails this test.
-#  - The specification's auth_url response carries no clientId, and
-#    Auth._configure_client_id reads the absent value as an attempt to change the
-#    configured clientId, raising 40102 before `status()` returns. This is the
-#    RSA12a mechanism above.
-#  - RSA8c1a sends the TokenParams as query params under their wire names.
-#    ably-python passes its internal snake_case dict straight through
-#    (`token_params['client_id']` in Auth._ensure_valid_auth_credentials), so the
-#    auth_url receives `client_id`, not `clientId`.
+# DEVIATION: the specification's auth_url response carries no clientId, and
+# Auth._configure_client_id reads the absent value as an attempt to change the
+# configured clientId, raising 40102 before `status()` returns. This is the RSA12a
+# mechanism above.
 @deviation
 async def test_rsa12b_clientid_sent_to_authurl():
     captured_requests = []

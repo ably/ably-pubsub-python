@@ -245,6 +245,31 @@ pubsub_http_client = create_http_client(key='xxx', auth_callback=callback, use_t
 
 Or drop the `auth_callback`, `auth_url` or token, which 3.x never used.
 
+### Token params reach an `auth_url` under their wire names
+
+A client with an `auth_url` now sends the token params to it under the names and in the forms
+the other Ably SDKs use, in the query string for `GET` and in the form body for `POST`:
+
+- the client ID as `clientId`, where 3.x sent `client_id`
+- a `capability` given as a dict or `Capability` as JSON, where 3.x sent its Python repr
+- a `ttl` given as a `timedelta` as an integer count of milliseconds, where 3.x sent `1:00:00`
+
+Unset params are left out rather than sent empty. This changes what your auth server receives.
+An auth server written for 3.x clients that reads `client_id` must read `clientId` instead, as it
+already does for clients built with the other SDKs. There is no transition period in which both
+are sent, so update the auth server before, or together with, the clients. The token params
+passed to `create_token_request`, `request_token` and `authorize` keep their snake_case names.
+
+Example 3.x auth server code:
+```python
+client_id = request.args.get('client_id')
+```
+
+Example 4.0.0 auth server code:
+```python
+client_id = request.args.get('clientId')
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
