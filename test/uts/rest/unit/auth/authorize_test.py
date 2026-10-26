@@ -99,12 +99,10 @@ async def test_rsa10b_authorize_explicit_params():
     )
     client = rest_client(mock_http, auth_callback=mock_auth_callback, client_id='default-client')
 
-    # DEVIATION: `Auth._ensure_valid_auth_credentials` overwrites the caller's
-    # `client_id` with `Auth.client_id` unconditionally, so the callback is handed
-    # 'default-client'. RSA10h has `Auth#clientId` supply a default only, and RSA10j
-    # has explicit `TokenParams` supersede configured ones. The token that comes
-    # back then carries no clientId, which `Auth._configure_client_id` rejects with
-    # IncompatibleClientIdException 40102 before the assertions are reached.
+    # DEVIATION: the token that comes back carries no clientId, which
+    # `Auth._configure_client_id` reads as an attempt to change the configured
+    # clientId and rejects with IncompatibleClientIdException 40102 before the
+    # assertions are reached. This is the RSA12a mechanism in client_id_test.py.
     await client.auth.authorize({'client_id': 'override-client', 'ttl': 7200000})
 
     params = callback_params[0]

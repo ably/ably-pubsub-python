@@ -120,16 +120,21 @@ class Auth:
 
     async def _ensure_valid_auth_credentials(self, token_params=None, auth_options=None, force=False):
         self.__auth_mechanism = Auth.Method.TOKEN
+        explicit_client_id = None
         if token_params is None:
             token_params = dict(self.auth_options.default_token_params)
         else:
+            token_params = dict(token_params)
+            explicit_client_id = token_params.get('client_id')
             self.auth_options.default_token_params = dict(token_params)
             self.auth_options.default_token_params.pop('timestamp', None)
 
         if auth_options is not None:
             self.auth_options.replace(auth_options)
         auth_options = dict(self.auth_options.auth_options)
-        if self.client_id is not None:
+        # RSA10h: Auth#clientId is only the default for an explicit clientId (RSA10b, RSA10j),
+        # and takes precedence over one from default_token_params (RSA7a4)
+        if self.client_id is not None and explicit_client_id is None:
             token_params['client_id'] = self.client_id
 
         token_details = self.__token_details

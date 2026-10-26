@@ -286,6 +286,28 @@ not expecting.
 Code that read `auth.client_id` before connecting to tell whether the client was connected
 should check `connection.state` instead.
 
+### `authorize()` keeps an explicit `client_id`
+
+A `client_id` passed in the token params to `auth.authorize()` now reaches the token request, the
+`auth_callback` or the `auth_url` as given. The client's own client ID is only filled in when the
+params name none. 3.x replaced an explicit `client_id` with the client's own whenever the client
+had one, and wrote it into the dict the caller passed. The caller's dict is no longer modified.
+
+So a client configured with one client ID that authorizes for another now receives a token for
+the one it asked for, and then fails with an `IncompatibleClientIdException` (code 40102), as the
+client ID of a client cannot change once configured. 3.x silently issued a token for the
+configured client ID instead. Drop the explicit `client_id`, or pass the configured one:
+
+Example 3.x code:
+```python
+await rest.auth.authorize({'client_id': 'someone-else', 'ttl': 3600000})
+```
+
+Example 4.0.0 code:
+```python
+await pubsub_http_client.auth.authorize({'ttl': 3600000})
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
