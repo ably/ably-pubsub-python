@@ -95,9 +95,7 @@ async def test_rtl24_error_reason_attach_failure():
     # DEVIATION: an attach rejected with a DETACHED carrying an error leaves `error_reason`
     # unset. `_on_message` (`ably/realtime/channel.py:735`) answers a DETACHED received while
     # ATTACHING with `_notify_state(ChannelState.SUSPENDED)` and no reason, discarding the
-    # error. `attach()` then reaches `raise state_change.reason` (`:150`) with `reason` None,
-    # which raises `TypeError: exceptions must derive from BaseException` rather than the
-    # AblyException RTL24 describes.
+    # error, so `attach()` raises its 90001 fallback rather than the error RTL24 describes.
     channel_name = 'test-RTL24-attach-fail'
 
     mock_ws = MockWebSocket(
@@ -125,8 +123,7 @@ async def test_rtl24_error_reason_attach_failure():
 @deviation
 async def test_rtl4c_error_cleared_on_attach():
     # DEVIATION: as above, the error on the DETACHED which rejects the first attach is
-    # discarded, so `error_reason` is never set and the attach raises TypeError rather than
-    # an AblyException. The clearing half of RTL4c is covered by
+    # discarded, so `error_reason` is never set. The clearing half of RTL4c is covered by
     # `test_rtl4c_error_cleared_preserved_detach`, which sets the error with an ERROR message.
     channel_name = 'test-RTL24-clear-attach'
     attach_count = 0

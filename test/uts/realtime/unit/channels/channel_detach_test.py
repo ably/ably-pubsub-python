@@ -171,8 +171,9 @@ async def test_rtl5i_detach_while_attaching():
     mock_ws.send_to_client(attached_message(channel_name))
 
     # The specification allows the superseded attach either to resolve or to be
-    # rejected; ably-python resolves it on the DETACHING state change
-    await asyncio.wait_for(attach_future, OPERATION_TIMEOUT)
+    # rejected; ably-python rejects it on the DETACHING state change
+    with pytest.raises(AblyException):
+        await asyncio.wait_for(attach_future, OPERATION_TIMEOUT)
     await asyncio.wait_for(detach_future, OPERATION_TIMEOUT)
 
     assert channel.state == ChannelState.DETACHED

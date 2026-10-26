@@ -121,23 +121,15 @@ class RealtimeChannel(EventEmitter, Channel):
         Raises
         ------
         AblyException
-            If unable to attach channel
-        """
-        await self._attach()
-
-    async def _attach(self) -> ChannelStateChange | None:
-        """The attach procedure `attach` runs, returning the state change it ended with, or None if
-        the channel was already ATTACHED.
-
-        Raises where `attach` does. An attach that ends in a state other than ATTACHED,
-        SUSPENDED or FAILED, such as DETACHED when the connection closes first, returns that
-        state change.
+            If unable to attach channel, including when the channel moves to DETACHED instead, as
+            it does when the connection closes first (RTL4d). It carries the reason for the state
+            the channel moved to, else code 90001
         """
         log.info(f'RealtimeChannel.attach() called, channel = {self.name}')
 
         # RTL4a - if channel is attached do nothing
         if self.state == ChannelState.ATTACHED:
-            return None
+            return
 
         self.__error_reason = None
 
@@ -158,10 +150,23 @@ class RealtimeChannel(EventEmitter, Channel):
             self._request_state(ChannelState.ATTACHING)
 
         state_change = await self.__internal_state_emitter.once_async()
+        self.__raise_unless_attached(state_change)
 
-        if state_change.current in (ChannelState.SUSPENDED, ChannelState.FAILED):
-            raise state_change.reason
-        return state_change
+    def __raise_unless_attached(self, state_change: ChannelStateChange) -> None:
+        # RTL4d: any state but ATTACHED fails the attach, DETACHED included (RTL3b)
+        if state_change.current != ChannelState.ATTACHED:
+            raise state_change.reason or AblyException(
+                f'Unable to attach channel; channel state = {state_change.current.value}, '
+                f'connection state = {self.__realtime.connection.state.value}', 400, 90001)
+
+    def _attach_implicitly(self) -> None:
+        """Starts an attach nobody awaits, logging its failure rather than leaving it unretrieved."""
+        def on_done(task: asyncio.Task) -> None:
+            if not task.cancelled() and task.exception() is not None:
+                log.warning(f'RealtimeChannel implicit attach failed; channel = {self.name}, '
+                            f'error = {task.exception()}')
+
+        asyncio.create_task(self.attach()).add_done_callback(on_done)
 
     def _attach_impl(self):
         log.debug("RealtimeChannel.attach_impl(): sending ATTACH protocol message")
@@ -200,14 +205,9 @@ class RealtimeChannel(EventEmitter, Channel):
         if self.state == ChannelState.FAILED:
             raise AblyException(f"Channel operation failed as channel state is {self.state.value}", 400, 90001)
 
-        # RTL33b
-        state_change = await self._attach()
-        if state_change is not None and state_change.current != ChannelState.ATTACHED:
-            # RTL33b1, RTL4d: the attach ended without the channel attaching, as when the connection
-            # closes or `detach` is called first
-            raise state_change.reason or AblyException(
-                f'Unable to attach channel; channel state = {state_change.current.value}, '
-                f'connection state = {self.__realtime.connection.state.value}', 400, 90001)
+        # RTL33b, RTL33b1: `attach` raises unless the channel attaches, as when the connection closes
+        # or `detach` is called first
+        await self.attach()
 
     # RTL5
     async def detach(self) -> None:
@@ -1164,7 +1164,7 @@ class Channels(HttpChannels):
             if channel.state == ChannelState.ATTACHING or channel.state == ChannelState.DETACHING:
                 channel._check_pending_state()
             elif channel.state == ChannelState.SUSPENDED:
-                asyncio.create_task(channel.attach())
+                channel._attach_implicitly()
             elif channel.state == ChannelState.ATTACHED:
                 channel._request_state(ChannelState.ATTACHING)
 

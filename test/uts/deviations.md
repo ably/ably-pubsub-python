@@ -1329,7 +1329,7 @@ stored, and `asyncio.wait_for(channel.set_options(...), 1.0)` raises `TimeoutErr
 
 **Status:** open bug. A hang, not a wrong value.
 
-#### A server-initiated DETACHED discards its error, and the pending call then raises `TypeError` — 3 tests
+#### A server-initiated DETACHED discards its error, which `set_options` and `detach` then raise as `TypeError` — 3 tests
 
 **Spec points:** RTL24, RTL4c, with RTL13a and RTL13b.
 
@@ -1340,23 +1340,23 @@ An attach rejected by a DETACHED carrying an `ErrorInfo` must fail with that err
    `self._notify_state(ChannelState.SUSPENDED)` (`channel.py:735`), passing **no reason**,
    so the message's error is dropped. The same shape applies to RTL13a's
    `_request_state(ATTACHING)` and RTL13b's `_notify_state(SUSPENDED)`.
-2. `attach()` then reaches `raise state_change.reason` (`channel.py:150`) with `reason`
-   `None`, which Python reports as `TypeError: exceptions must derive from BaseException`
-   rather than as an `AblyException`. The same unguarded `raise` is at `:102` in
-   `set_options` and `:219` in `detach`.
+2. `attach()` then raises its 90001 fallback, having no reason to raise, but
+   `set_options` and `detach` reach `raise state_change.reason` with `reason` `None`, which
+   Python reports as `TypeError: exceptions must derive from BaseException` rather than as
+   an `AblyException`.
 
 **Tests affected:** `test_rtl24_error_reason_attach_failure` and
-`test_rtl4c_error_cleared_on_attach`, both `TypeError: exceptions must derive from
-BaseException` at `channel.py:150`, and `test_rtl13b_attaching_detached_to_suspended`,
+`test_rtl4c_error_cleared_on_attach`, both failing on `error_reason` being `None` once the
+attach has raised, and `test_rtl13b_attaching_detached_to_suspended`,
 which reads the dropped error off the SUSPENDED state change and so falls one step
 earlier. The clearing half of RTL4c is still covered by
 `test_rtl4c_error_cleared_preserved_detach`, which sets the error with an ERROR message
 instead and passes. One adapted test — `test_rtl13a_attached_reattach_triggered` —
 asserts `reason is None`, and will need revisiting once the reason is carried through.
 
-**Status:** open bug, in two parts. The `raise None` is worth fixing on its own even before
-the reason is plumbed through: a missing reason should give an `AblyException`, not a
-`TypeError`.
+**Status:** open bug, in two parts. The `raise None` is worth fixing in `set_options` and
+`detach` on its own, as it is in `attach`, even before the reason is plumbed through: a
+missing reason should give an `AblyException`, not a `TypeError`.
 
 #### An ATTACHED received while DETACHING or DETACHED is ignored — 2 tests
 
@@ -2069,24 +2069,6 @@ POSTed to `/keys/{keyName}/revokeTokens` directly, reproduced three times.
 RSA4a does not say which state a token error observed mid-connection should be reported in,
 and other SDKs may report DISCONNECTED first and fail afterwards.
 
-### A pending `attach()` resolves, rather than failing, when the connection closes
-
-**Spec points:** RTL3b, RTL4d.
-
-RTL3b moves an ATTACHING channel to DETACHED when the connection closes, and RTL4d has the
-attach's callback invoked with an `ErrorInfo` "in all other cases" than ATTACHED.
-`channel_connection_state.md` spells it `AWAIT attach_future FAILS WITH error`. The RTL3b
-transition is correct; the pending `attach()` then returns `None`, because `attach()` ends
-with `if state_change.current in (SUSPENDED, FAILED): raise state_change.reason`
-(`channel.py:148-150`) and DETACHED is in neither, so the coroutine falls through as a
-success.
-
-**Tests affected:** `test_rtl3b_closed_attaching_to_detached` asserts `await attach_future is
-None`, and makes every other assertion the specification does. It fails if the SDK starts
-raising, so it does guard the behaviour.
-
-**Status:** open bug.
-
 ### An attach requested while DETACHING pre-empts the detach
 
 **Spec point:** RTL4h.
@@ -2151,7 +2133,7 @@ adapted.
 | Spec points | Specification | ably-python | Tests |
 |---|---|---|---|
 | RTL13a | the ATTACHING state change triggered by a server-initiated DETACHED carries that message's `error` as its `reason` | `_on_message` discards the error and calls `_request_state(ATTACHING)` with no reason, so `reason` is null. Gated in its own right under RTL24/RTL4c above; this test asserts `reason is None` | `test_rtl13a_attached_reattach_triggered` |
-| RTP16c | answering an ATTACH with a DETACHED puts the channel in DETACHED, and a presence operation from there errors | the channel lands in SUSPENDED (`channel.py:735`) and `attach()` raises `TypeError` on the null reason. RTP16c is about the presence error, which does arrive with 90001, so the test accepts either channel state and either attach error and turns on the presence operation alone | `test_rtp16c_presence_errors_other_states` |
+| RTP16c | answering an ATTACH with a DETACHED puts the channel in DETACHED, and a presence operation from there errors | the channel lands in SUSPENDED (`channel.py:735`) and `attach()` raises its 90001 fallback for want of a reason. RTP16c is about the presence error, which does arrive with 90001, so the test accepts either channel state and either attach error and turns on the presence operation alone | `test_rtp16c_presence_errors_other_states` |
 | RTL7g | `channel.subscribe(listener)` registers the listener even when the implicit attach is rejected | the listener *is* registered (`channel.py:279-282`), and then `subscribe` awaits `attach()`, which re-raises the failure (`:150`). So `await channel.subscribe(...)` raises where the specification's fire-and-forget call returns. The RTL7g requirement itself holds | `test_rtl7g_listener_registered_attach_fails`, `test_rtl7g_no_attach_when_attaching` |
 | RTL10b | an `AblyException` when `untilAttach` is used on an unattached channel | an `AblyException`, but for the wrong reason: `history` takes no `until_attach`, and `catch_all` wraps the `TypeError` as `50000 500 Unexpected exception` whatever the channel's state. The test also asserts that no HTTP request was made | `test_rtl10b_errors_when_not_attached` |
 | RTL19b, RTL19c, RTL20, RTL21, PC3 | a vcdiff-decoded payload equals a string literal | a `bytearray`. `EncodeDataMixin.decode` (`mixins.py:106`) leaves the vcdiff result binary because no further encoding step turns it back into text, which is correct — the specification's own `RTL19b/json-wire-form-base-1`, which does carry `utf-8/vcdiff`, receives a string. Five tests assert `b'second message'` where the specification writes the string | 5 in `channel_delta_decoding_test.py` |
@@ -2643,8 +2625,8 @@ have the grouping, so the SDK is inconsistent with itself.
 ### Tier 2 — the wrong error, or an error where there should be none
 
 **2.1 `raise state_change.reason` raises `TypeError` when the reason is `None`.** RTL24,
-RTL4c, RTL13b, RTP16c. Three sites — `channel.py:102` (`set_options`), `:150` (`attach`),
-`:219` (`detach`) — raise whatever the state change carries, and the state change often
+RTL4c, RTL13b, RTP16c. Two sites — `set_options` and `detach`; `attach` falls back to a
+90001 — raise whatever the state change carries, and the state change often
 carries nothing, because a server-initiated DETACHED's error is discarded at `:735`,
 `_request_state(ATTACHING)` and `_notify_state(SUSPENDED)` being called with no reason. The
 caller gets `TypeError: exceptions must derive from BaseException` instead of an

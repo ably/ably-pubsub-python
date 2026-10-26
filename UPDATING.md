@@ -750,6 +750,25 @@ history = await stored_by_3x.history()
 `status()` now escapes the channel name too, so a name containing `/`, `?` or `#` no longer
 addresses the wrong resource.
 
+### `attach()` raises when the channel does not attach
+
+`await channel.attach()` raised only when the channel became `SUSPENDED` or `FAILED`. When the
+connection closed while the channel was attaching, the channel became `DETACHED` and `attach()`
+returned as if it had succeeded; so did an `attach()` overtaken by a `detach()`. In 4.0.0 it
+raises an `AblyException` whenever the channel moves to any state but `ATTACHED`, carrying the
+reason for that state, or code 90001 when there is none. `subscribe()`, which attaches, raises
+in the same cases. Code that closes the client, or detaches, while an attach may be pending
+should expect the exception:
+
+Example 4.0.0 code:
+```python
+try:
+    await channel.attach()
+except AblyException:
+    # the channel did not attach, for instance because the client was closed meanwhile
+    ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

@@ -260,7 +260,7 @@ class RealtimePresence(EventEmitter):
             return await self._send_presence([wire_msg])
         elif channel.state in [ChannelState.INITIALIZED, ChannelState.DETACHED]:
             # RTP8d: Implicitly attach
-            asyncio.create_task(channel.attach())
+            channel._attach_implicitly()
             # Queue the message
             return await self._queue_presence(wire_msg)
         elif channel.state == ChannelState.ATTACHING:
