@@ -104,11 +104,7 @@ async def test_rsa16a_token_from_request_token():
 
 
 # UTS: rest/unit/RSA16b/token-string-in-options-0
-@deviation
 async def test_rsa16b_token_string_in_options():
-    # DEVIATION: RSA16b requires that only `token` is populated. `TokenDetails.__init__`
-    # fabricates `expires` from a default one-hour TTL, defaults `issued` to 0 and turns
-    # a missing capability into an empty `Capability`.
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
         on_request=respond_with_channel_details,
@@ -126,10 +122,7 @@ async def test_rsa16b_token_string_in_options():
 
 
 # UTS: rest/unit/RSA16b/token-string-from-callback-1
-@deviation
 async def test_rsa16b_token_string_from_callback():
-    # DEVIATION: as above. `Auth.request_token` wraps a token string in a bare
-    # `TokenDetails`, which fabricates `expires` and defaults `issued` to 0.
     async def auth_callback(params):
         return 'just-a-token-string'
 

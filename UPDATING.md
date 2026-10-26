@@ -357,6 +357,26 @@ you construct yourself with a dict or `Capability` stores it as canonical JSON, 
 auth server that returns `to_dict()` to its clients from an `auth_url` now sends the capability
 as a JSON string, the form the Ably service itself returns, rather than as a JSON object.
 
+### A `TokenDetails` known only by its token string no longer invents its details
+
+A `TokenDetails` built from a token string alone, whether you construct it yourself, pass a
+`token`, or have an `auth_callback` or `auth_url` return a bare token string or JWT, now has
+`expires`, `issued` and `capability` set to `None`. 3.x invented an expiry an hour after the
+`TokenDetails` was created, an `issued` of `0` and an empty capability. Code that read those
+values must handle `None`; the client itself does, and leaves it to the Ably service to report
+when such a token has expired.
+
+Example 3.x code:
+```python
+seconds_left = (rest.auth.token_details.expires - now_ms) / 1000
+```
+
+Example 4.0.0 code:
+```python
+expires = pubsub_http_client.auth.token_details.expires
+seconds_left = None if expires is None else (expires - now_ms) / 1000
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

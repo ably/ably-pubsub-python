@@ -145,7 +145,7 @@ class Auth:
 
         token_details = self.__token_details
         if not force and not self.token_details_has_expired():
-            log.debug("using cached token; expires = %d",
+            log.debug("using cached token; expires = %s",
                       token_details.expires)
             return token_details
 
