@@ -633,6 +633,27 @@ for name, value in response.headers.items():
     ...
 ```
 
+### Push removals return nothing, and results no longer expose the HTTP response
+
+`remove` and `remove_where` on `push.admin.device_registrations` and
+`push.admin.channel_subscriptions` now return `None`, where 3.x returned the underlying HTTP
+response. A removal that fails raises an `AblyException`, so there is no status code to check:
+
+Example 3.x code:
+```python
+response = await rest.push.admin.device_registrations.remove(device_id)
+assert response.status_code == 204
+```
+
+Example 4.0.0 code:
+```python
+await pubsub_http_client.push.admin.device_registrations.remove(device_id)
+```
+
+For the same reason a `PaginatedResult` no longer has a `response` attribute. The
+`HttpPaginatedResponse` that `request()` returns keeps `status_code`, `success`,
+`error_code`, `error_message` and `headers`, so read those instead of `response`.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

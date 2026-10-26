@@ -195,9 +195,7 @@ async def test_rsh1b4_remove_device(sandbox):
 
     await registrations.save(apns_device(device_id))
 
-    response = await registrations.remove(device_id)
-    # `remove` answers with the raw response rather than nothing.
-    assert response.status_code == 204
+    assert await registrations.remove(device_id) is None
 
     # Removal is asynchronous, so an immediate `get` can still find the registration.
     async def removed():
@@ -216,10 +214,8 @@ async def test_rsh1b4_remove_device(sandbox):
 async def test_rsh1b4_remove_nonexistent_device(sandbox):
     client = sandbox_rest_client(sandbox.key(0).key_str)
 
-    response = await client.push.admin.device_registrations.remove(
-        f'nonexistent-device-{random_id()}')
-
-    assert response.status_code == 204
+    assert await client.push.admin.device_registrations.remove(
+        f'nonexistent-device-{random_id()}') is None
 
 
 # UTS: rest/integration/RSH1b5/remove-where-clientid-0
@@ -238,8 +234,7 @@ async def test_rsh1b5_remove_where_clientid(sandbox):
     # A registration under a different clientId, which removeWhere must leave alone.
     await registrations.save(apns_device(survivor_id, client_id=survivor_client_id))
     try:
-        response = await registrations.remove_where(clientId=client_id)
-        assert response.status_code == 204
+        assert await registrations.remove_where(clientId=client_id) is None
 
         # Deletion is asynchronous on the server side.
         async def removed():
@@ -349,8 +344,7 @@ async def test_rsh1c4_remove_channel_subscription(sandbox):
     # The filter has to narrow for the assertion below to mean anything.
     assert len((await subscriptions.list(channel=channel_name, clientId=client_id)).items) == 1
 
-    response = await subscriptions.remove(subscription)
-    assert response.status_code == 204
+    assert await subscriptions.remove(subscription) is None
 
     async def removed():
         result = await subscriptions.list(channel=channel_name, clientId=client_id)
@@ -365,10 +359,8 @@ async def test_rsh1c4_remove_channel_subscription(sandbox):
 async def test_rsh1c4_remove_nonexistent_subscription(sandbox):
     client = sandbox_rest_client(sandbox.key(0).key_str)
 
-    response = await client.push.admin.channel_subscriptions.remove(PushChannelSubscription(
-        f'{PUSH_NAMESPACE}:nonexistent-{random_id()}', client_id='nonexistent-client'))
-
-    assert response.status_code == 204
+    assert await client.push.admin.channel_subscriptions.remove(PushChannelSubscription(
+        f'{PUSH_NAMESPACE}:nonexistent-{random_id()}', client_id='nonexistent-client')) is None
 
 
 # UTS: rest/integration/RSH1c5/remove-where-subscriptions-0
@@ -389,8 +381,7 @@ async def test_rsh1c5_remove_where_subscriptions(sandbox):
     survivor = PushChannelSubscription(survivor_channel, client_id=survivor_client_id)
     await subscriptions.save(survivor)
     try:
-        response = await subscriptions.remove_where(clientId=client_id)
-        assert response.status_code == 204
+        assert await subscriptions.remove_where(clientId=client_id) is None
 
         async def removed():
             result = await subscriptions.list(clientId=client_id)

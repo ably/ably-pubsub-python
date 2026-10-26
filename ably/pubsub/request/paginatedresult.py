@@ -77,7 +77,6 @@ class PaginatedResult:
         self.__rel_first = rel_first
         self.__rel_next = rel_next
         self.__response_processor = response_processor
-        self.response = response
 
     @property
     def items(self):
@@ -139,9 +138,16 @@ class PaginatedResult:
 
 
 class HttpPaginatedResponse(PaginatedResult):
+    def __init__(self, http, items, content_type, rel_first, rel_next,
+                 response_processor, response):
+        super().__init__(http, items, content_type, rel_first, rel_next,
+                         response_processor, response)
+        self.__status_code = response.status_code
+        self.__headers = ResponseHeaders(response.headers)
+
     @property
     def status_code(self):
-        return self.response.status_code
+        return self.__status_code
 
     @property
     def success(self):
@@ -150,13 +156,13 @@ class HttpPaginatedResponse(PaginatedResult):
 
     @property
     def error_code(self):
-        error_code = self.response.headers.get('X-Ably-Errorcode')
+        error_code = self.__headers.get('X-Ably-Errorcode')
         return int(error_code) if error_code is not None else None
 
     @property
     def error_message(self):
-        return self.response.headers.get('X-Ably-Errormessage')
+        return self.__headers.get('X-Ably-Errormessage')
 
     @property
     def headers(self):
-        return ResponseHeaders(self.response.headers)
+        return self.__headers
