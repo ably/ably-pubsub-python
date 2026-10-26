@@ -377,6 +377,34 @@ expires = pubsub_http_client.auth.token_details.expires
 seconds_left = None if expires is None else (expires - now_ms) / 1000
 ```
 
+### `default_token_params` apply to `create_token_request()`, and given params replace them
+
+`auth.create_token_request()` called without token params now applies the client's
+`default_token_params`, as `request_token()` and `authorize()` already did. 3.x ignored them. So
+an auth server whose client is configured with `default_token_params` and which signs token
+requests with `create_token_request()` now issues tokens with those defaults, typically a shorter
+`ttl` or a narrower `capability` than before. Check that the defaults are what you want your
+clients' tokens to carry, or remove them.
+
+Token params passed to `create_token_request()` or `request_token()` now replace the defaults
+entirely, as they already did for `authorize()` and as every other Ably SDK does. 3.x merged them
+over the defaults key by key in `request_token()`. Take care where a default `capability` or
+`ttl` restricted the tokens: a `request_token()` call that names other params no longer carries
+them, so its token gets the key's full capability and the service's default `ttl`. Pass every
+param you want, including the defaults you still want:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', default_token_params={'capability': capability})
+await rest.auth.request_token({'ttl': 600000})  # carried the default capability
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', default_token_params={'capability': capability})
+await pubsub_http_client.auth.request_token({'ttl': 600000, 'capability': capability})
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

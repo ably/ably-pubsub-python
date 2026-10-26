@@ -43,3 +43,29 @@ async def test_authorize_keeps_an_explicit_client_id():
         assert token_params == {'client_id': 'explicit'}
     finally:
         await client.close()
+
+
+async def test_given_token_params_replace_the_defaults():
+    """RSA8e, RSA9h: default_token_params apply only when no params are given."""
+    received = []
+
+    async def auth_callback(token_params):
+        received.append(token_params)
+        return 'a-token'
+
+    defaults = {'ttl': 1800000, 'capability': '{"*":["subscribe"]}'}
+    key_client = create_http_client(key='app.key:secret', default_token_params=dict(defaults))
+    callback_client = create_http_client(auth_callback=auth_callback, default_token_params=dict(defaults))
+    try:
+        token_request = await key_client.auth.create_token_request()
+        assert (token_request.ttl, token_request.capability) == (1800000, '{"*": ["subscribe"]}')
+
+        token_request = await key_client.auth.create_token_request({'ttl': 600000})
+        assert (token_request.ttl, token_request.capability) == (600000, None)
+
+        await callback_client.auth.request_token()
+        await callback_client.auth.request_token({'ttl': 600000})
+        assert received == [defaults, {'ttl': 600000}]
+    finally:
+        await key_client.close()
+        await callback_client.close()

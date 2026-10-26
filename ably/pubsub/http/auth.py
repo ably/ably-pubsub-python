@@ -188,9 +188,10 @@ class Auth:
                             auth_url: str | None = None, auth_method: str | None = None,
                             auth_headers: dict | None = None, auth_params: dict | None = None,
                             query_time=None):
-        token_params = token_params or {}
-        token_params = dict(self.auth_options.default_token_params,
-                            **token_params)
+        # RSA8e: given params replace the defaults rather than merging with them
+        if token_params is None:
+            token_params = self.auth_options.default_token_params
+        token_params = dict(token_params)
         key_name = key_name or self.auth_options.key_name
         key_secret = key_secret or self.auth_options.key_secret
 
@@ -264,7 +265,9 @@ class Auth:
 
     async def create_token_request(self, token_params: dict | str | None = None, key_name: str | None = None,
                                    key_secret: str | None = None, query_time=None):
-        token_params = token_params or {}
+        # RSA5c, RSA6c, RSA9h: the defaults apply when no params are given, and given params replace them
+        if token_params is None:
+            token_params = dict(self.auth_options.default_token_params)
         token_request = {}
 
         key_name = key_name or self.auth_options.key_name
