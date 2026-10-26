@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1301 Test IDs
-(1310 tests, 1435 cases) pass, 156 (156 tests, 158 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1304 Test IDs
+(1313 tests, 1438 cases) pass, 153 (153 tests, 155 cases) are gated behind
 `RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,19 +45,19 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 72 are REST and 84 realtime, which is 73 REST cases
-and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+within each. Of the gated Test IDs 70 are REST and 83 realtime, which is 71 REST cases
+and 84 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 145 gated Test IDs that record SDK non-compliance — 145 tests, 147 cases — reduce to
-**64 distinct root causes**, 23 on the REST side and 41 on the realtime side. Three further
+The 142 gated Test IDs that record SDK non-compliance — 142 tests, 144 cases — reduce to
+**61 distinct root causes**, 21 on the REST side and 40 on the realtime side. Three further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
 synthesized LEAVE timestamps), or is worked around in the setup of every test that
 would otherwise trip over it (`enterClient` on an anonymous connection), so the file
-carries **67 SDK root causes** in all. The remaining 11 gated Test IDs are
+carries **64 SDK root causes** in all. The remaining 11 gated Test IDs are
 specification faults, and reduce to 8. The objects tier records no SDK non-compliance;
 its specification faults are all corrected or worked around in tests that pass, and
 reduce to the seven candidate issues O.1–O.7, none of them filed.
@@ -679,11 +679,8 @@ immediately below it says "the key assertion is that the connection enters FAILE
 with error code 40102". Both cannot hold: a constructor has no token to compare a clientId
 against, so nothing is knowable until the server answers. Measured: construction does not
 raise — the client comes back INITIALIZED — and the connection reaches FAILED with
-40102/401 "invalid clientId for credentials" about fifteen seconds later. The derived test
-drops the throw and makes the specification's own named assertion. The fifteen seconds are
-not the server's: they are the spurious `disconnected_retry_timeout` recorded under
-`#### A JWT string with a matching clientId is rejected 40102` below, which is why the
-test waits twenty seconds rather than the default ten.
+40102/401 "invalid clientId for credentials" on its first attempt. The derived test drops
+the throw and makes the specification's own named assertion.
 
 Filed as [#551](https://github.com/ably/specification/issues/551).
 
@@ -1698,43 +1695,6 @@ two aware `datetime.now(timezone.utc)` readings and passes.
 
 ### Auth
 
-#### A JWT string with a matching clientId is rejected 40102 — 1 test
-
-**Spec point:** RSA7, `realtime/integration/RSA7/matching-clientid-succeeds-0`.
-
-RSA7 requires that a token whose `clientId` equals the client's configured `clientId` is
-accepted. `Auth._ensure_valid_auth_credentials` calls
-`self._configure_client_id(self.__token_details.client_id)` after every token fetch
-(`ably/rest/auth.py:126`). Where an `auth_callback` returns a **JWT string**,
-`request_token` wraps it as `TokenDetails(token=<jwt>)` (`auth.py:213`) without parsing the
-JWT, so `token_details.client_id` is `None`. `_configure_client_id(None)` then finds
-`None != 'test-client-…'` and raises `IncompatibleClientIdException(…, 400, 40102)`
-(`auth.py:345`), although the JWT's own `x-ably-clientId` claim is exactly the configured
-id. Measured against the sandbox, one auth-callback invocation:
-
-```
-initialized→connecting  None
-connecting→disconnected AblyAuthException 80019/401 'Client configured authentication provider request failed'
-disconnected→connecting None
-connecting→connected    None
-```
-
-The connection does arrive in the end, because `__token_details` is assigned before the
-raise: the retry takes the cached-token branch and skips `_configure_client_id` altogether.
-The observable cost is a spurious failed attempt and a full `disconnected_retry_timeout` —
-fifteen seconds — on a clientId that matched.
-
-**Tests affected:**
-`realtime/integration/auth_test.py::test_rsa7_matching_clientid_succeeds` —
-`AssertionError: Timed out waiting for connection state connected; it was disconnected`.
-The sibling `test_rsa7_mismatched_clientid_fails` is not gated and pays the same fifteen
-seconds before the server's genuine rejection arrives, which is why it waits twenty
-seconds rather than the default ten.
-
-**Status:** open bug. A fix either reads the `x-ably-clientId` claim when wrapping a bare
-token string, or leaves `_configure_client_id` alone where the fetched token carries no
-clientId of its own.
-
 #### A failed RTN22 reauth leaves no trace on the connection — 1 test
 
 **Spec points:** RSA4c1, RSA4c3.
@@ -1879,7 +1839,6 @@ which is about a client that *does* configure `clientId: "*"`.
 
 | Spec points | Behaviour |
 |---|---|
-| RSA12a | A token with a **null** clientId is rejected when `ClientOptions.clientId` is set, with 40102 "Client ID cannot be changed to 'None'". RSA15a constrains only non-wildcard token clientIds. Needs a `new_client_id is not None` guard |
 | RSA7, RSA16c | A clientId learned from a token is treated as immutable, so `authorize()` to a token with a different clientId raises 40102. RSA15 scopes immutability to a clientId set in `ClientOptions`. `_configure_client_id` uses `self.client_id or self.auth_options.client_id`, conflating the two. Possibly deliberate — worth a maintainer's call |
 | RSA16c | No local expiry detection without a server time offset, which an authCallback client never obtains. See the RSA4b1 spec error above; here the specification asserts renewal *does* happen, so there is no green reading |
 | RSA16d | A failed renewal leaves the invalidated token in place — `_ensure_valid_auth_credentials` assigns only on success |
@@ -2974,11 +2933,11 @@ none of these shows up as a failure — which is why they are easy to lose.
 
 The five tiers above classify the realtime unit derivation; the REST unit derivation's
 candidates went upstream as [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712).
-Six further defects came out of the two integration tiers, and none of them is filed. I.1
-and I.2 are tier 2 by the ranking above — an error where there should be none — and I.3 is
-tier 1 for a client that configures the option it concerns, since the call does not come
-back when the caller asked for it to. I.4 and I.6 are tier 2 as well; I.5 is tier 3, a
-presence member silently leaving the set with nothing to report it.
+Five further defects came out of the two integration tiers, and none of them is filed; each
+keeps the label it was first given. I.1 and I.2 are tier 2 by the ranking above — an error
+where there should be none — and I.3 is tier 1 for a client that configures the option it
+concerns, since the call does not come back when the caller asked for it to. I.6 is tier 2
+as well; I.5 is tier 3, a presence member silently leaving the set with nothing to report it.
 
 The realtime integration tier also put four defects the unit tier had already recorded in
 front of the real server, and those extend the entries above rather than opening issues of
@@ -3019,17 +2978,6 @@ no timeout and no fallback at all. Distinct from
 [#709](https://github.com/ably/ably-python/issues/709), which is about the same value
 bounding a single socket read rather than the request; a fix wants to settle both.
 `test/uts/rest/integration/proxy/rest_fallback_test.py -k rsc15l2`
-
-**I.4 A JWT string whose clientId matches the configured one is rejected 40102.** RSA7.
-An `auth_callback` returning an Ably JWT gets wrapped as `TokenDetails(token=<jwt>)`
-without the JWT being parsed (`ably/rest/auth.py:213`), so `token_details.client_id` is
-`None`; `_configure_client_id(None)` (`:126`, raising at `:345`) then reads that as a
-clientId change and raises 40102 although the JWT's `x-ably-clientId` claim is the
-configured id exactly. The connection recovers on the retry, which takes the cached-token
-branch, so the cost is a spurious failed attempt and a full `disconnected_retry_timeout` —
-fifteen seconds — on every such client. Affects anyone whose auth provider returns a JWT
-and who also configures `clientId`, which is the ordinary shape of a JWT deployment.
-`test/uts/realtime/integration/auth_test.py -k rsa7_matching`
 
 **I.5 RTP17i re-entry never runs on a channel that is already ATTACHED.** RTP17i, RTP17g.
 `RealtimePresence.on_attached()` is reached only from `RealtimeChannel._notify_state()`, and
@@ -3622,8 +3570,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 158 failures, 1583 passes and 15 skips with the variable
-set, and 173 skips and 1583 passes without it, the 1583 being 1435 derived cases and 148
+it. As of this writing that is 155 failures, 1586 passes and 15 skips with the variable
+set, and 170 skips and 1586 passes without it, the 1586 being 1438 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

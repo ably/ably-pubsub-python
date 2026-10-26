@@ -13,7 +13,7 @@ from ably.pubsub.types.authoptions import AuthOptions
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation, spec_error
+from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 KEY = 'appId.keyId:keySecret'
@@ -85,7 +85,6 @@ async def test_rsa10a_authorize_default_params():
 
 
 # UTS: rest/unit/RSA10b/authorize-explicit-params-0
-@deviation
 async def test_rsa10b_authorize_explicit_params():
     callback_params = []
 
@@ -99,10 +98,6 @@ async def test_rsa10b_authorize_explicit_params():
     )
     client = rest_client(mock_http, auth_callback=mock_auth_callback, client_id='default-client')
 
-    # DEVIATION: the token that comes back carries no clientId, which
-    # `Auth._configure_client_id` reads as an attempt to change the configured
-    # clientId and rejects with IncompatibleClientIdException 40102 before the
-    # assertions are reached. This is the RSA12a mechanism in client_id_test.py.
     await client.auth.authorize({'client_id': 'override-client', 'ttl': 7200000})
 
     params = callback_params[0]

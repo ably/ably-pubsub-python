@@ -11,7 +11,6 @@ import pytest
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.util.exceptions import AblyException, IncompatibleClientIdException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 # `channels.get(name).status()` walks status.occupancy.metrics unguarded, so the
@@ -108,28 +107,14 @@ async def test_rsa12a_clientid_passed_to_callback():
     client = rest_client(channel_details_mock(), auth_callback=mock_auth_callback,
                          client_id='library-client-id')
 
-    # DEVIATION: the spec expects the operation to succeed. The returned token
-    # carries no clientId, which RSA15a leaves unconstrained (only a non-wildcard
-    # token clientId has to match ClientOptions), but Auth._configure_client_id
-    # reads the absent value as an attempt to change the configured clientId and
-    # raises 40102.
-    with pytest.raises(IncompatibleClientIdException) as excinfo:
-        await client.channels.get('test').status()
+    await client.channels.get('test').status()
 
-    assert excinfo.value.code == 40102
-
-    # The spec's own assertions, which hold: the clientId reached the callback.
     # ably-python passes TokenParams as a dict with snake_case keys.
     assert len(received_params) >= 1
     assert received_params[0]['client_id'] == 'library-client-id'
 
 
 # UTS: rest/unit/RSA12b/clientid-sent-to-authurl-0
-# DEVIATION: the specification's auth_url response carries no clientId, and
-# Auth._configure_client_id reads the absent value as an attempt to change the
-# configured clientId, raising 40102 before `status()` returns. This is the RSA12a
-# mechanism above.
-@deviation
 async def test_rsa12b_clientid_sent_to_authurl():
     captured_requests = []
 

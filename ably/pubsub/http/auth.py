@@ -371,6 +371,11 @@ class Auth:
         log.debug("Auth._configure_client_id(): new client_id = %s", new_client_id)
         original_client_id = self.client_id or self.auth_options.client_id
 
+        # RSA12a, RSA15a: a token that names no clientId, such as a bare token string or a JWT
+        # the library does not parse, leaves a configured clientId as it is
+        if new_client_id is None and self.auth_options.client_id is not None:
+            return
+
         # If new client ID from Ably is a wildcard, but preconfigured clientId is set,
         # then keep the existing clientId
         if original_client_id != '*' and new_client_id == '*':

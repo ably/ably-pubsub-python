@@ -17,16 +17,10 @@ registered beforehand by the time the call completes. The reauth test needs no s
 
 from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt, random_id
 
 # The lifetime every JWT here is issued with, as the specification's `ttl: 3600000`.
 TOKEN_TTL = 3600000
-
-# The wait for the mismatched-clientId connection to be failed by the server. The SDK spends
-# its `disconnected_retry_timeout` — 15 seconds by default — between the first attempt and
-# the one the server rejects, so the specification's unstated wait has to clear that.
-FAIL_TIMEOUT = 20.0
 
 
 def connection_id(client):
@@ -105,7 +99,6 @@ async def test_rsa8_token_auth_connect(realtime_sandbox):
 
 
 # UTS: realtime/integration/RSA7/matching-clientid-succeeds-0
-@deviation
 async def test_rsa7_matching_clientid_succeeds(realtime_sandbox):
     test_client_id = 'test-client-' + random_id()
 
@@ -132,7 +125,7 @@ async def test_rsa7_mismatched_clientid_fails(realtime_sandbox):
         client_id='wrong-client-id', auto_connect=False)
 
     client.connect()
-    await await_connection_state(client, ConnectionState.FAILED, FAIL_TIMEOUT)
+    await await_connection_state(client, ConnectionState.FAILED)
 
     assert client.connection.state is ConnectionState.FAILED
     assert client.connection.error_reason.code == 40102
