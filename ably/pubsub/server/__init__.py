@@ -153,6 +153,10 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         add_request_ids: bool
             Add a `request_id` query parameter to every request, which makes a request
             traceable in Ably's logs. Defaults to False.
+        max_message_size: int
+            The largest total size of the messages one publish may carry, counting each
+            message's name, data, client ID and extras. A larger publish raises an
+            AblyException with code 40009 and is not sent. The default is 65536 (64 KiB).
 
     Returns
     -------

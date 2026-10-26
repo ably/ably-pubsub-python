@@ -16,6 +16,7 @@ from ably.pubsub.types.message import (
     assign_idempotent_ids,
     make_message_response_handler,
     make_single_message_response_handler,
+    validate_message_size,
 )
 from ably.pubsub.types.operations import MessageOperation, PublishResult, UpdateDeleteResult
 from ably.pubsub.types.presence import Presence
@@ -75,6 +76,9 @@ class Channel:
                 m.encrypt(self.__cipher)
 
             request_body_list.append(m)
+
+        # RSL1i
+        validate_message_size(request_body_list, self.ably.options.max_message_size)
 
         request_body = [
             message.as_dict(binary=self.ably.options.use_binary_protocol)

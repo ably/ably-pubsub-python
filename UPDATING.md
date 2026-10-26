@@ -516,6 +516,24 @@ pubsub_realtime_client = create_realtime_client(key='xxx', endpoint='custom.ably
 pubsub_http_client = create_http_client(token='xxx')
 ```
 
+### REST publishes are checked against `max_message_size`
+
+`max_message_size` is now a client option, defaulting to 65536 bytes (64 KiB). A publish
+whose messages exceed it between them raises an `AblyException` with code 40009 and is not
+sent. In 3.x the realtime client checked a fixed 64 KiB limit and REST publishes were not
+checked at all, so an oversized REST publish now fails before it reaches Ably rather than
+being rejected by the server.
+
+Both clients now measure a message the way the Ably specification does: the length of its
+name, client ID and string data, the byte length of binary data, and the length of the JSON
+of object data and of extras. 3.x measured the realtime publish as the whole encoded
+message, so some realtime publishes that 3.x refused are now sent. Raise the limit only if
+your Ably account allows larger messages:
+
+```python
+pubsub_http_client = create_http_client(key='xxx', max_message_size=131072)
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

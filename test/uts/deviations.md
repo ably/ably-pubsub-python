@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1292 Test IDs
-(1301 tests, 1426 cases) pass, 153 (153 tests, 155 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1293 Test IDs
+(1302 tests, 1427 cases) pass, 152 (152 tests, 154 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,17 +45,17 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 70 are REST and 83 realtime, which is 71 REST cases
+within each. Of the gated Test IDs 69 are REST and 83 realtime, which is 70 REST cases
 and 84 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 142 gated Test IDs that record SDK non-compliance — 142 tests, 144 cases — reduce to
-**61 distinct root causes**, 21 on the REST side and 40 on the realtime side. Two further
+The 141 gated Test IDs that record SDK non-compliance — 141 tests, 143 cases — reduce to
+**60 distinct root causes**, 20 on the REST side and 40 on the realtime side. Two further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a) or has nothing to assert against (the timezone split on
-synthesized LEAVE timestamps), so the file carries **63 SDK root causes** in all. The remaining 11 gated Test IDs are
+synthesized LEAVE timestamps), so the file carries **62 SDK root causes** in all. The remaining 11 gated Test IDs are
 specification faults, and reduce to 8. The objects tier records no SDK non-compliance;
 its specification faults are all corrected or worked around in tests that pass, and
 reduce to the seven candidate issues O.1–O.7, none of them filed.
@@ -252,6 +252,11 @@ rather than merging." `RSA10k`'s setup depends on the same premise and cannot re
 - `RSL4/encoding-fixtures-ably-common-0` loads `encoding.json` from ably-common. No
   such file exists; RSL6a1 names `messages-encoding.json`, which has a different
   schema and runs in the decode direction.
+- `RSL1i/message-size-limit-0` publishes `name: "event"` with `"x" * size` as the data
+  and expects the 1024-byte case to pass a 1024-byte limit, but TM6a counts the name as
+  well as the data, so that message is 1029 bytes. The derived test shortens the data by
+  the name's five bytes, so each message is the size its case states, and passes. Not
+  filed.
 
 ### Presence actions are written as strings
 
@@ -1058,8 +1063,7 @@ on the `recover` parameter the connection never sends.
 | TB3 | `ChannelOptions.withCipherKey`. The nearest equivalent, `ably.util.crypto.get_default_params({'key': key})`, is not reachable from `ChannelOptions` | 1 |
 | RTL2i, TH6 | `hasBacklog` on `ChannelStateChange`. `Flag.HAS_BACKLOG` is defined (`types/flags.py:7`) but `_on_message` reads only RESUMED and HAS_PRESENCE (`channel.py:715-721`). See the UTS Spec Error above: the features spec makes this optional | 1 |
 | RTP6b | Subscribing to an *array* of presence actions. The list reaches `EventEmitter.on` and pyee uses the event as a dict key, so `presence.subscribe([ENTER, LEAVE], listener)` raises `TypeError: unhashable type: 'list'`. A fix has to fan the list out into one registration per action, and `unsubscribe` with it. `realtime/integration/presence_lifecycle_test.py::test_rtp4_bulk_enter_observed` adapts instead of gating: it registers the one listener once for `'enter'` and once for `'present'`, which is what the array form means, and the counted set is identical | 1 |
-| RSL1i | REST publish never calls `validate_message_size`. The helper exists and is correct, but only `ably/realtime/channel.py:423` calls it, so an oversized REST publish goes out | 1 |
-| TP5 | `size` on `PresenceMessage`. The related `maxMessageSize` gap is adapted rather than gated, below; `features.md` TM6 has no UTS test | 1 |
+| TP5 | `size` on `PresenceMessage`. Published messages are measured per TM6 and checked against `max_message_size` (RSL1i, TO3l8), but presence messages are measured by nothing, and neither type exposes its size | 1 |
 
 ### Connection
 
@@ -2218,7 +2222,7 @@ pseudocode is not mistaken for non-compliance.
 | RSA8d | `error.message` contains the callback's text | Wrapped as 40170 with the original in `cause`; `__str__` renders both | Rendering |
 | CHM2 | Missing metrics default to 0 | `ChannelMetrics.from_dict` uses a bare `obj.get(name)`, so any omitted metric parses as `None` | Open bug, broader than CHM2g/h |
 | CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
-| TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:422` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
+| TO3l8, CD2c | `maxMessageSize` is a client option, default 65536, which `connectionDetails.maxMessageSize` overrides for realtime publishes | The option and its default match, and REST and realtime publishes both measure per TM6 and raise 40009. `ConnectionDetails.from_dict` does not parse `maxMessageSize`, so a realtime publish is checked against the client option alone. No test asserts CD2c; `test_rtn24_connection_details_override` sends the field and reads back only the details ably-python parses | Open bug, CD2c only |
 | RTN15, RTN23 | A DISCONNECTED `ErrorInfo` needs no `statusCode` | `ConnectionManager.on_disconnected` evaluates `exception.status_code >= 500` unguarded, so a DISCONNECTED whose error omits `statusCode` raises `TypeError` in a task whose exception is only logged, and the connection silently stays CONNECTED. `DISCONNECTED_MESSAGE` supplies 400 | Open bug |
 | TO3l4, TO3l5 | `httpRequestTimeout` defaults to 10000 and `httpMaxRetryCount` to 3 on the options object | Both are defaulted on `Options`. `http_max_retry_count` reads back as 3 and matches; `http_request_timeout` reads back as 10, because ably-python's is seconds where the spec's is milliseconds, on the value a caller passes as much as on the default — gated, with the measurement, under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests | The unit is an open bug, recorded there |
 | RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | 4 and 10: both are defaulted on `Options`, in seconds where TO3l3 and TO3l4 count milliseconds. The three realtime timeouts the same test checks are milliseconds and match | Open bug, and the unit reaches the wire — `rest/proxy/RSC15l2/timeout-triggers-fallback-0` measures a request outliving its configured timeout by a factor of a thousand. Gated under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests. Moving the HTTP durations to milliseconds is breaking, and is held back from 4.0.0 pending a decision on units across the options |
@@ -3535,8 +3539,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 155 failures, 1574 passes and 27 skips with the variable
-set, and 182 skips and 1574 passes without it, the 1574 being 1426 derived cases and 148
+it. As of this writing that is 154 failures, 1575 passes and 27 skips with the variable
+set, and 181 skips and 1575 passes without it, the 1575 being 1427 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

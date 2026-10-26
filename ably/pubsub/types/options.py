@@ -34,7 +34,7 @@ class Options(AuthOptions):
                  suspended_retry_timeout=None, connectivity_check_url=None,
                  channel_retry_timeout=Defaults.channel_retry_timeout, add_request_ids=False,
                  vcdiff_decoder: VCDiffDecoder = None, transport_params=None, echo_messages=True,
-                 _test_options=None, **kwargs):
+                 max_message_size=None, _test_options=None, **kwargs):
 
         super().__init__(**kwargs)
 
@@ -66,6 +66,10 @@ class Options(AuthOptions):
 
         if suspended_retry_timeout is None:
             suspended_retry_timeout = Defaults.suspended_retry_timeout
+
+        # TO3l8
+        if max_message_size is None:
+            max_message_size = Defaults.max_message_size
 
         if idempotent_rest_publishing is None:
             from ably.pubsub.version import api_version
@@ -104,6 +108,7 @@ class Options(AuthOptions):
         self.__add_request_ids = add_request_ids
         self.__vcdiff_decoder = vcdiff_decoder
         self.__transport_params = transport_params or {}
+        self.__max_message_size = max_message_size
         self.__test_options = _test_options
         self.__hosts = self.__get_hosts()
 
@@ -270,6 +275,10 @@ class Options(AuthOptions):
     @property
     def transport_params(self):
         return self.__transport_params
+
+    @property
+    def max_message_size(self):
+        return self.__max_message_size
 
     @property
     def _test_options(self):

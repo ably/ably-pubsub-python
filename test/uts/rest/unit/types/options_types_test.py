@@ -47,11 +47,7 @@ async def test_to3_client_options_attributes():
     assert options.add_request_ids is False
     assert options.query_time is False
 
-    # DEVIATION: TO3l8 `maxMessageSize` (default 65536) is not a client option here. Realtime
-    # publishes read it with getattr(options, 'max_message_size', 65536), so the 64KiB default
-    # holds, but it cannot be configured and passing it is rejected.
-    with pytest.raises(TypeError):
-        Options(max_message_size=65536)
+    assert options.max_message_size == 65536
 
     # The HTTP layer applies the defaults the options hold: 10 seconds, and the primary
     # host plus 3 fallbacks to try (TO3l5).

@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import os
 from enum import IntEnum
@@ -391,6 +392,41 @@ class Message(EncodeDataMixin):
             for presence_msg in presence_messages:
                 Message.__update_empty_fields(proto_msg, presence_msg, msg_index)
                 msg_index = msg_index + 1
+
+
+def message_size(message):
+    """The size of a message as TM6 defines it, for checking against maxMessageSize (TO3l8)."""
+    def json_length(value):
+        return len(json.dumps(value, separators=(',', ':'), ensure_ascii=False))
+
+    # TM6a: the sum of the name, data, clientId and extras sizes; TM6e: an absent one is zero
+    size = len(message.name or '') + len(message.client_id or '')
+    if message.extras is not None:
+        # TM6d
+        size += json_length(message.extras)
+
+    data = message.data
+    if isinstance(data, CipherData):
+        data = data.buffer
+    if isinstance(data, (bytes, bytearray, str)):
+        # TM6c: the bytes themselves, whichever protocol carries them; TM6f: a string's length
+        size += len(data)
+    elif isinstance(data, (dict, list)):
+        # TM6b
+        size += json_length(data)
+    return size
+
+
+def validate_message_size(messages, max_message_size):
+    """Raises 40009 if the messages exceed max_message_size between them (RSL1i, TO3l8f)."""
+    size = sum(message_size(message) for message in messages)
+    if size > max_message_size:
+        raise AblyException(
+            f"Maximum size of messages that can be published at once exceeded "
+            f"(was {size} bytes; limit is {max_message_size} bytes)",
+            400,
+            40009,
+        )
 
 
 def assign_idempotent_ids(messages):

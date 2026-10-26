@@ -27,6 +27,8 @@ class Defaults:
 
     fallback_retry_timeout = 600000  # 10min
 
+    max_message_size = 65536  # 64KiB
+
     @staticmethod
     def get_port(options):
         if options.tls:
