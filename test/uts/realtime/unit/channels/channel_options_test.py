@@ -214,16 +214,7 @@ async def test_rtl16_set_options_updates():
 
 
 # UTS: realtime/unit/RTL16a/triggers-reattach-0
-@deviation
 async def test_rtl16a_triggers_reattach():
-    # DEVIATION: `set_options` never returns for an attached channel. It calls
-    # `_attach_impl()` directly and then awaits the internal state emitter
-    # (`ably/realtime/channel.py:99-102`), but the server's ATTACHED arrives while the
-    # channel is still ATTACHED, so `_on_message` takes the RTL12 branch (`:722-726`) and
-    # emits `update` on the public emitter alone. Nothing ever reaches the internal
-    # emitter, so the await hangs. Because `_attach_impl()` is called in place of
-    # `_request_state(ATTACHING)`, no ATTACHING state change is emitted either. The
-    # options themselves are stored, before the reattach is requested.
     channel_name = 'test-RTL16a'
     attach_messages = []
 
@@ -242,8 +233,6 @@ async def test_rtl16a_triggers_reattach():
     channel.on(record)
 
     new_options = ChannelOptions(params={'rewind': '1'})
-    # The specification awaits this without a deadline; a deadline is what turns the
-    # hang into a failure rather than a stuck test run
     await asyncio.wait_for(channel.set_options(new_options), OPERATION_TIMEOUT)
 
     assert any(change.current == ChannelState.ATTACHING for change in state_changes)

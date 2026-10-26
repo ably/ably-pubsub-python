@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1302 Test IDs
-(1311 tests, 1436 cases) pass, 143 (143 tests, 145 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1303 Test IDs
+(1312 tests, 1437 cases) pass, 142 (142 tests, 144 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,16 +45,16 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 64 are REST and 79 realtime, which is 65 REST cases
-and 80 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+within each. Of the gated Test IDs 64 are REST and 78 realtime, which is 65 REST cases
+and 79 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 132 gated Test IDs that record SDK non-compliance — 132 tests, 134 cases — reduce to
-**56 distinct root causes**, 18 on the REST side and 38 on the realtime side. One further
+The 131 gated Test IDs that record SDK non-compliance — 131 tests, 133 cases — reduce to
+**55 distinct root causes**, 18 on the REST side and 37 on the realtime side. One further
 defect is recorded below with no test of its own, because the specification's test
-cannot discriminate (RTP18a), so the file carries **57 SDK root causes** in all. The
+cannot discriminate (RTP18a), so the file carries **56 SDK root causes** in all. The
 remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
 records no SDK non-compliance; its specification faults are all corrected or worked
 around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
@@ -1255,33 +1255,7 @@ adaptation goes with the fix.
 
 ### Channels
 
-#### `set_options()` never returns for an already-ATTACHED channel — 1 test
-
-**Spec point:** RTL16a.
-
-When `params` or `modes` are supplied to `setOptions` on an attached channel, the channel
-must reattach, pass through ATTACHING, return to ATTACHED, and `setOptions` must resolve.
-Instead it hangs, and the root cause is a single missing call.
-
-`set_options` (`channel.py:93-102`) calls `_attach_impl()` and then awaits
-`self.__internal_state_emitter.once_async()`. `_attach_impl()` sends the ATTACH **without
-going through `_request_state(ChannelState.ATTACHING)`**, so the channel is still ATTACHED
-when the server's ATTACHED arrives. `_on_message` therefore takes the RTL12 branch
-(`:722-726`), which emits `update` on the *public* emitter and returns. The internal state
-emitter is written only by `_notify_state` (`:821`), which that branch never reaches, so
-the await has nothing to wake it. Both halves of the defect — no ATTACHING transition, and
-no internal event — follow from the one missing `_request_state`.
-
-Measured: the second ATTACH is sent, the server's ATTACHED is received, the options *are*
-stored, and `asyncio.wait_for(channel.set_options(...), 1.0)` raises `TimeoutError`.
-
-**Tests affected:** `test_rtl16a_triggers_reattach`. It also constrains
-`test_rtl4c1_includes_channel_serial` and `test_rtl4j_attach_resume_flag_not_set`, which run
-`set_options` as a task and cancel it — recorded under Adapted Tests.
-
-**Status:** open bug. A hang, not a wrong value.
-
-#### A server-initiated DETACHED discards its error, which `set_options` and `detach` then raise as `TypeError` — 3 tests
+#### A server-initiated DETACHED discards its error, which `detach` then raises as `TypeError` — 3 tests
 
 **Spec points:** RTL24, RTL4c, with RTL13a and RTL13b.
 
@@ -1292,8 +1266,8 @@ An attach rejected by a DETACHED carrying an `ErrorInfo` must fail with that err
    `self._notify_state(ChannelState.SUSPENDED)` (`channel.py:735`), passing **no reason**,
    so the message's error is dropped. The same shape applies to RTL13a's
    `_request_state(ATTACHING)` and RTL13b's `_notify_state(SUSPENDED)`.
-2. `attach()` then raises its 90001 fallback, having no reason to raise, but
-   `set_options` and `detach` reach `raise state_change.reason` with `reason` `None`, which
+2. `attach()` and `set_options` then raise their 90001 fallback, having no reason to
+   raise, but `detach` reaches `raise state_change.reason` with `reason` `None`, which
    Python reports as `TypeError: exceptions must derive from BaseException` rather than as
    an `AblyException`.
 
@@ -1306,8 +1280,8 @@ earlier. The clearing half of RTL4c is still covered by
 instead and passes. One adapted test — `test_rtl13a_attached_reattach_triggered` —
 asserts `reason is None`, and will need revisiting once the reason is carried through.
 
-**Status:** open bug, in two parts. The `raise None` is worth fixing in `set_options` and
-`detach` on its own, as it is in `attach`, even before the reason is plumbed through: a
+**Status:** open bug, in two parts. The `raise None` is worth fixing in `detach` on its
+own, as it is in `attach` and `set_options`, even before the reason is plumbed through: a
 missing reason should give an `AblyException`, not a `TypeError`.
 
 #### An ATTACHED received while DETACHING or DETACHED is ignored — 2 tests
@@ -2551,15 +2525,6 @@ connection fails.
 `test/uts/realtime/unit/channels/channel_publish_pending_test.py -k rtn7e`
 `test/uts/realtime/integration/proxy/connection_resume_test.py -k rtn15j`
 
-**1.4 `set_options()` never returns for an already-ATTACHED channel.** RTL16a.
-`_attach_impl()` (`channel.py:99`) sends the ATTACH without going through
-`_request_state(ATTACHING)`, so the channel is still ATTACHED when the server's ATTACHED
-arrives; `_on_message` takes the RTL12 branch (`:722-726`), which emits `update` on the
-*public* emitter, while `set_options` awaits the *internal* one, written only by
-`_notify_state`. The options are stored; the call never resolves. Adding the
-`_request_state` fixes both halves.
-`test/uts/realtime/unit/channels/channel_options_test.py -k rtl16a`
-
 **1.5 A presence action on a DETACHED channel re-attaches and then hangs.** RTL11, RTP8g.
 Both require an immediate error with nothing sent. `_enter_or_update_client` groups DETACHED
 with INITIALIZED (`presence.py:258-264`), starts an implicit attach and queues the message,
@@ -2570,8 +2535,8 @@ have the grouping, so the SDK is inconsistent with itself.
 ### Tier 2 — the wrong error, or an error where there should be none
 
 **2.1 `raise state_change.reason` raises `TypeError` when the reason is `None`.** RTL24,
-RTL4c, RTL13b, RTP16c. Two sites — `set_options` and `detach`; `attach` falls back to a
-90001 — raise whatever the state change carries, and the state change often
+RTL4c, RTL13b, RTP16c. `detach` raises whatever the state change carries, where `attach`
+and `set_options` fall back to a 90001, and the state change often
 carries nothing, because a server-initiated DETACHED's error is discarded at `:735`,
 `_request_state(ATTACHING)` and `_notify_state(SUSPENDED)` being called with no reason. The
 caller gets `TypeError: exceptions must derive from BaseException` instead of an
@@ -3417,8 +3382,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 145 failures, 1584 passes and 27 skips with the variable
-set, and 172 skips and 1584 passes without it, the 1584 being 1436 derived cases and 148
+it. As of this writing that is 144 failures, 1585 passes and 27 skips with the variable
+set, and 171 skips and 1585 passes without it, the 1585 being 1437 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

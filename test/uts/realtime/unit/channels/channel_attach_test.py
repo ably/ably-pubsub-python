@@ -427,7 +427,7 @@ async def test_rtl4c1_includes_channel_serial():
     assert len(attach_messages) == 2
     assert attach_messages[0].get('channelSerial') is None
     assert attach_messages[1].get('channelSerial') == 'serial-from-server-1'
-    set_options.cancel()
+    await asyncio.wait_for(set_options, OPERATION_TIMEOUT)
 
 
 # UTS: realtime/unit/RTL4f/timeout-to-suspended-0
@@ -561,4 +561,4 @@ async def test_rtl4j_attach_resume_flag_not_set():
     assert len(attach_messages) == 2
     assert not attach_messages[0].get('flags', 0) & Flag.ATTACH_RESUME
     assert not attach_messages[1].get('flags', 0) & Flag.ATTACH_RESUME
-    set_options.cancel()
+    await asyncio.wait_for(set_options, OPERATION_TIMEOUT)

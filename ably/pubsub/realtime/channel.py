@@ -106,10 +106,10 @@ class RealtimeChannel(EventEmitter, Channel):
         self._set_options(channel_options)
 
         if should_reattach:
-            self._attach_impl()
+            # RTL16a: through ATTACHING, so that the ATTACHED answering the ATTACH ends the wait
+            self._request_state(ChannelState.ATTACHING)
             state_change = await self.__internal_state_emitter.once_async()
-            if state_change.current in (ChannelState.SUSPENDED, ChannelState.FAILED):
-                raise state_change.reason
+            self.__raise_unless_attached(state_change)
 
     # RTL4
     async def attach(self) -> None:
