@@ -10,14 +10,10 @@ event to arrive before it calls `presence.get()`.
 attach, and a presence action is named by its lowercase wire name — `'enter'`,
 `'present'`, `'update'`, `'leave'` — which is what `set_presence` emits.
 
-Two adaptations, both of them root causes already recorded in
-[deviations.md](../../deviations.md):
-
-- Subscribing to several actions at once (RTP6b) raises `TypeError: unhashable type:
-  'list'`, because the list reaches pyee as a dict key. The one listener is registered
-  once per action instead, which is what the array form means.
-- `enter_client` on a connection authenticated by key alone is refused 40012, so the
-  client entering members on behalf of others is built with `client_id='*'`.
+One adaptation, a root cause already recorded in [deviations.md](../../deviations.md):
+subscribing to several actions at once (RTP6b) raises `TypeError: unhashable type:
+'list'`, because the list reaches pyee as a dict key. The one listener is registered once
+per action instead, which is what the array form means.
 """
 
 import asyncio
@@ -45,8 +41,7 @@ async def test_rtp4_bulk_enter_observed(realtime_sandbox, use_binary_protocol):
     api_key = realtime_sandbox.key_str
     channel_name = 'presence-bulk-' + random_id()
 
-    client_a = sandbox_realtime_client(
-        api_key, use_binary_protocol=use_binary_protocol, client_id='*')
+    client_a = sandbox_realtime_client(api_key, use_binary_protocol=use_binary_protocol)
     client_b = sandbox_realtime_client(api_key, use_binary_protocol=use_binary_protocol)
 
     client_a.connect()

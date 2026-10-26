@@ -44,19 +44,13 @@ def member_for(entry, client_id):
 async def entering_client(key, use_binary_protocol):
     """A CONNECTED realtime client that may enter presence for any clientId.
 
-    The specifications build this with the full-access key alone and call
-    `enterClient` straight away. ably-python needs `client_id='*'` on top: a basic-auth
-    connection is told `clientId: "*"` by the server, and `Auth._configure_client_id`
-    answers a wildcard from the server by marking the client id validated while leaving
-    it `None` (`ably/rest/auth.py:335`), after which `can_assume_client_id` refuses every
-    id and `enter_client` raises 40012. The repository's own presence suite carries the
-    same `client_id='*'` for the same reason
-    (`test/ably/realtime/realtimepresence_test.py:396`).
+    The specifications build this with the full-access key alone, which the server
+    answers with the wildcard clientId `"*"` (RSA7b4).
 
     The connection is awaited to CONNECTED before any enter, since a presence enter on a
     connection that is still CONNECTING is queued rather than sent.
     """
-    client = sandbox_realtime_client(key, client_id='*', use_binary_protocol=use_binary_protocol)
+    client = sandbox_realtime_client(key, use_binary_protocol=use_binary_protocol)
     await await_connection_state(client, ConnectionState.CONNECTED)
     return client
 

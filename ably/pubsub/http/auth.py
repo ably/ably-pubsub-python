@@ -377,8 +377,8 @@ class Auth:
             return
 
         # If new client ID from Ably is a wildcard, but preconfigured clientId is set,
-        # then keep the existing clientId
-        if original_client_id != '*' and new_client_id == '*':
+        # then keep the existing clientId. With none set, the wildcard is the clientId (RSA7b4)
+        if original_client_id is not None and original_client_id != '*' and new_client_id == '*':
             self.__client_id_validated = True
             self.__client_id = original_client_id
             return
@@ -404,11 +404,12 @@ class Auth:
 
     async def _get_auth_headers(self):
         if self.__auth_mechanism == Auth.Method.BASIC:
-            # RSA7e2
-            if self.client_id:
+            # RSA7e2: the configured clientId, not a wildcard the server reported
+            client_id = self.auth_options.client_id
+            if client_id:
                 return {
                     'Authorization': f'Basic {self.basic_credentials}',
-                    'X-Ably-ClientId': base64.b64encode(self.client_id.encode('utf-8'))
+                    'X-Ably-ClientId': base64.b64encode(client_id.encode('utf-8'))
                 }
             return {
                 'Authorization': f'Basic {self.basic_credentials}',

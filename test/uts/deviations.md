@@ -52,12 +52,10 @@ specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helper
 the objects builders and the synced-channel mock.
 
 The 142 gated Test IDs that record SDK non-compliance — 142 tests, 144 cases — reduce to
-**61 distinct root causes**, 21 on the REST side and 40 on the realtime side. Three further
+**61 distinct root causes**, 21 on the REST side and 40 on the realtime side. Two further
 defects are recorded below with no test of their own, because the specification's test
-cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
-synthesized LEAVE timestamps), or is worked around in the setup of every test that
-would otherwise trip over it (`enterClient` on an anonymous connection), so the file
-carries **64 SDK root causes** in all. The remaining 11 gated Test IDs are
+cannot discriminate (RTP18a) or has nothing to assert against (the timezone split on
+synthesized LEAVE timestamps), so the file carries **63 SDK root causes** in all. The remaining 11 gated Test IDs are
 specification faults, and reduce to 8. The objects tier records no SDK non-compliance;
 its specification faults are all corrected or worked around in tests that pass, and
 reduce to the seven candidate issues O.1–O.7, none of them filed.
@@ -1790,51 +1788,6 @@ JWT, fall with it.
 renew and retry on a token error whatever the flag says, and only then decide whether the
 final response is raised or returned.
 
-#### A basic-auth connection records its clientId as validated and `None`, so `enterClient` can never succeed — no test
-
-**Spec points:** RSA7b4, RTP14, RTP15.
-
-A client built from a full-access key alone and asked to `enter_client("user-1", …)`
-raises `AblyException: 40012 400 Unable to enter presence channel with clientId user-1 as
-it does not match the current clientId None`.
-
-The server tells such a connection `clientId: "*"` in CONNECTED, and
-`Auth._configure_client_id` (`ably/rest/auth.py:335-353`) opens with a branch that exists
-to stop a server wildcard overwriting a clientId the caller configured:
-
-```python
-if original_client_id != '*' and new_client_id == '*':
-    self.__client_id_validated = True
-    self.__client_id = original_client_id
-    return
-```
-
-With no configured clientId, `original_client_id` is `None`, `None != '*'` holds, and the
-client id is recorded as **validated and `None`**. `can_assume_client_id`
-(`auth.py:356-363`) then takes the validated path and answers `None == '*' or None ==
-assumed`, which is `False` for every clientId, so `enter_client` cannot succeed for any of
-them. The `original_client_id is None` escape in the unvalidated branch is unreachable once
-CONNECTED has arrived. The branch should apply only where a clientId was configured, and
-`__client_id` should become `'*'` otherwise, which is what RSA7b4 asks for.
-
-**Tests affected:** none, which is why this is recorded here rather than gated. The three
-`batch_presence.md` tests build their realtime client with `client_id='*'` instead, in
-`entering_client()`, with the diagnosis in its docstring — the repository's own presence
-suite carries the same workaround for the same reason, commented "Use wildcard auth for
-enterClient" (`test/ably/realtime/realtimepresence_test.py:394-396`). It is setup rather
-than subject: those tests are about `batchPresence`, and nothing they assert depends on how
-the members got there. A fix would let the setup halves be written exactly as the
-specification writes them. Both `realtime/integration` presence specifications carry the
-same workaround for the same reason — `presence_lifecycle_test.py::test_rtp4_bulk_enter_observed`
-and `presence/presence_sync_test.py::test_rtp2_sync_multiple_members` each build the client
-that enters members on behalf of others with `client_id='*'` — which makes five tests
-across two tiers that would otherwise be written as their specifications write them.
-
-This is distinct from the wildcard-clientId contradiction recorded under UTS Spec Errors,
-which is about a client that *does* configure `clientId: "*"`.
-
-**Status:** open bug, one line from a fix.
-
 #### Auth behaviour on the REST client
 
 | Spec points | Behaviour |
@@ -2933,9 +2886,9 @@ none of these shows up as a failure — which is why they are easy to lose.
 
 The five tiers above classify the realtime unit derivation; the REST unit derivation's
 candidates went upstream as [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712).
-Five further defects came out of the two integration tiers, and none of them is filed; each
-keeps the label it was first given. I.1 and I.2 are tier 2 by the ranking above — an error
-where there should be none — and I.3 is tier 1 for a client that configures the option it
+Four further defects came out of the two integration tiers, and none of them is filed; each
+keeps the label it was first given. I.1 is tier 2 by the ranking above — an error where
+there should be none — and I.3 is tier 1 for a client that configures the option it
 concerns, since the call does not come back when the caller asked for it to. I.6 is tier 2
 as well; I.5 is tier 3, a presence member silently leaving the set with nothing to report it.
 
@@ -2955,15 +2908,6 @@ separately inert, because `token_details_has_expired()` returns `False` with no 
 offset. The same expired token renews correctly through `publish()`. A fix has to separate
 the two meanings `raise_on_error` carries.
 `test/uts/rest/integration/auth_test.py -k rsc10`
-
-**I.2 `enterClient` cannot succeed on a basic-auth connection.** RSA7b4, RTP14, RTP15. A
-connection built from a key alone is told `clientId: "*"`, and the branch of
-`Auth._configure_client_id` (`ably/rest/auth.py:335-353`) that guards a configured clientId
-against a server wildcard fires when there is no configured clientId, recording it as
-validated and `None`. `can_assume_client_id` then refuses every clientId. One line from a
-fix, and `enter_client` is unusable without one. No test gates on it — the three tests that
-would hit it pass `client_id='*'` in setup instead, as the repository's own presence suite
-does — so it will not show up as a failure.
 
 **I.3 `httpRequestTimeout` is applied as seconds where the specification counts
 milliseconds.** TO3l4, TO3l3, RSC15l2. `ably/http/http.py:193` hands
