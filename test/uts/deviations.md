@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1293 Test IDs
-(1302 tests, 1427 cases) pass, 152 (152 tests, 154 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1292 Test IDs
+(1301 tests, 1426 cases) pass, 153 (153 tests, 155 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,13 +45,13 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 69 are REST and 83 realtime, which is 70 REST cases
-and 84 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+within each. Of the gated Test IDs 69 are REST and 84 realtime, which is 70 REST cases
+and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 141 gated Test IDs that record SDK non-compliance — 141 tests, 143 cases — reduce to
+The 142 gated Test IDs that record SDK non-compliance — 142 tests, 144 cases — reduce to
 **60 distinct root causes**, 20 on the REST side and 40 on the realtime side. Two further
 defects are recorded below with no test of their own, because the specification's test
 cannot discriminate (RTP18a) or has nothing to assert against (the timezone split on
@@ -1036,15 +1036,17 @@ issued token are all real, and each test reaches the missing call before it fail
 assertions either side of it are known to hold against real server responses. The
 `push_channels` file was additionally run against a throwaway shim — a `PushChannel`
 posting and deleting `/push/channelSubscriptions` with `X-Ably-DeviceToken` — and passes in
-full against it. The two recovery tests are a different shape: there is no missing call for
-them to reach, so each runs end to end against the sandbox through `uts-proxy` and fails
-on the `recover` parameter the connection never sends.
+full against it. The two recovery tests reach the missing option rather than a missing
+call: each fails building the client that passes `recover`, which raises `TypeError` now the
+option is gone, after RTN16d has done its first phase against the sandbox through
+`uts-proxy`. Before 4.0.0 removed the option, both ran end to end and failed only on the
+`recover` parameter the connection never sent.
 
 | Spec points | Missing | Test IDs |
 |---|---|---|
 | RSA17, RSA17b–g, BAR2, TRS2, TRF2 | `Auth#revokeTokens`, `TokenRevocationTargetSpecifier` and the two token revocation result types; the `BatchResult` they would arrive in is the batch API's. Gated against `auth.revoke_tokens(targets, issued_before=, allow_reauth_margin=)` returning `success_count` / `failure_count` / `results`, with `target` / `issued_before` / `applies_at` / `error` per result. RSA17d is the one case that needs no server at all — a token-authenticated client must refuse locally with 40162/401 — so it can be satisfied before any of the wire work | 21 |
 | RSH7, RSH7a–e, RSH6, RSH8 | `PushChannel`: `channel.push`, `client.device`, `LocalDevice`. The push *admin* surface (RSH1) does exist | 12 |
-| RTN16, RTN16f–k, RTC1c (TO3i) | Connection recovery, entire. `recover` is in the `Options` signature, stored, and given a property and a setter (`options.py:30,111,193,196`), and read nowhere. No `Connection#createRecoveryKey`, no `recover` connect parameter, no recovery-key decoding. Measured through the proxy: a client built with a valid `recover=` opened a `ws_connect` whose query parameters were `{'accessToken': …, 'v': '5'}` — no `recover` — and was given a fresh `connectionId`. RTN16l is otherwise fully compliant, taking the proxy's `recovery-failed-new-id`, `recovery-failed-new-key` and error 80008 and staying CONNECTED; only the absent parameter fails it | 8 |
+| RTN16, RTN16f–k, RTC1c (TO3i) | Connection recovery, entire. No `recover` client option — 3.x accepted and stored one and read it nowhere, and 4.0.0 removed it, so passing it raises `TypeError` — no `Connection#createRecoveryKey`, no `recover` connect parameter, no recovery-key decoding. Measured through the proxy before the option was removed: a client built with a valid `recover=` opened a `ws_connect` whose query parameters were `{'accessToken': …, 'v': '5'}` — no `recover` — and was given a fresh `connectionId`. RTN16l was otherwise fully compliant, taking the proxy's `recovery-failed-new-id`, `recovery-failed-new-key` and error 80008 and staying CONNECTED; only the absent parameter failed it. RTN16f1's malformed key passed while the option was ignored, and is gated with the rest now that it cannot be passed | 9 |
 | RTL22, RTL22a–d, MFI1, MFI2a–e | `MessageFilter`. `RealtimeChannel.subscribe` (`channel.py:262-273`) accepts only a `str` or a callable, and there is no filter type of any shape to spell. Each test builds its filter through the module's `message_filter()` helper, which is the one place to repoint when the type lands | 5 |
 | RTS5, RTS5a, RTS5a1, RTS5a2, DO2a | Derived channels: `DeriveOptions` and `Channels.getDerived`. `grep -r derive ably/` is empty. Each test imports `DeriveOptions` inside its body so the module still loads | 5 |
 | RTB1, RTB1a, RTB1b | Retry backoff, jitter and `retryIn`. Retry timers schedule the flat configured timeout (`connectionmanager.py:753`, `channel.py:866-871`); `grep` for jitter/backoff/retry_in returns nothing, and neither `ConnectionStateChange` nor `ChannelStateChange` carries `retryIn` | 4 |
@@ -2878,7 +2880,7 @@ Each row is one feature and one issue. None is a bug in existing code.
 
 | Feature | Spec points | Tests | Reproduction (`-k` against `test/uts/realtime/unit/`) |
 |---|---|---|---|
-| Connection recovery, entire — `createRecoveryKey`, the `recover` connect parameter, recovery-key decoding. `recover` is stored on `Options` and read nowhere. Measured through the proxy: a client given a valid `recover=` sends no `recover` query parameter and is issued a fresh `connectionId` | RTN16, RTN16f–k, RTC1c | 8 | `connection/connection_recovery_test.py`, `client/realtime_client_test.py -k rtc1c`, and `test/uts/realtime/integration/proxy/connection_resume_test.py -k "rtn16d or rtn16l"` |
+| Connection recovery, entire — the `recover` client option, `createRecoveryKey`, the `recover` connect parameter, recovery-key decoding. 3.x stored `recover` and read it nowhere, and 4.0.0 removed it. Measured through the proxy before then: a client given a valid `recover=` sent no `recover` query parameter and was issued a fresh `connectionId` | RTN16, RTN16f–k, RTC1c | 9 | `connection/connection_recovery_test.py`, `client/realtime_client_test.py -k rtc1c`, and `test/uts/realtime/integration/proxy/connection_resume_test.py -k "rtn16d or rtn16l"` |
 | `MessageFilter` and filtered subscriptions | RTL22, RTL22a–d, MFI1, MFI2a–e | 5 | `channels/channel_subscribe_test.py -k rtl22` |
 | Derived channels — `DeriveOptions`, `Channels.getDerived` | RTS5, RTS5a, RTS5a1, RTS5a2, DO2a | 5 | `channels/channel_options_test.py -k "rts5 or do2a"` |
 | Retry backoff, jitter and `retryIn` on both state-change types | RTB1, RTB1a, RTB1b | 4 | `connection/backoff_jitter_test.py` |
@@ -3539,8 +3541,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 154 failures, 1575 passes and 27 skips with the variable
-set, and 181 skips and 1575 passes without it, the 1575 being 1427 derived cases and 148
+it. As of this writing that is 155 failures, 1574 passes and 27 skips with the variable
+set, and 182 skips and 1574 passes without it, the 1574 being 1426 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

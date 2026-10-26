@@ -26,7 +26,7 @@ class VCDiffDecoder(ABC):
 
 class Options(AuthOptions):
     def __init__(self, client_id=None, tls=True, port=0,
-                 tls_port=0, use_binary_protocol=True, queue_messages=True, recover=False, endpoint=None,
+                 tls_port=0, use_binary_protocol=True, queue_messages=True, endpoint=None,
                  http_open_timeout=None, http_request_timeout=None,
                  realtime_request_timeout=None, http_max_retry_count=None, http_max_retry_duration=None,
                  fallback_hosts=None, fallback_retry_timeout=None, disconnected_retry_timeout=None,
@@ -87,7 +87,6 @@ class Options(AuthOptions):
         self.__use_binary_protocol = use_binary_protocol
         self.__queue_messages = queue_messages
         self.__echo_messages = echo_messages
-        self.__recover = recover
         self.__endpoint = endpoint
         self.__http_open_timeout = http_open_timeout
         self.__http_request_timeout = http_request_timeout
@@ -164,14 +163,6 @@ class Options(AuthOptions):
     @property
     def echo_messages(self):
         return self.__echo_messages
-
-    @property
-    def recover(self):
-        return self.__recover
-
-    @recover.setter
-    def recover(self, value):
-        self.__recover = value
 
     @property
     def endpoint(self):

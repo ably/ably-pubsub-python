@@ -534,6 +534,25 @@ your Ably account allows larger messages:
 pubsub_http_client = create_http_client(key='xxx', max_message_size=131072)
 ```
 
+### The `recover` option is removed
+
+The realtime client accepted a `recover` option, documented as resuming an earlier
+connection from its recovery key, but connection recovery is not implemented: the option was
+stored and never sent, so a client given one always started a fresh connection. It is gone,
+and passing it raises `TypeError`. Remove it, and rely on the client's own resumption of a
+dropped connection, which is implemented. Connection recovery may return in a minor release,
+along with the `recover` option.
+
+Example 3.x code:
+```python
+realtime = AblyRealtime(key='xxx', recover=recovery_key)
+```
+
+Example 4.0.0 code:
+```python
+pubsub_realtime_client = create_realtime_client(key='xxx')
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

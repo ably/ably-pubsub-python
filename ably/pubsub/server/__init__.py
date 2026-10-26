@@ -194,9 +194,6 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
         auto_connect: bool
             Connect as soon as the client is created. Set this to False to connect later
             with `connect()`. Defaults to True.
-        recover: str
-            A recovery key from a previous connection, used to resume that connection's
-            state and message continuity rather than starting fresh.
         queue_messages: bool
             Hold messages published while the connection is not yet established and send
             them once it is, rather than failing them. Defaults to True.

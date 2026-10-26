@@ -195,8 +195,8 @@ async def test_rtc1b_auto_connect_option():
 
 
 # UTS: realtime/unit/RTC1c/recover-option-0
-# DEVIATION: the `recover` option is stored and never read, so no `recover` query
-# parameter is ever sent. See deviations.md.
+# DEVIATION: there is no `recover` client option, so this raises TypeError on
+# construction. See deviations.md.
 @deviation
 async def test_rtc1c_recover_option():
     recovery_key = encode_recovery_key('previous-connection-key', 5, {'channel1': 'serial1'})
