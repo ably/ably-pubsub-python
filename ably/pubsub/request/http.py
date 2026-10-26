@@ -195,7 +195,8 @@ class Http:
         if headers:
             all_headers.update(headers)
 
-        timeout = (self.http_open_timeout, self.http_request_timeout)
+        # TO3l3 bounds opening the connection, and TO3l4 each read, write and wait for a pooled connection
+        timeout = httpx.Timeout(self.http_request_timeout, connect=self.http_open_timeout)
         http_max_retry_duration = self.http_max_retry_duration
         requested_at = self.__clock.now_ms()
 

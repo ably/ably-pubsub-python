@@ -433,6 +433,19 @@ pubsub_http_client = create_http_client(key='xxx', http_request_timeout=5)
 await pubsub_http_client.time()
 ```
 
+### `http_request_timeout` bounds writes and connection-pool waits
+
+In 3.x, `http_open_timeout` bounded connecting and `http_request_timeout` bounded each read
+of a response, while writing a request body and waiting for a free pooled connection had no
+timeout at all. `http_request_timeout` now bounds those too, so a request stuck writing to,
+or waiting for, a wedged connection raises `httpx.TimeoutException` and is retried against a
+fallback host instead of hanging. If you publish large bodies over a slow link, raise
+`http_request_timeout` to fit:
+
+```python
+pubsub_http_client = create_http_client(key='xxx', http_request_timeout=30)
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

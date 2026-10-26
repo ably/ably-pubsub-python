@@ -1807,8 +1807,9 @@ final response is raised or returned.
 
 **Spec points:** TO3l4, RSC15l2, `rest/proxy/RSC15l2/timeout-triggers-fallback-0`.
 
-`ably/http/http.py:193` builds `timeout = (self.http_open_timeout,
-self.http_request_timeout)` and hands it to `httpx`, which reads both as **seconds**.
+`Http.make_request` (`ably/pubsub/request/http.py`) builds `timeout =
+httpx.Timeout(self.http_request_timeout, connect=self.http_open_timeout)` and hands it
+to `httpx`, which reads both as **seconds**.
 TO3l4's `httpRequestTimeout` is milliseconds, default 10000, and
 `Defaults.http_request_timeout` holds `10`. So a caller passing the value the published
 specification describes gets a deadline a thousand times longer than the one asked for:
@@ -1840,13 +1841,15 @@ fixed.
 
 **Status:** open bug. The fix converts at the boundary — `Http` dividing the option by
 1000 before it reaches `httpx`, with the `Defaults` restated in
-milliseconds — and has to move `http_open_timeout` (TO3l3) with it, since both halves of
-the tuple are read the same way. That same line carries a second, filed defect:
+milliseconds — and has to move `http_open_timeout` (TO3l3) with it, since both are
+read the same way. Moving the unit is breaking, and is held back from 4.0.0 pending a
+decision on units across the options. That same line carries a second, filed defect:
 [#709](https://github.com/ably/ably-python/issues/709) is that the value, in whatever
 unit, bounds one socket read rather than the request, so a connection that keeps
-producing frames is never timed out and `write` and `pool` are left unbounded. The two
-want fixing together, since both change what one attempt may spend of the RSC15 retry
-budget.
+producing frames is never timed out. Of #709's three parts, only the unbounded `write`
+and `pool` timeouts are fixed, both now taking `http_request_timeout`. The rest of it and
+the unit want fixing together, since both change what one attempt may spend of the
+RSC15 retry budget.
 
 ### Requests
 
@@ -2910,8 +2913,8 @@ the two meanings `raise_on_error` carries.
 `test/uts/rest/integration/auth_test.py -k rsc10`
 
 **I.3 `httpRequestTimeout` is applied as seconds where the specification counts
-milliseconds.** TO3l4, TO3l3, RSC15l2. `ably/http/http.py:193` hands
-`(http_open_timeout, http_request_timeout)` to `httpx`, which reads seconds, so a client
+milliseconds.** TO3l4, TO3l3, RSC15l2. `Http.make_request` hands `http_open_timeout`
+and `http_request_timeout` to `httpx`, which reads seconds, so a client
 built with the specification's `httpRequestTimeout: 3000` waits three thousand seconds.
 Measured through `uts-proxy` against a session delaying `/time` by 20 seconds: the
 request sat out the whole delay, succeeded on the primary host and attempted no

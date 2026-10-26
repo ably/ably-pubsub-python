@@ -51,6 +51,18 @@ async def test_http_sends_requests_through_an_injected_transport():
     await ably.close()
 
 
+async def test_http_bounds_every_phase_of_a_request():
+    transport = RecordingTransport(lambda request: httpx.Response(200, json=[1500000000000]))
+    ably = create_http_client(token="foo", http_open_timeout=2, http_request_timeout=7,
+                              _test_options=TestOptions(http_transport=transport))
+
+    await ably.time()
+
+    # TO3l3 bounds the connect, and TO3l4 the read, the write and the wait for a pooled connection
+    assert transport.requests[0].extensions['timeout'] == {'connect': 2, 'read': 7, 'write': 7, 'pool': 7}
+    await ably.close()
+
+
 async def test_http_surfaces_transport_connection_errors():
     def refuse(request):
         raise httpx.ConnectError("connection refused", request=request)
