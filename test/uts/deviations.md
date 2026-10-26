@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1297 Test IDs
-(1306 tests, 1431 cases) pass, 148 (148 tests, 150 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1299 Test IDs
+(1308 tests, 1433 cases) pass, 146 (146 tests, 148 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,16 +45,16 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 64 are REST and 84 realtime, which is 65 REST cases
-and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+within each. Of the gated Test IDs 64 are REST and 82 realtime, which is 65 REST cases
+and 83 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 137 gated Test IDs that record SDK non-compliance — 137 tests, 139 cases — reduce to
-**58 distinct root causes**, 18 on the REST side and 40 on the realtime side. One further
+The 135 gated Test IDs that record SDK non-compliance — 135 tests, 137 cases — reduce to
+**57 distinct root causes**, 18 on the REST side and 39 on the realtime side. One further
 defect is recorded below with no test of its own, because the specification's test
-cannot discriminate (RTP18a), so the file carries **59 SDK root causes** in all. The
+cannot discriminate (RTP18a), so the file carries **58 SDK root causes** in all. The
 remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
 records no SDK non-compliance; its specification faults are all corrected or worked
 around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
@@ -1282,26 +1282,6 @@ for the connection"; `test_rtn13c_deferred_ping_timeout` fails with
 **Status:** open bug.
 
 ### Channels
-
-#### `detach()` never returns when the connection is not CONNECTED — 2 tests
-
-**Spec point:** RTL5l.
-
-When the connection is in any state other than CONNECTED and no earlier channel-state
-condition applies, the channel must transition immediately to DETACHED. Instead `detach()`
-requests DETACHING, `_check_pending_state()` returns without sending anything because the
-connection is not CONNECTED, and `detach()` then awaits the internal state emitter
-(`channel.py:212`) for a transition nothing will produce. **The coroutine never returns**
-and the channel is left in DETACHING.
-
-**Tests affected:** `test_rtl5l_detach_not_connected_immediate` and
-`test_rtl5l_detach_attached_when_disconnected`, each with a one-second `asyncio.wait_for`
-so the hang is reported as a failure rather than a stuck run. Both fail with
-`asyncio.exceptions.TimeoutError`. In the second, the assertions that set the scene — the
-connection settling in DISCONNECTED with the channel still ATTACHED — pass first, so the
-failure is unambiguously the detach.
-
-**Status:** open bug. A hang, not a wrong value.
 
 #### `set_options()` never returns for an already-ATTACHED channel — 1 test
 
@@ -2599,13 +2579,6 @@ connection fails.
 `test/uts/realtime/unit/channels/channel_publish_pending_test.py -k rtn7e`
 `test/uts/realtime/integration/proxy/connection_resume_test.py -k rtn15j`
 
-**1.3 `detach()` never returns when the connection is not CONNECTED.** RTL5l.
-RTL5l requires an immediate transition to DETACHED. `detach()` requests DETACHING,
-`_check_pending_state()` sends nothing because the connection is not CONNECTED, and
-`detach()` then awaits the internal state emitter (`channel.py:212`) for a transition
-nothing will produce. The coroutine never returns and the channel is stuck in DETACHING.
-`test/uts/realtime/unit/channels/channel_detach_test.py -k rtl5l`
-
 **1.4 `set_options()` never returns for an already-ATTACHED channel.** RTL16a.
 `_attach_impl()` (`channel.py:99`) sends the ATTACH without going through
 `_request_state(ATTACHING)`, so the channel is still ATTACHED when the server's ATTACHED
@@ -3479,8 +3452,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 150 failures, 1579 passes and 27 skips with the variable
-set, and 177 skips and 1579 passes without it, the 1579 being 1431 derived cases and 148
+it. As of this writing that is 148 failures, 1581 passes and 27 skips with the variable
+set, and 175 skips and 1581 passes without it, the 1581 being 1433 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

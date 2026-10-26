@@ -225,29 +225,25 @@ class RealtimeChannel(EventEmitter, Channel):
 
         log.info(f'RealtimeChannel.detach() called, channel = {self.name}')
 
-        # RTL5g, RTL5b - raise exception if state invalid
-        if self.__realtime.connection.state in [ConnectionState.CLOSING, ConnectionState.FAILED]:
-            raise AblyException(
-                message=f"Unable to detach; channel state = {self.state}",
-                code=90001,
-                status_code=400
-            )
-
         # RTL5a - if channel already detached do nothing
         if self.state in [ChannelState.INITIALIZED, ChannelState.DETACHED]:
             return
 
+        # RTL5b
+        if self.state == ChannelState.FAILED:
+            raise AblyException("Unable to detach; channel state = failed", 400, 90001)
+
+        # RTL5j
         if self.state == ChannelState.SUSPENDED:
             self._notify_state(ChannelState.DETACHED)
             return
-        elif self.state == ChannelState.FAILED:
-            raise AblyException("Unable to detach; channel state = failed", 400, 90001)
-        else:
-            self._request_state(ChannelState.DETACHING)
 
-        # RTL5h - wait for pending connection
-        if self.__realtime.connection.state == ConnectionState.CONNECTING:
-            self.__realtime.connect()
+        # RTL5l: with no connection to send a DETACH on, the channel detaches at once
+        if self.__realtime.connection.state != ConnectionState.CONNECTED:
+            self._notify_state(ChannelState.DETACHED)
+            return
+
+        self._request_state(ChannelState.DETACHING)
 
         state_change = await self.__internal_state_emitter.once_async()
         new_state = state_change.current
