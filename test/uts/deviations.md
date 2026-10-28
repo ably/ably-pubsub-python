@@ -2011,7 +2011,8 @@ adapted.
 Intentional. TO3l counts every timing option in milliseconds; ably-python takes seconds,
 which is what a Python caller expects, and names each option with a `_seconds` suffix so
 the unit is on the page. A 3.x caller passing the old name gets a `TypeError` at
-construction, rather than a value a thousand times too long. The wire values the
+construction that names the replacement and, for an option that took milliseconds, gives
+the value passed in seconds, rather than a value a thousand times too long. The wire values the
 specification also counts in milliseconds are unchanged: token `ttl`, `ConnectionDetails`,
 `Auth.time_offset`, timestamps and the result of `ping()`.
 

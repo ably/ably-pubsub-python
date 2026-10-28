@@ -1,4 +1,5 @@
 import logging
+import math
 import random
 from abc import ABC, abstractmethod
 
@@ -18,6 +19,39 @@ def seconds_to_ms(seconds):
     """
     ms = round(seconds * 1000, 3)
     return int(ms) if ms == int(ms) else ms
+
+
+# The timing options renamed in 4.0, by their 3.x name, with the 3.x unit and default
+_RENAMED_TIMING_OPTIONS = {
+    'realtime_request_timeout': ('ms', 10000),
+    'disconnected_retry_timeout': ('ms', 15000),
+    'suspended_retry_timeout': ('ms', 30000),
+    'channel_retry_timeout': ('ms', 15000),
+    'fallback_retry_timeout': ('ms', 600000),
+    'http_open_timeout': ('s', 4),
+    'http_request_timeout': ('s', 10),
+    'http_max_retry_duration': ('s', 15),
+}
+
+
+def _reject_renamed_timing_options(kwargs):
+    """Raises a TypeError naming the replacement for a timing option's 3.x name.
+
+    An unknown option raises TypeError anyway; this one says what to pass instead, and for
+    an option that took milliseconds, what the value passed comes to in seconds.
+    """
+    for name, (unit, default) in _RENAMED_TIMING_OPTIONS.items():
+        if name not in kwargs:
+            continue
+        message = f'`{name}` was renamed to `{name}_seconds` in 4.0'
+        if unit == 's':
+            raise TypeError(f'{message}; it is still in seconds')
+        value = kwargs[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            value = default
+        seconds = value / 1000
+        seconds = int(seconds) if seconds == int(seconds) else seconds
+        raise TypeError(f'{message} and is now in seconds ({value} ms → {seconds})')
 
 
 class VCDiffDecoder(ABC):
@@ -65,6 +99,7 @@ class Options(AuthOptions):
                  vcdiff_decoder: VCDiffDecoder = None, transport_params=None, echo_messages=True,
                  max_message_size=None, _test_options=None, **kwargs):
 
+        _reject_renamed_timing_options(kwargs)
         super().__init__(**kwargs)
 
         # TO3l10, TO3l11, TO3l1, TO3l2 and TO3l7 count milliseconds, and these options take

@@ -852,6 +852,33 @@ pubsub_http_client = create_http_client(
 )
 ```
 
+### An old timing option name says what to pass instead
+
+Passing a timing option under its 3.x name raises a `TypeError` that names its replacement
+and, where the unit changed, converts the value you passed, so a 3.x configuration fails at
+construction with the fix in the message. Unknown options already raised `TypeError`, so
+code that caught it still does:
+
+```
+TypeError: `disconnected_retry_timeout` was renamed to `disconnected_retry_timeout_seconds` in 4.0 and is now in seconds (15000 ms → 15)
+TypeError: `http_request_timeout` was renamed to `http_request_timeout_seconds` in 4.0; it is still in seconds
+```
+
+All eight renames together:
+
+| 3.x option | Unit | 4.0.0 option | Unit |
+|---|---|---|---|
+| `realtime_request_timeout` | ms | `realtime_request_timeout_seconds` | s |
+| `disconnected_retry_timeout` | ms | `disconnected_retry_timeout_seconds` | s |
+| `suspended_retry_timeout` | ms | `suspended_retry_timeout_seconds` | s |
+| `channel_retry_timeout` | ms | `channel_retry_timeout_seconds` | s |
+| `fallback_retry_timeout` | ms | `fallback_retry_timeout_seconds` | s |
+| `http_open_timeout` | s | `http_open_timeout_seconds` | s |
+| `http_request_timeout` | s | `http_request_timeout_seconds` | s |
+| `http_max_retry_duration` | s | `http_max_retry_duration_seconds` | s |
+
+A value held as a `timedelta` converts with `total_seconds()`, whichever option it is for.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

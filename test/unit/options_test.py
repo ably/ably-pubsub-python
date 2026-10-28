@@ -1,6 +1,8 @@
+from datetime import timedelta
+
 import pytest
 
-from ably.pubsub.server import create_http_client
+from ably.pubsub.server import create_http_client, create_realtime_client
 from ably.pubsub.types.options import Options, seconds_to_ms
 from ably.pubsub.util.exceptions import AblyException
 
@@ -203,11 +205,38 @@ def test_the_http_layer_reads_the_timing_options_in_seconds():
 
 @pytest.mark.parametrize('option', ['realtime_request_timeout', 'disconnected_retry_timeout',
                                     'suspended_retry_timeout', 'channel_retry_timeout',
-                                    'fallback_retry_timeout', 'http_open_timeout',
-                                    'http_request_timeout', 'http_max_retry_duration'])
-def test_options_should_reject_the_old_timing_names(option):
-    with pytest.raises(TypeError):
+                                    'fallback_retry_timeout'])
+def test_a_millisecond_name_raises_naming_its_replacement_and_the_value_in_seconds(option):
+    with pytest.raises(TypeError) as excinfo:
         Options(**{option: 15000})
+    assert str(excinfo.value) == (f'`{option}` was renamed to `{option}_seconds` in 4.0 and is now '
+                                  'in seconds (15000 ms → 15)')
+
+
+@pytest.mark.parametrize('option', ['http_open_timeout', 'http_request_timeout', 'http_max_retry_duration'])
+def test_an_http_name_raises_naming_its_replacement(option):
+    with pytest.raises(TypeError) as excinfo:
+        Options(**{option: 4})
+    assert str(excinfo.value) == f'`{option}` was renamed to `{option}_seconds` in 4.0; it is still in seconds'
+
+
+@pytest.mark.parametrize('value, seconds', [(2500, '2.5'), (100, '0.1'), (1234, '1.234'), (0, '0')])
+def test_the_rename_hint_converts_the_value_given(value, seconds):
+    with pytest.raises(TypeError, match=f'[(]{value} ms → {seconds}[)]$'):
+        Options(disconnected_retry_timeout=value)
+
+
+@pytest.mark.parametrize('value', ['15000', None, True, float('nan'), float('inf'), timedelta(seconds=15)])
+def test_the_rename_hint_falls_back_to_the_default_for_a_value_it_cannot_convert(value):
+    with pytest.raises(TypeError, match='[(]15000 ms → 15[)]$'):
+        Options(disconnected_retry_timeout=value)
+
+
+def test_the_factories_raise_the_rename_hint():
+    with pytest.raises(TypeError, match='`realtime_request_timeout_seconds`'):
+        create_http_client(key='appId.keyId:keySecret', realtime_request_timeout=10000)
+    with pytest.raises(TypeError, match='`suspended_retry_timeout_seconds`'):
+        create_realtime_client(key='appId.keyId:keySecret', auto_connect=False, suspended_retry_timeout=30000)
 
 
 @pytest.mark.parametrize('seconds, ms', [
