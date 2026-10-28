@@ -947,6 +947,31 @@ if isinstance(member.action, PresenceAction):
     log.info('presence action %s', member.action.name)
 ```
 
+### Every handle of the synchronous client ends in `Sync`
+
+The synchronous client's presence, annotations and push admin objects are now instances of
+`PresenceSync`, `HttpAnnotationsSync`, `PushDeviceRegistrationsSync` and
+`PushChannelSubscriptionsSync`, as its auth, channels, channel and push objects already were of
+`AuthSync`, `ChannelsSync`, `ChannelSync`, `PushSync` and `PushAdminSync`. In 3.x these four
+were named `Presence`, `RestAnnotations`, `PushDeviceRegistrations` and
+`PushChannelSubscriptions`, the same names as the asynchronous classes, so a traceback, a
+`repr()` or `type(x).__name__` could not say which flavour an object came from. Data types,
+enums, exceptions and the `PubSubHttpClient` prototype keep their names in both flavours.
+
+Only code that names these classes, in an annotation or an `isinstance` check, needs a change:
+
+Example 3.x code:
+```python
+from ably.sync.types.presence import Presence
+
+def members(presence: Presence) -> list: ...
+```
+
+Example 4.0.0 code:
+```python
+def members(presence: PresenceSync) -> list: ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
