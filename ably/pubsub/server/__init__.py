@@ -11,6 +11,12 @@ reject direct construction. Annotate against the prototypes they return,
 :class:`~ably.pubsub.prototypes.PubSubHttpClient` and
 :class:`~ably.pubsub.prototypes.PubSubRealtimeClient`.
 
+The types a client hands out or accepts are exported here too: the messages,
+states and results it returns, and the classes of the objects it hands out,
+such as :class:`RealtimeChannel` and :class:`Presence`, for annotations and
+``isinstance`` checks. Those objects come from the client; construct them
+through it rather than directly.
+
 This is the public API of the ``ably-pubsub-server`` distribution. Both
 ``ably`` and ``ably.pubsub`` are PEP 420 namespace packages shared with the
 other ``ably-*`` distributions, so neither carries an ``__init__.py`` of its
@@ -19,13 +25,18 @@ from here, from :mod:`ably.pubsub.server.sync` for the synchronous client, or
 from :mod:`ably.pubsub.server.liveobjects` for LiveObjects.
 """
 
+from ably.pubsub.http.annotations import HttpAnnotations
 from ably.pubsub.http.auth import Auth
+from ably.pubsub.http.channel import Channel
 from ably.pubsub.http.channel import Channels as HttpChannels
 from ably.pubsub.http.http import DefaultPubSubHttpClient as _DefaultPubSubHttpClient
-from ably.pubsub.http.push import Push
+from ably.pubsub.http.push import Push, PushAdmin, PushChannelSubscriptions, PushDeviceRegistrations
 from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
+from ably.pubsub.realtime.annotations import RealtimeAnnotations
 from ably.pubsub.realtime.channel import Channels as RealtimeChannels
+from ably.pubsub.realtime.channel import RealtimeChannel
 from ably.pubsub.realtime.connection import Connection
+from ably.pubsub.realtime.presence import RealtimePresence
 from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient as _DefaultPubSubRealtimeClient
 from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult
 from ably.pubsub.types.annotation import Annotation, AnnotationAction
@@ -38,17 +49,28 @@ from ably.pubsub.types.batch import (
     BatchResult,
 )
 from ably.pubsub.types.capability import Capability
+from ably.pubsub.types.channeldetails import ChannelDetails, ChannelMetrics, ChannelOccupancy, ChannelStatus
 from ably.pubsub.types.channelmode import ChannelMode
 from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.channelstate import ChannelState, ChannelStateChange
 from ably.pubsub.types.channelsubscription import PushChannelSubscription
-from ably.pubsub.types.device import DeviceDetails
+from ably.pubsub.types.connectionstate import ConnectionEvent, ConnectionState, ConnectionStateChange
+from ably.pubsub.types.device import DeviceDetails, DevicePushDetails
 from ably.pubsub.types.message import Message, MessageAction, MessageVersion
 from ably.pubsub.types.operations import MessageOperation, PublishResult, UpdateDeleteResult
 from ably.pubsub.types.options import Options, VCDiffDecoder
+from ably.pubsub.types.presence import Presence, PresenceAction, PresenceMessage
+from ably.pubsub.types.stats import Stats
 from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.types.tokenrequest import TokenRequest
 from ably.pubsub.util.construction import factory_construction
 from ably.pubsub.util.crypto import CipherParams, generate_random_key, get_default_params
-from ably.pubsub.util.exceptions import AblyAuthException, AblyException, IncompatibleClientIdException
+from ably.pubsub.util.exceptions import (
+    AblyAuthException,
+    AblyException,
+    IncompatibleClientIdException,
+    InvalidArgumentException,
+)
 from ably.pubsub.vcdiff.defaultvcdiffdecoder import AblyVCDiffDecoder
 from ably.pubsub.version import api_version, lib_version
 
@@ -275,27 +297,51 @@ __all__ = [
     'BatchPublishSuccessResult',
     'BatchResult',
     'Capability',
+    'Channel',
+    'ChannelDetails',
+    'ChannelMetrics',
     'ChannelMode',
+    'ChannelOccupancy',
     'ChannelOptions',
+    'ChannelState',
+    'ChannelStateChange',
+    'ChannelStatus',
     'CipherParams',
     'Connection',
+    'ConnectionEvent',
+    'ConnectionState',
+    'ConnectionStateChange',
     'DeviceDetails',
+    'DevicePushDetails',
+    'HttpAnnotations',
     'HttpChannels',
     'HttpPaginatedResponse',
     'IncompatibleClientIdException',
+    'InvalidArgumentException',
     'Message',
     'MessageAction',
     'MessageOperation',
     'MessageVersion',
     'Options',
     'PaginatedResult',
+    'Presence',
+    'PresenceAction',
+    'PresenceMessage',
     'PubSubHttpClient',
     'PubSubRealtimeClient',
     'PublishResult',
     'Push',
+    'PushAdmin',
     'PushChannelSubscription',
+    'PushChannelSubscriptions',
+    'PushDeviceRegistrations',
+    'RealtimeAnnotations',
+    'RealtimeChannel',
     'RealtimeChannels',
+    'RealtimePresence',
+    'Stats',
     'TokenDetails',
+    'TokenRequest',
     'UpdateDeleteResult',
     'VCDiffDecoder',
     'api_version',

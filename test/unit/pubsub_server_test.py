@@ -1,3 +1,4 @@
+import importlib
 import inspect
 import typing
 
@@ -180,3 +181,269 @@ class TestPublicTypes:
     def test_liveobjects_names_are_all_importable(self):
         for name in server_liveobjects.__all__:
             assert getattr(server_liveobjects, name) is not None
+
+
+# Every name ably.pubsub.server exports, as (name, defining module, name there). The list
+# is the public API: a name added or removed here is a change to it.
+ASYNC_EXPORTS = [
+    ('AblyAuthException', 'ably.pubsub.util.exceptions', 'AblyAuthException'),
+    ('AblyException', 'ably.pubsub.util.exceptions', 'AblyException'),
+    ('AblyVCDiffDecoder', 'ably.pubsub.vcdiff.defaultvcdiffdecoder', 'AblyVCDiffDecoder'),
+    ('Annotation', 'ably.pubsub.types.annotation', 'Annotation'),
+    ('AnnotationAction', 'ably.pubsub.types.annotation', 'AnnotationAction'),
+    ('Auth', 'ably.pubsub.http.auth', 'Auth'),
+    ('BatchPresenceFailureResult', 'ably.pubsub.types.batch', 'BatchPresenceFailureResult'),
+    ('BatchPresenceSuccessResult', 'ably.pubsub.types.batch', 'BatchPresenceSuccessResult'),
+    ('BatchPublishFailureResult', 'ably.pubsub.types.batch', 'BatchPublishFailureResult'),
+    ('BatchPublishSpec', 'ably.pubsub.types.batch', 'BatchPublishSpec'),
+    ('BatchPublishSuccessResult', 'ably.pubsub.types.batch', 'BatchPublishSuccessResult'),
+    ('BatchResult', 'ably.pubsub.types.batch', 'BatchResult'),
+    ('Capability', 'ably.pubsub.types.capability', 'Capability'),
+    ('Channel', 'ably.pubsub.http.channel', 'Channel'),
+    ('ChannelDetails', 'ably.pubsub.types.channeldetails', 'ChannelDetails'),
+    ('ChannelMetrics', 'ably.pubsub.types.channeldetails', 'ChannelMetrics'),
+    ('ChannelMode', 'ably.pubsub.types.channelmode', 'ChannelMode'),
+    ('ChannelOccupancy', 'ably.pubsub.types.channeldetails', 'ChannelOccupancy'),
+    ('ChannelOptions', 'ably.pubsub.types.channeloptions', 'ChannelOptions'),
+    ('ChannelState', 'ably.pubsub.types.channelstate', 'ChannelState'),
+    ('ChannelStateChange', 'ably.pubsub.types.channelstate', 'ChannelStateChange'),
+    ('ChannelStatus', 'ably.pubsub.types.channeldetails', 'ChannelStatus'),
+    ('CipherParams', 'ably.pubsub.util.crypto', 'CipherParams'),
+    ('Connection', 'ably.pubsub.realtime.connection', 'Connection'),
+    ('ConnectionEvent', 'ably.pubsub.types.connectionstate', 'ConnectionEvent'),
+    ('ConnectionState', 'ably.pubsub.types.connectionstate', 'ConnectionState'),
+    ('ConnectionStateChange', 'ably.pubsub.types.connectionstate', 'ConnectionStateChange'),
+    ('DeviceDetails', 'ably.pubsub.types.device', 'DeviceDetails'),
+    ('DevicePushDetails', 'ably.pubsub.types.device', 'DevicePushDetails'),
+    ('HttpAnnotations', 'ably.pubsub.http.annotations', 'HttpAnnotations'),
+    ('HttpChannels', 'ably.pubsub.http.channel', 'Channels'),
+    ('HttpPaginatedResponse', 'ably.pubsub.request.paginatedresult', 'HttpPaginatedResponse'),
+    ('IncompatibleClientIdException', 'ably.pubsub.util.exceptions', 'IncompatibleClientIdException'),
+    ('InvalidArgumentException', 'ably.pubsub.util.exceptions', 'InvalidArgumentException'),
+    ('Message', 'ably.pubsub.types.message', 'Message'),
+    ('MessageAction', 'ably.pubsub.types.message', 'MessageAction'),
+    ('MessageOperation', 'ably.pubsub.types.operations', 'MessageOperation'),
+    ('MessageVersion', 'ably.pubsub.types.message', 'MessageVersion'),
+    ('Options', 'ably.pubsub.types.options', 'Options'),
+    ('PaginatedResult', 'ably.pubsub.request.paginatedresult', 'PaginatedResult'),
+    ('Presence', 'ably.pubsub.types.presence', 'Presence'),
+    ('PresenceAction', 'ably.pubsub.types.presence', 'PresenceAction'),
+    ('PresenceMessage', 'ably.pubsub.types.presence', 'PresenceMessage'),
+    ('PubSubHttpClient', 'ably.pubsub.prototypes', 'PubSubHttpClient'),
+    ('PubSubRealtimeClient', 'ably.pubsub.prototypes', 'PubSubRealtimeClient'),
+    ('PublishResult', 'ably.pubsub.types.operations', 'PublishResult'),
+    ('Push', 'ably.pubsub.http.push', 'Push'),
+    ('PushAdmin', 'ably.pubsub.http.push', 'PushAdmin'),
+    ('PushChannelSubscription', 'ably.pubsub.types.channelsubscription', 'PushChannelSubscription'),
+    ('PushChannelSubscriptions', 'ably.pubsub.http.push', 'PushChannelSubscriptions'),
+    ('PushDeviceRegistrations', 'ably.pubsub.http.push', 'PushDeviceRegistrations'),
+    ('RealtimeAnnotations', 'ably.pubsub.realtime.annotations', 'RealtimeAnnotations'),
+    ('RealtimeChannel', 'ably.pubsub.realtime.channel', 'RealtimeChannel'),
+    ('RealtimeChannels', 'ably.pubsub.realtime.channel', 'Channels'),
+    ('RealtimePresence', 'ably.pubsub.realtime.presence', 'RealtimePresence'),
+    ('Stats', 'ably.pubsub.types.stats', 'Stats'),
+    ('TokenDetails', 'ably.pubsub.types.tokendetails', 'TokenDetails'),
+    ('TokenRequest', 'ably.pubsub.types.tokenrequest', 'TokenRequest'),
+    ('UpdateDeleteResult', 'ably.pubsub.types.operations', 'UpdateDeleteResult'),
+    ('VCDiffDecoder', 'ably.pubsub.types.options', 'VCDiffDecoder'),
+    ('api_version', 'ably.pubsub.version', 'api_version'),
+    ('create_http_client', 'ably.pubsub.server', 'create_http_client'),
+    ('create_realtime_client', 'ably.pubsub.server', 'create_realtime_client'),
+    ('generate_random_key', 'ably.pubsub.util.crypto', 'generate_random_key'),
+    ('get_default_params', 'ably.pubsub.util.crypto', 'get_default_params'),
+    ('lib_version', 'ably.pubsub.version', 'lib_version'),
+]
+
+# The names that belong to the realtime client. There is no synchronous realtime client, so
+# ably.pubsub.server.sync exports none of them, though the generated tree has classes for some.
+REALTIME_ONLY = {
+    'ChannelState',
+    'ChannelStateChange',
+    'Connection',
+    'ConnectionEvent',
+    'ConnectionState',
+    'ConnectionStateChange',
+    'PubSubRealtimeClient',
+    'RealtimeAnnotations',
+    'RealtimeChannel',
+    'RealtimeChannels',
+    'RealtimePresence',
+    'create_realtime_client',
+}
+
+# The synchronous name of an export whose generated class takes a Sync suffix. Every other
+# export keeps its name in ably.pubsub.server.sync.
+SYNC_NAMES = {
+    'Auth': 'AuthSync',
+    'Channel': 'ChannelSync',
+    'HttpAnnotations': 'HttpAnnotationsSync',
+    'HttpChannels': 'HttpChannelsSync',
+    'HttpPaginatedResponse': 'HttpPaginatedResponseSync',
+    'PaginatedResult': 'PaginatedResultSync',
+    'Presence': 'PresenceSync',
+    'Push': 'PushSync',
+    'PushAdmin': 'PushAdminSync',
+    'PushChannelSubscriptions': 'PushChannelSubscriptionsSync',
+    'PushDeviceRegistrations': 'PushDeviceRegistrationsSync',
+}
+
+SYNC_ALL = [
+    'AblyAuthException',
+    'AblyException',
+    'AblyVCDiffDecoder',
+    'Annotation',
+    'AnnotationAction',
+    'AuthSync',
+    'BatchPresenceFailureResult',
+    'BatchPresenceSuccessResult',
+    'BatchPublishFailureResult',
+    'BatchPublishSpec',
+    'BatchPublishSuccessResult',
+    'BatchResult',
+    'Capability',
+    'ChannelDetails',
+    'ChannelMetrics',
+    'ChannelMode',
+    'ChannelOccupancy',
+    'ChannelOptions',
+    'ChannelStatus',
+    'ChannelSync',
+    'CipherParams',
+    'DeviceDetails',
+    'DevicePushDetails',
+    'HttpAnnotationsSync',
+    'HttpChannelsSync',
+    'HttpPaginatedResponseSync',
+    'IncompatibleClientIdException',
+    'InvalidArgumentException',
+    'Message',
+    'MessageAction',
+    'MessageOperation',
+    'MessageVersion',
+    'Options',
+    'PaginatedResultSync',
+    'PresenceAction',
+    'PresenceMessage',
+    'PresenceSync',
+    'PubSubHttpClient',
+    'PublishResult',
+    'PushAdminSync',
+    'PushChannelSubscription',
+    'PushChannelSubscriptionsSync',
+    'PushDeviceRegistrationsSync',
+    'PushSync',
+    'Stats',
+    'TokenDetails',
+    'TokenRequest',
+    'UpdateDeleteResult',
+    'VCDiffDecoder',
+    'api_version',
+    'create_http_client',
+    'generate_random_key',
+    'get_default_params',
+    'lib_version',
+]
+
+
+def sync_export(name, module, attr):
+    """The sync export an async one maps to, as (name, defining module, name there)."""
+    if module == 'ably.pubsub.version':
+        return name, module, attr
+    if module == 'ably.pubsub.server':
+        return name, 'ably.pubsub.server.sync', attr
+    sync_module = module.replace('ably.pubsub.', 'ably.pubsub.sync.', 1)
+    if name in SYNC_NAMES:
+        return SYNC_NAMES[name], sync_module, attr + 'Sync'
+    return name, sync_module, attr
+
+
+SYNC_EXPORTS = [sync_export(*e) for e in ASYNC_EXPORTS if e[0] not in REALTIME_ONLY]
+
+
+def star_import(module_name):
+    namespace = {}
+    exec(f'from {module_name} import *', namespace)
+    namespace.pop('__builtins__')
+    return namespace
+
+
+class TestExports:
+    def test_async_all_is_pinned(self):
+        assert server.__all__ == [name for name, _, _ in ASYNC_EXPORTS]
+
+    def test_sync_all_is_pinned(self):
+        assert server_sync.__all__ == SYNC_ALL
+
+    @pytest.mark.parametrize('module', [server, server_sync], ids=['async', 'sync'])
+    def test_all_is_sorted_and_unique(self, module):
+        assert len(set(module.__all__)) == len(module.__all__)
+        assert module.__all__ == sorted(module.__all__, key=lambda n: (n[0].islower(), n))
+
+    @pytest.mark.parametrize('module', [server, server_sync], ids=['async', 'sync'])
+    def test_star_import_gives_every_name(self, module):
+        assert sorted(star_import(module.__name__)) == sorted(module.__all__)
+
+    @pytest.mark.parametrize('name,module,attr', ASYNC_EXPORTS, ids=[e[0] for e in ASYNC_EXPORTS])
+    def test_async_export_is_the_internal_object(self, name, module, attr):
+        assert getattr(server, name) is getattr(importlib.import_module(module), attr)
+
+    @pytest.mark.parametrize('name,module,attr', SYNC_EXPORTS, ids=[e[0] for e in SYNC_EXPORTS])
+    def test_sync_export_is_the_generated_object(self, name, module, attr):
+        assert getattr(server_sync, name) is getattr(importlib.import_module(module), attr)
+
+    @pytest.mark.parametrize('name,module,attr', SYNC_EXPORTS, ids=[e[0] for e in SYNC_EXPORTS])
+    def test_sync_class_is_named_as_exported(self, name, module, attr):
+        obj = getattr(server_sync, name)
+        if isinstance(obj, type) and name != 'HttpChannelsSync':
+            assert obj.__name__ == name
+
+    def test_every_async_export_has_a_sync_counterpart_or_is_realtime_only(self):
+        missing = [
+            name for name, _, _ in ASYNC_EXPORTS
+            if name not in REALTIME_ONLY and SYNC_NAMES.get(name, name) not in server_sync.__all__
+        ]
+        assert missing == []
+        assert sorted(sync_export(*e)[0] for e in ASYNC_EXPORTS if e[0] not in REALTIME_ONLY) \
+            == sorted(server_sync.__all__)
+
+    @pytest.mark.parametrize('name', sorted(REALTIME_ONLY))
+    def test_realtime_only_names_are_absent_from_sync(self, name):
+        assert name in server.__all__
+        assert name not in server_sync.__all__
+        assert not hasattr(server_sync, name)
+
+    @pytest.mark.parametrize('name', ['ConnectionDetails', 'MessageAnnotations', 'ErrorInfo', 'ResponseHeaders'])
+    def test_deferred_names_are_not_exported(self, name):
+        assert name not in server.__all__
+        assert name not in server_sync.__all__
+
+    def test_handle_classes_match_what_the_clients_hand_out(self):
+        http = create_http_client(key='fake:key')
+        channel = http.channels.get('exports')
+        assert type(channel) is server.Channel
+        assert type(channel.presence) is server.Presence
+        assert type(channel.annotations) is server.HttpAnnotations
+        assert type(http.push.admin) is server.PushAdmin
+        assert type(http.push.admin.device_registrations) is server.PushDeviceRegistrations
+        assert type(http.push.admin.channel_subscriptions) is server.PushChannelSubscriptions
+
+        sync_http = server_sync.create_http_client(key='fake:key')
+        sync_channel = sync_http.channels.get('exports')
+        assert type(sync_channel) is server_sync.ChannelSync
+        assert type(sync_channel.presence) is server_sync.PresenceSync
+        assert type(sync_channel.annotations) is server_sync.HttpAnnotationsSync
+        assert type(sync_http.push.admin) is server_sync.PushAdminSync
+        assert type(sync_http.push.admin.device_registrations) is server_sync.PushDeviceRegistrationsSync
+        assert type(sync_http.push.admin.channel_subscriptions) is server_sync.PushChannelSubscriptionsSync
+        sync_http.close()
+
+    async def test_realtime_handle_classes_match_what_the_client_hands_out(self):
+        realtime = create_realtime_client(key='foo:bar', auto_connect=False)
+        channel = realtime.channels.get('exports')
+        assert type(channel) is server.RealtimeChannel
+        assert isinstance(channel, server.Channel)
+        assert type(channel.presence) is server.RealtimePresence
+        assert type(channel.annotations) is server.RealtimeAnnotations
+        assert type(channel.state) is server.ChannelState
+        assert type(realtime.connection.state) is server.ConnectionState
+        await realtime.close()
