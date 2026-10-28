@@ -53,7 +53,7 @@ async def test_http_sends_requests_through_an_injected_transport():
 
 async def test_http_bounds_every_phase_of_a_request():
     transport = RecordingTransport(lambda request: httpx.Response(200, json=[1500000000000]))
-    ably = create_http_client(token="foo", http_open_timeout=2, http_request_timeout=7,
+    ably = create_http_client(token="foo", http_open_timeout_seconds=2, http_request_timeout_seconds=7,
                               _test_options=TestOptions(http_transport=transport))
 
     await ably.time()

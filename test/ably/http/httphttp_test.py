@@ -30,8 +30,8 @@ class TestHttpHttp(BaseAsyncTestCase):
 
     async def test_max_retry_attempts_and_timeouts_defaults(self):
         ably = create_http_client(token="foo")
-        assert ably.options.http_open_timeout == Defaults.http_open_timeout
-        assert ably.options.http_request_timeout == Defaults.http_request_timeout
+        assert ably.options.http_open_timeout_seconds == Defaults.http_open_timeout_seconds
+        assert ably.options.http_request_timeout_seconds == Defaults.http_request_timeout_seconds
 
         with mock.patch('httpx.AsyncClient.send', side_effect=httpx.RequestError('')) as send_mock:
             with pytest.raises(AblyException, match="network error"):
@@ -44,9 +44,9 @@ class TestHttpHttp(BaseAsyncTestCase):
 
     async def test_cumulative_timeout(self):
         ably = create_http_client(token="foo")
-        assert ably.options.http_max_retry_duration == Defaults.http_max_retry_duration
+        assert ably.options.http_max_retry_duration_seconds == Defaults.http_max_retry_duration_seconds
 
-        ably.options.http_max_retry_duration = 0.5
+        ably.options.http_max_retry_duration_seconds = 0.5
 
         def sleep_and_raise(*args, **kwargs):
             time.sleep(0.51)
@@ -176,13 +176,13 @@ class TestHttpHttp(BaseAsyncTestCase):
 
     def test_custom_http_timeouts(self):
         ably = create_http_client(
-            token="foo", http_request_timeout=30, http_open_timeout=8,
-            http_max_retry_count=6, http_max_retry_duration=20)
+            token="foo", http_request_timeout_seconds=30, http_open_timeout_seconds=8,
+            http_max_retry_count=6, http_max_retry_duration_seconds=20)
 
-        assert ably.http.http_request_timeout == 30
-        assert ably.http.http_open_timeout == 8
+        assert ably.http.http_request_timeout_seconds == 30
+        assert ably.http.http_open_timeout_seconds == 8
         assert ably.http.http_max_retry_count == 6
-        assert ably.http.http_max_retry_duration == 20
+        assert ably.http.http_max_retry_duration_seconds == 20
 
     # RSC7a, RSC7b
     async def test_request_headers(self):

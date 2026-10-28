@@ -218,10 +218,10 @@ class TestHttpInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
     @dont_vary_protocol
     def test_accepts_custom_http_timeouts(self):
         ably = create_http_client(
-            token="foo", http_request_timeout=30, http_open_timeout=8,
-            http_max_retry_count=6, http_max_retry_duration=20)
+            token="foo", http_request_timeout_seconds=30, http_open_timeout_seconds=8,
+            http_max_retry_count=6, http_max_retry_duration_seconds=20)
 
-        assert ably.options.http_request_timeout == 30
-        assert ably.options.http_open_timeout == 8
+        assert ably.options.http_request_timeout_seconds == 30
+        assert ably.options.http_open_timeout_seconds == 8
         assert ably.options.http_max_retry_count == 6
-        assert ably.options.http_max_retry_duration == 20
+        assert ably.options.http_max_retry_duration_seconds == 20

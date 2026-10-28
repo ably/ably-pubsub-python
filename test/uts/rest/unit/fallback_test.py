@@ -138,8 +138,8 @@ async def test_rsc15l_qualifying_errors_trigger_fallback_request_timeout():
     mock_http.queue_timeout()
     mock_http.queue_response(200, TIME_BODY)
 
-    # The spec sets httpRequestTimeout to 1000; ably-python takes seconds
-    client = rest_client(mock_http, http_request_timeout=1)
+    # The spec sets httpRequestTimeout to 1000 ms, which is 1 in seconds
+    client = rest_client(mock_http, http_request_timeout_seconds=1)
 
     await client.time()
 
@@ -235,7 +235,7 @@ async def test_rsc15l_connection_timeout_fallback():
         on_connection_attempt=on_connection_attempt,
         on_request=lambda req: req.respond_with(200, TIME_BODY),
     )
-    client = rest_client(mock_http, http_request_timeout=1)
+    client = rest_client(mock_http, http_request_timeout_seconds=1)
 
     result = await client.time()
 
@@ -263,7 +263,7 @@ async def test_rsc15l_request_timeout_fallback():
             req.respond_with(200, TIME_BODY)
 
     mock_http = MockHttpClient(on_connection_attempt=on_connection_attempt, on_request=on_request)
-    client = rest_client(mock_http, http_request_timeout=1)
+    client = rest_client(mock_http, http_request_timeout_seconds=1)
 
     result = await client.time()
 

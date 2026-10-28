@@ -106,9 +106,9 @@ class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
     async def test_timeout(self):
         # Timeout
         timeout = 0.000001
-        ably = create_http_client(token="foo", http_request_timeout=timeout)
-        assert ably.http.http_request_timeout == timeout
-        # `http_open_timeout` keeps its four-second default, so the request carries a
+        ably = create_http_client(token="foo", http_request_timeout_seconds=timeout)
+        assert ably.http.http_request_timeout_seconds == timeout
+        # `http_open_timeout_seconds` keeps its four-second default, so the request carries a
         # connect budget as well as a read budget and either can be the one to expire
         with pytest.raises(AblyException) as excinfo:
             await ably.request('GET', '/time', version=Defaults.protocol_version)

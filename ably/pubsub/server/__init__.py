@@ -132,14 +132,18 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
 
         **HTTP behaviour**
 
-        http_open_timeout: float
-            Timeout (in seconds) for establishing an HTTP connection. The default is 4
-            seconds.
-        http_request_timeout: float
-            Timeout (in seconds) for a complete HTTP request. The default is 10 seconds.
-        http_max_retry_duration: float
-            How long (in seconds) the client keeps retrying a request across hosts before
-            giving up. The default is 15 seconds.
+        The timeouts are in seconds, where the Ably specification counts milliseconds, and
+        their names say so; a `datetime.timedelta` converts with `.total_seconds()`.
+
+        http_open_timeout_seconds: float
+            TO3l3 httpOpenTimeout, in seconds: the timeout for establishing an HTTP
+            connection. The default is 4.
+        http_request_timeout_seconds: float
+            TO3l4 httpRequestTimeout, in seconds: the timeout for each read and write of
+            an HTTP request, and for a free pooled connection. The default is 10.
+        http_max_retry_duration_seconds: float
+            TO3l6 httpMaxRetryDuration, in seconds: how long the client keeps retrying a
+            request across hosts before giving up. The default is 15.
         http_max_retry_count: int
             The most fallback hosts the client will try for a single request, after the
             primary endpoint. The default is 3; 0 tries the primary endpoint only.

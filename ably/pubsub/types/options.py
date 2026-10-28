@@ -43,6 +43,9 @@ class Options(AuthOptions):
     milliseconds, and each name ends in `_seconds` to say so. Each reads back the value
     in effect, its default if it was not given:
 
+    - `http_open_timeout_seconds`: TO3l3 httpOpenTimeout, default 4
+    - `http_request_timeout_seconds`: TO3l4 httpRequestTimeout, default 10
+    - `http_max_retry_duration_seconds`: TO3l6 httpMaxRetryDuration, default 15
     - `realtime_request_timeout_seconds`: TO3l11 realtimeRequestTimeout, default 10
     - `disconnected_retry_timeout_seconds`: TO3l1 disconnectedRetryTimeout, default 15
     - `suspended_retry_timeout_seconds`: TO3l2 suspendedRetryTimeout, default 30
@@ -52,8 +55,9 @@ class Options(AuthOptions):
 
     def __init__(self, client_id=None, tls=True, port=0,
                  tls_port=0, use_binary_protocol=True, queue_messages=True, endpoint=None,
-                 http_open_timeout=None, http_request_timeout=None,
-                 realtime_request_timeout_seconds=None, http_max_retry_count=None, http_max_retry_duration=None,
+                 http_open_timeout_seconds=None, http_request_timeout_seconds=None,
+                 realtime_request_timeout_seconds=None, http_max_retry_count=None,
+                 http_max_retry_duration_seconds=None,
                  fallback_hosts=None, fallback_retry_timeout_seconds=None, disconnected_retry_timeout_seconds=None,
                  idempotent_rest_publishing=None, loop=None, auto_connect=True,
                  suspended_retry_timeout_seconds=None, connectivity_check_url=None,
@@ -72,17 +76,17 @@ class Options(AuthOptions):
             realtime_request_timeout_seconds = Defaults.realtime_request_timeout_seconds
 
         # RTC7: the HTTP defaults are resolved here too, so they read back from the options
-        if http_open_timeout is None:
-            http_open_timeout = Defaults.http_open_timeout
+        if http_open_timeout_seconds is None:
+            http_open_timeout_seconds = Defaults.http_open_timeout_seconds
 
-        if http_request_timeout is None:
-            http_request_timeout = Defaults.http_request_timeout
+        if http_request_timeout_seconds is None:
+            http_request_timeout_seconds = Defaults.http_request_timeout_seconds
 
         if http_max_retry_count is None:
             http_max_retry_count = Defaults.http_max_retry_count
 
-        if http_max_retry_duration is None:
-            http_max_retry_duration = Defaults.http_max_retry_duration
+        if http_max_retry_duration_seconds is None:
+            http_max_retry_duration_seconds = Defaults.http_max_retry_duration_seconds
 
         if disconnected_retry_timeout_seconds is None:
             disconnected_retry_timeout_seconds = Defaults.disconnected_retry_timeout_seconds
@@ -117,11 +121,11 @@ class Options(AuthOptions):
         self.__queue_messages = queue_messages
         self.__echo_messages = echo_messages
         self.__endpoint = endpoint
-        self.__http_open_timeout = http_open_timeout
-        self.__http_request_timeout = http_request_timeout
+        self.__http_open_timeout_seconds = http_open_timeout_seconds
+        self.__http_request_timeout_seconds = http_request_timeout_seconds
         self.__realtime_request_timeout_seconds = realtime_request_timeout_seconds
         self.__http_max_retry_count = http_max_retry_count
-        self.__http_max_retry_duration = http_max_retry_duration
+        self.__http_max_retry_duration_seconds = http_max_retry_duration_seconds
         # Field for internal use only
         self.__fallback_host = None
         self.__fallback_hosts = fallback_hosts
@@ -198,16 +202,16 @@ class Options(AuthOptions):
         return self.__endpoint
 
     @property
-    def http_open_timeout(self):
-        return self.__http_open_timeout
+    def http_open_timeout_seconds(self):
+        return self.__http_open_timeout_seconds
 
-    @http_open_timeout.setter
-    def http_open_timeout(self, value):
-        self.__http_open_timeout = value
+    @http_open_timeout_seconds.setter
+    def http_open_timeout_seconds(self, value):
+        self.__http_open_timeout_seconds = value
 
     @property
-    def http_request_timeout(self):
-        return self.__http_request_timeout
+    def http_request_timeout_seconds(self):
+        return self.__http_request_timeout_seconds
 
     @property
     def realtime_request_timeout_seconds(self):
@@ -217,9 +221,9 @@ class Options(AuthOptions):
     def _realtime_request_timeout_ms(self):
         return seconds_to_ms(self.__realtime_request_timeout_seconds)
 
-    @http_request_timeout.setter
-    def http_request_timeout(self, value):
-        self.__http_request_timeout = value
+    @http_request_timeout_seconds.setter
+    def http_request_timeout_seconds(self, value):
+        self.__http_request_timeout_seconds = value
 
     @property
     def http_max_retry_count(self):
@@ -230,12 +234,12 @@ class Options(AuthOptions):
         self.__http_max_retry_count = value
 
     @property
-    def http_max_retry_duration(self):
-        return self.__http_max_retry_duration
+    def http_max_retry_duration_seconds(self):
+        return self.__http_max_retry_duration_seconds
 
-    @http_max_retry_duration.setter
-    def http_max_retry_duration(self, value):
-        self.__http_max_retry_duration = value
+    @http_max_retry_duration_seconds.setter
+    def http_max_retry_duration_seconds(self, value):
+        self.__http_max_retry_duration_seconds = value
 
     @property
     def fallback_hosts(self):

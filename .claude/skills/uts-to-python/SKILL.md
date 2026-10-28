@@ -755,7 +755,7 @@ Infrastructure Limitation. RTN23a via `send_to_client(HEARTBEAT_MESSAGE)` works.
   response processor decodes the body through `Response.to_native()`. A native dict or
   list body gets one automatically.
 - **The mock enforces the client's read timeout**, so `respond_with_delay` beyond
-  `http_request_timeout` raises rather than arriving late.
+  `http_request_timeout_seconds` raises rather than arriving late.
 - **Several client options are missing entirely** — `max_message_size` and
   `log_handler` among them — and raise `TypeError` rather than being ignored. Check
   `ably/types/options.py` first.
@@ -861,14 +861,13 @@ Established against the real proxy and the real sandbox while deriving
   same client adds its own `http_request` events. In `RSL1k4` the log is read
   **before** the history call, and the history read is a `wall_clock_poll_until` rather
   than a single fetch, because a published message does not reach history at once.
-- **`httpRequestTimeout` is milliseconds in the specification and seconds in
-  ably-python.** `ably/http/http.py:193` hands `(http_open_timeout,
-  http_request_timeout)` to `httpx`, which reads seconds, so the specification's
-  `http_request_timeout=3000` is a 3000-second deadline: measured, the request sat out
-  the proxy's whole 20-second delay and then succeeded on the primary host, and no
-  fallback was attempted. Passing `3` makes the same test pass in 3.1s, so only the
-  unit is wrong. The test is written as the specification has it and gated with
-  `@deviation`; `test/uts/deviations.md` carries the entry.
+- **`httpRequestTimeout` is milliseconds in the specification and
+  `http_request_timeout_seconds` is seconds in ably-python**, as are
+  `http_open_timeout_seconds` and `http_max_retry_duration_seconds`. Divide the
+  specification's value by 1000: passed undivided, `httpRequestTimeout: 3000` is a
+  3000-second deadline, and measured, the request sat out the proxy's whole 20-second
+  delay and then succeeded on the primary host with no fallback attempted. `3` makes
+  the same test pass in 3.1s.
 
 ## Traps found while deriving the realtime integration tier
 

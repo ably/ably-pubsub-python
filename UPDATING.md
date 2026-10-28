@@ -408,7 +408,9 @@ await pubsub_http_client.auth.request_token({'ttl': 600000, 'capability': capabi
 `http_open_timeout`, `http_request_timeout`, `http_max_retry_count` and
 `http_max_retry_duration` on `client.options` used to read `None` unless you set them, while
 the client applied defaults of its own. They now read back the values in effect: 4, 10, 3 and
-15 by default. The timeouts and the retry duration are still in seconds. Code that tested an
+15 by default. The timeouts and the retry duration are still in seconds, and are renamed
+`http_open_timeout_seconds`, `http_request_timeout_seconds` and
+`http_max_retry_duration_seconds`, as described below. Code that tested an
 option for `None`, to tell whether it had been set, will no longer find it so.
 
 ### Requests no longer take a `timeout` argument
@@ -427,21 +429,21 @@ await rest.time(timeout=5)
 
 Example 4.0.0 code:
 ```python
-pubsub_http_client = create_http_client(key='xxx', http_request_timeout=5)
+pubsub_http_client = create_http_client(key='xxx', http_request_timeout_seconds=5)
 await pubsub_http_client.time()
 ```
 
-### `http_request_timeout` bounds writes and connection-pool waits
+### `http_request_timeout_seconds` bounds writes and connection-pool waits
 
 In 3.x, `http_open_timeout` bounded connecting and `http_request_timeout` bounded each read
 of a response, while writing a request body and waiting for a free pooled connection had no
-timeout at all. `http_request_timeout` now bounds those too, so a request stuck writing to,
+timeout at all. `http_request_timeout_seconds` now bounds those too, so a request stuck writing to,
 or waiting for, a wedged connection raises `httpx.TimeoutException` and is retried against a
 fallback host instead of hanging. If you publish large bodies over a slow link, raise
-`http_request_timeout` to fit:
+`http_request_timeout_seconds` to fit:
 
 ```python
-pubsub_http_client = create_http_client(key='xxx', http_request_timeout=30)
+pubsub_http_client = create_http_client(key='xxx', http_request_timeout_seconds=30)
 ```
 
 ### `http_max_retry_count` counts fallback hosts only
@@ -816,6 +818,37 @@ pubsub_realtime_client = create_realtime_client(
     key='xxx',
     disconnected_retry_timeout_seconds=5,
     realtime_request_timeout_seconds=timedelta(milliseconds=2500).total_seconds(),
+)
+```
+
+### The HTTP timing options end in `_seconds`
+
+**Passing an old name raises `TypeError`.** The HTTP timing options were already seconds, and
+still are, but their names did not say so where the other timing options were milliseconds.
+Each is renamed with a `_seconds` suffix, to match the options above, and reads back from
+`client.options` under the new name. Only the name changes:
+
+| 3.x option | Unit | 4.0.0 option | Unit | Default |
+|---|---|---|---|---|
+| `http_open_timeout` | s | `http_open_timeout_seconds` | s | 4 |
+| `http_request_timeout` | s | `http_request_timeout_seconds` | s | 10 |
+| `http_max_retry_duration` | s | `http_max_retry_duration_seconds` | s | 15 |
+
+Keep a 3.x value as it is, or pass a `timedelta`'s `total_seconds()`.
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', http_open_timeout=2, http_request_timeout=5)
+```
+
+Example 4.0.0 code:
+```python
+from datetime import timedelta
+
+pubsub_http_client = create_http_client(
+    key='xxx',
+    http_open_timeout_seconds=2,
+    http_request_timeout_seconds=timedelta(seconds=5).total_seconds(),
 )
 ```
 

@@ -181,10 +181,31 @@ def test_realtime_timing_options_read_back_what_was_given(option):
     assert getattr(opts, '_' + option.replace('_seconds', '_ms')) == 250
 
 
+# TO3l3, TO3l4, TO3l6: the HTTP timing options were always seconds, and are now named for it
+HTTP_TIMING_DEFAULTS = {
+    'http_open_timeout_seconds': 4,
+    'http_request_timeout_seconds': 10,
+    'http_max_retry_duration_seconds': 15,
+}
+
+
+@pytest.mark.parametrize('option, default', HTTP_TIMING_DEFAULTS.items())
+def test_http_timing_options_read_back_their_defaults_in_seconds(option, default):
+    assert getattr(Options(), option) == default
+    assert getattr(Options(**{option: 2.5}), option) == 2.5
+
+
+def test_the_http_layer_reads_the_timing_options_in_seconds():
+    ably = create_http_client(token='foo', http_open_timeout_seconds=2.5, http_request_timeout_seconds=7)
+    assert ably.http.http_open_timeout_seconds == 2.5
+    assert ably.http.http_request_timeout_seconds == 7
+
+
 @pytest.mark.parametrize('option', ['realtime_request_timeout', 'disconnected_retry_timeout',
                                     'suspended_retry_timeout', 'channel_retry_timeout',
-                                    'fallback_retry_timeout'])
-def test_options_should_reject_the_millisecond_names(option):
+                                    'fallback_retry_timeout', 'http_open_timeout',
+                                    'http_request_timeout', 'http_max_retry_duration'])
+def test_options_should_reject_the_old_timing_names(option):
     with pytest.raises(TypeError):
         Options(**{option: 15000})
 

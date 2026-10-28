@@ -36,10 +36,10 @@ async def test_to3_client_options_attributes():
     assert options.auth_method == 'GET'
     assert options.tls is True
 
-    # DEVIATION: the spec asserts httpRequestTimeout == 10000. ably-python's
-    # http_request_timeout is in seconds rather than milliseconds, so the same default
-    # reads back as 10. See deviations.md.
-    assert options.http_request_timeout == 10
+    # DEVIATION: the spec asserts httpRequestTimeout == 10000. ably-python's timing
+    # options are in seconds and named for it, so the same default reads back as
+    # http_request_timeout_seconds == 10. See deviations.md.
+    assert options.http_request_timeout_seconds == 10
     assert options.http_max_retry_count == 3
 
     assert options.use_binary_protocol is True
@@ -52,7 +52,7 @@ async def test_to3_client_options_attributes():
     # The HTTP layer applies the defaults the options hold: 10 seconds, and the primary
     # host plus 3 fallbacks to try (TO3l5).
     client = rest_client(mock_http_client())
-    assert client.http.http_request_timeout == 10
+    assert client.http.http_request_timeout_seconds == 10
     assert len(client.options.get_hosts()) == 4
 
     options = Options(
@@ -60,7 +60,8 @@ async def test_to3_client_options_attributes():
         client_id='my-client',
         endpoint='test',
         tls=False,
-        http_request_timeout=30000,
+        # The specification's httpRequestTimeout: 30000, in seconds
+        http_request_timeout_seconds=30,
         use_binary_protocol=False,
         idempotent_rest_publishing=False,
         add_request_ids=True,
@@ -71,7 +72,7 @@ async def test_to3_client_options_attributes():
     assert options.client_id == 'my-client'
     assert options.endpoint == 'test'
     assert options.tls is False
-    assert options.http_request_timeout == 30000
+    assert options.http_request_timeout_seconds == 30
     assert options.use_binary_protocol is False
     assert options.idempotent_rest_publishing is False
     assert options.add_request_ids is True
