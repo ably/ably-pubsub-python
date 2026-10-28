@@ -431,7 +431,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
         await auth_callback_failure({
             'auth_callback': auth_callback,
-            'realtime_request_timeout': 100,
+            'realtime_request_timeout_seconds': 0.1,
         })
 
     async def test_auth_callback_nothing(self):

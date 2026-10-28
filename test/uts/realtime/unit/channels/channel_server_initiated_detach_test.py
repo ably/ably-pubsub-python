@@ -127,7 +127,7 @@ async def test_rtl13a_suspended_reattach_triggered():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=60000)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=60)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -172,7 +172,7 @@ async def test_rtl13b_failed_reattach_suspended_retry():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -236,7 +236,7 @@ async def test_rtl13b_attaching_detached_to_suspended():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=500, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.5, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -292,7 +292,7 @@ async def test_rtl13b_repeated_failure_cycle():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -359,7 +359,7 @@ async def test_rtl13c_retry_cancelled_disconnected():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()

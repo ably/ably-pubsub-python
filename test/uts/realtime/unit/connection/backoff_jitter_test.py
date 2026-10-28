@@ -23,12 +23,13 @@ from test.uts.helpers.mock_websocket import MockWebSocket, connected_message
 CONNECTED_MESSAGE = connected_message('connection-id', connectionKey='connection-key')
 
 # Short enough that a refused attempt, which reaches no failure path of its own and
-# so ends on the transition timer, does not crowd out the retry delays being measured
+# so ends on the transition timer, does not crowd out the retry delays being measured.
+# Milliseconds, like every duration here but the client options
 REQUEST_TIMEOUT = 50
 
 # The connection is suspended once it has been disconnected for
 # `Defaults.connection_state_ttl`, after which retries move to
-# `suspended_retry_timeout`; every sample has to be taken before that
+# `suspended_retry_timeout_seconds`; every sample has to be taken before that
 CONNECTION_STATE_TTL = 120000
 
 
@@ -57,7 +58,7 @@ def retry_delays(transitions, scheduling_state, retrying_state):
     return delays
 
 
-async def measure_disconnected_retry_delays(count, disconnected_retry_timeout):
+async def measure_disconnected_retry_delays(count, disconnected_retry_timeout_ms):
     """Drives a connection through repeated failed reconnections, returning the
     delay before each retry."""
     connection_attempts = []
@@ -73,8 +74,8 @@ async def measure_disconnected_retry_delays(count, disconnected_retry_timeout):
     clock = FakeClock()
     client = realtime_client(
         mock_ws, clock=clock, key='appId.keyId:keySecret', use_binary_protocol=False,
-        disconnected_retry_timeout=disconnected_retry_timeout,
-        realtime_request_timeout=REQUEST_TIMEOUT,
+        disconnected_retry_timeout_seconds=disconnected_retry_timeout_ms / 1000,
+        realtime_request_timeout_seconds=REQUEST_TIMEOUT / 1000,
     )
 
     transitions = []
@@ -87,7 +88,7 @@ async def measure_disconnected_retry_delays(count, disconnected_retry_timeout):
     await settle()
 
     while clock.now < CONNECTION_STATE_TTL:
-        await clock.advance(disconnected_retry_timeout * 2 + REQUEST_TIMEOUT)
+        await clock.advance(disconnected_retry_timeout_ms * 2 + REQUEST_TIMEOUT)
         delays = retry_delays(transitions, ConnectionState.DISCONNECTED, ConnectionState.CONNECTING)
         if len(delays) >= count:
             return delays
@@ -149,32 +150,32 @@ async def test_rtb1b_jitter_coefficient_range():
 # UTS: realtime/unit/RTB1/disconnected-retry-delay-0
 @deviation
 async def test_rtb1_disconnected_retry_delay():
-    disconnected_retry_timeout = 2000
-    retry_delays_observed = await measure_disconnected_retry_delays(5, disconnected_retry_timeout)
+    disconnected_retry_timeout_ms = 2000
+    retry_delays_observed = await measure_disconnected_retry_delays(5, disconnected_retry_timeout_ms)
 
     assert len(retry_delays_observed) >= 5
 
-    assert retry_delays_observed[0] >= disconnected_retry_timeout * 1.0 * 0.8
-    assert retry_delays_observed[0] <= disconnected_retry_timeout * 1.0
+    assert retry_delays_observed[0] >= disconnected_retry_timeout_ms * 1.0 * 0.8
+    assert retry_delays_observed[0] <= disconnected_retry_timeout_ms * 1.0
 
-    assert retry_delays_observed[1] >= disconnected_retry_timeout * (4.0 / 3.0) * 0.8
-    assert retry_delays_observed[1] <= disconnected_retry_timeout * (4.0 / 3.0)
+    assert retry_delays_observed[1] >= disconnected_retry_timeout_ms * (4.0 / 3.0) * 0.8
+    assert retry_delays_observed[1] <= disconnected_retry_timeout_ms * (4.0 / 3.0)
 
-    assert retry_delays_observed[2] >= disconnected_retry_timeout * (5.0 / 3.0) * 0.8
-    assert retry_delays_observed[2] <= disconnected_retry_timeout * (5.0 / 3.0)
+    assert retry_delays_observed[2] >= disconnected_retry_timeout_ms * (5.0 / 3.0) * 0.8
+    assert retry_delays_observed[2] <= disconnected_retry_timeout_ms * (5.0 / 3.0)
 
-    assert retry_delays_observed[3] >= disconnected_retry_timeout * 2.0 * 0.8
-    assert retry_delays_observed[3] <= disconnected_retry_timeout * 2.0
+    assert retry_delays_observed[3] >= disconnected_retry_timeout_ms * 2.0 * 0.8
+    assert retry_delays_observed[3] <= disconnected_retry_timeout_ms * 2.0
 
-    assert retry_delays_observed[4] >= disconnected_retry_timeout * 2.0 * 0.8
-    assert retry_delays_observed[4] <= disconnected_retry_timeout * 2.0
+    assert retry_delays_observed[4] >= disconnected_retry_timeout_ms * 2.0 * 0.8
+    assert retry_delays_observed[4] <= disconnected_retry_timeout_ms * 2.0
 
 
 # UTS: realtime/unit/RTB1/suspended-channel-retry-delay-1
 @deviation
 async def test_rtb1_suspended_channel_retry_delay():
     channel_name = 'test-RTB1-channel'
-    channel_retry_timeout = 3000
+    channel_retry_timeout_ms = 3000
 
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE),
@@ -182,7 +183,7 @@ async def test_rtb1_suspended_channel_retry_delay():
     clock = FakeClock()
     client = realtime_client(
         mock_ws, clock=clock, key='appId.keyId:keySecret', use_binary_protocol=False,
-        channel_retry_timeout=channel_retry_timeout,
+        channel_retry_timeout_seconds=channel_retry_timeout_ms / 1000,
     )
 
     attach_count = []
@@ -237,14 +238,14 @@ async def test_rtb1_suspended_channel_retry_delay():
 
     assert len(delays) >= 4
 
-    assert delays[0] >= channel_retry_timeout * 1.0 * 0.8
-    assert delays[0] <= channel_retry_timeout * 1.0
+    assert delays[0] >= channel_retry_timeout_ms * 1.0 * 0.8
+    assert delays[0] <= channel_retry_timeout_ms * 1.0
 
-    assert delays[1] >= channel_retry_timeout * (4.0 / 3.0) * 0.8
-    assert delays[1] <= channel_retry_timeout * (4.0 / 3.0)
+    assert delays[1] >= channel_retry_timeout_ms * (4.0 / 3.0) * 0.8
+    assert delays[1] <= channel_retry_timeout_ms * (4.0 / 3.0)
 
-    assert delays[2] >= channel_retry_timeout * (5.0 / 3.0) * 0.8
-    assert delays[2] <= channel_retry_timeout * (5.0 / 3.0)
+    assert delays[2] >= channel_retry_timeout_ms * (5.0 / 3.0) * 0.8
+    assert delays[2] <= channel_retry_timeout_ms * (5.0 / 3.0)
 
-    assert delays[3] >= channel_retry_timeout * 2.0 * 0.8
-    assert delays[3] <= channel_retry_timeout * 2.0
+    assert delays[3] >= channel_retry_timeout_ms * 2.0 * 0.8
+    assert delays[3] <= channel_retry_timeout_ms * 2.0

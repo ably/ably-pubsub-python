@@ -179,7 +179,7 @@ async def test_rtn8d_id_key_retained_in_suspended():
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     clock = FakeClock()
     client = realtime_client(
-        mock_ws, clock=clock, disconnected_retry_timeout=1000, suspended_retry_timeout=100)
+        mock_ws, clock=clock, disconnected_retry_timeout_seconds=1, suspended_retry_timeout_seconds=0.1)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)

@@ -342,7 +342,7 @@ async def test_rtl15b2_serial_retained_suspended():
             # A second ATTACH goes unanswered, so it times out into SUSPENDED
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()

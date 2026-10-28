@@ -1838,7 +1838,7 @@ except (WebSocketException, socket.gaierror) as e:
 `ConnectionManager.try_host` awaits is completed only by the `connected` or `failed` events,
 so it never completes; the `except` clause in `connect_base` that would enter
 `connect_with_fallback_hosts` is never reached; and the attempt is ended only by the
-transition timer. Measured, with `fallback_hosts=[]` and `realtime_request_timeout=1000`:
+transition timer. Measured, with `fallback_hosts=[]` and `realtime_request_timeout_seconds=1`:
 
 | injected | state at settle | state change | reason |
 |---|---|---|---|
@@ -1927,7 +1927,7 @@ has `uts-proxy` replace the first CONNECTED with one carrying `connectionStateTt
 drops the socket and refuses the retry. Measured: the replacement did reach
 `connection_details.connection_state_ttl == 2000`, and SUSPENDED still did not arrive
 within 45 s — the client sat DISCONNECTED and reconnected on the fifteen-second
-`disconnected_retry_timeout`. Honouring the TTL will not on its own turn that test green.
+`disconnected_retry_timeout_seconds`. Honouring the TTL will not on its own turn that test green.
 `#### The connection id, key and details are cleared on SUSPENDED` means a suspended client
 stops sending `resume`, which is precisely what RTN14h asserts it still does, and
 `"connectionKey": "__PASSTHROUGH__"` in the fixture is not substituted by uts-proxy v0.3.0
@@ -2054,6 +2054,31 @@ adapted.
 
 **Status:** adapted; the gap itself is the open issue recorded above.
 
+### Timing options are seconds, and named for it
+
+Intentional. TO3l counts every timing option in milliseconds; ably-python takes seconds,
+which is what a Python caller expects, and names each option with a `_seconds` suffix so
+the unit is on the page. A 3.x caller passing the old name gets a `TypeError` at
+construction, rather than a value a thousand times too long. The wire values the
+specification also counts in milliseconds are unchanged: token `ttl`, `ConnectionDetails`,
+`Auth.time_offset`, timestamps and the result of `ping()`.
+
+Every derived test that sets one of these options divides the specification's value by
+1000, so `disconnectedRetryTimeout: 100` is `disconnected_retry_timeout_seconds=0.1`, and
+every test reading a default back reads the seconds. Everything else stays in the
+specification's milliseconds: `ADVANCE_TIME`, `maxIdleInterval`, `connectionStateTtl` and
+every `FakeClock` value. `Options` converts each option for the clock in one place,
+rounding to the microsecond, so 0.1 schedules exactly 100 ms and a timer due on the
+boundary of an `ADVANCE_TIME` still fires.
+
+| Spec point | Specification | ably-python | Tests |
+|---|---|---|---|
+| TO3l11 | `realtimeRequestTimeout`, ms, default 10000 | `realtime_request_timeout_seconds`, default 10 | `test_rtc7_default_timeouts_applied`, and every realtime test that shortens the request timeout |
+| TO3l1 | `disconnectedRetryTimeout`, ms, default 15000 | `disconnected_retry_timeout_seconds`, default 15 | `test_rtc7_default_timeouts_applied`, and every realtime test that shortens or lengthens the retry |
+| TO3l2 | `suspendedRetryTimeout`, ms, default 30000 | `suspended_retry_timeout_seconds`, default 30 | `test_rtc7_default_timeouts_applied`, and every realtime test that sets it |
+| TO3l7 | `channelRetryTimeout`, ms, default 15000 | `channel_retry_timeout_seconds`, default 15 | every channel test that sets it, among them the RTL13b and RTB1 tests |
+| TO3l10 | `fallbackRetryTimeout`, ms, default 600000 | `fallback_retry_timeout_seconds`, default 600 | the RSC15f tests in `rest/unit/fallback_test.py` |
+
 ### Channel and presence behaviours asserted as they are
 
 | Spec points | Specification | ably-python | Tests |
@@ -2063,7 +2088,7 @@ adapted.
 | RTL7g | `channel.subscribe(listener)` registers the listener even when the implicit attach is rejected | the listener *is* registered (`channel.py:279-282`), and then `subscribe` awaits `attach()`, which re-raises the failure (`:150`). So `await channel.subscribe(...)` raises where the specification's fire-and-forget call returns. The RTL7g requirement itself holds | `test_rtl7g_listener_registered_attach_fails`, `test_rtl7g_no_attach_when_attaching` |
 | RTL10b | an `AblyException` when `untilAttach` is used on an unattached channel | an `AblyException`, but for the wrong reason: `history` takes no `until_attach`, and `catch_all` wraps the `TypeError` as `50000 500 Unexpected exception` whatever the channel's state. The test also asserts that no HTTP request was made | `test_rtl10b_errors_when_not_attached` |
 | RTL19b, RTL19c, RTL20, RTL21, PC3 | a vcdiff-decoded payload equals a string literal | a `bytearray`. `EncodeDataMixin.decode` (`mixins.py:106`) leaves the vcdiff result binary because no further encoding step turns it back into text, which is correct — the specification's own `RTL19b/json-wire-form-base-1`, which does carry `utf-8/vcdiff`, receives a string. Five tests assert `b'second message'` where the specification writes the string | 5 in `channel_delta_decoding_test.py` |
-| RTB1b | 1000 jitter samples | 24, because there is no jitter generator to sample and each sample costs a whole reconnection cycle. A cycle takes up to `disconnectedRetryTimeout * 2` plus the request timeout, and every one of them has to finish before the 120000 ms suspend timer moves the retries onto `suspended_retry_timeout`, which affords 29. The standard error of the mean is 0.013 against a ±0.05 allowance, so the test still separates a uniform generator from a degenerate one | `test_rtb1b_jitter_coefficient_range` |
+| RTB1b | 1000 jitter samples | 24, because there is no jitter generator to sample and each sample costs a whole reconnection cycle. A cycle takes up to `disconnectedRetryTimeout * 2` plus the request timeout, and every one of them has to finish before the 120000 ms suspend timer moves the retries onto `suspended_retry_timeout_seconds`, which affords 29. The standard error of the mean is 0.013 against a ±0.05 allowance, so the test still separates a uniform generator from a degenerate one | `test_rtb1b_jitter_coefficient_range` |
 | RTB1 | the channel test provokes its re-attach with a channel `ERROR`, citing RTL13b | RTL14 takes a channel ERROR straight to FAILED, which is correct (see *Investigated and not defects*), so the channel never suspends and no retry timer starts. The derived test provokes the re-attach with a server-initiated DETACHED instead, which RTL13a does answer with `_request_state(ATTACHING)`; from there the scenario runs as written | `test_rtb1_suspended_channel_retry_delay` |
 
 ### Translation notes that are not deviations
@@ -2073,7 +2098,7 @@ pseudocode is not mistaken for non-compliance.
 
 | Subject | Note |
 |---|---|
-| DISCONNECTED as a restable state | RTN15a retries a drop from CONNECTED through `loop.call_soon` (`connectionmanager.py:668`) with no time passing, so DISCONNECTED is left within the same turn of the event loop and a listener registered afterwards never sees it. The heartbeat specification says so itself, under "Verifying Transient States"; tests record the whole sequence with `connection.on(...)` and assert `CONTAINS_IN_ORDER`. Where a test needs the connection to *rest* in DISCONNECTED it fails the immediate retry and raises `disconnected_retry_timeout`. Correct RTN15a behaviour |
+| DISCONNECTED as a restable state | RTN15a retries a drop from CONNECTED through `loop.call_soon` (`connectionmanager.py:668`) with no time passing, so DISCONNECTED is left within the same turn of the event loop and a listener registered afterwards never sees it. The heartbeat specification says so itself, under "Verifying Transient States"; tests record the whole sequence with `connection.on(...)` and assert `CONTAINS_IN_ORDER`. Where a test needs the connection to *rest* in DISCONNECTED it fails the immediate retry and raises `disconnected_retry_timeout_seconds`. Correct RTN15a behaviour |
 | `Channels.__iter__` | annotated `Iterator[str]`, but yields the `Channel` objects rather than their names |
 | `RealtimeChannel.publish()` | positional-only (`*args`, `channel.py:342`). The keyword form the specifications write raises `ValueError`, although `RestChannel.publish()` accepts it. Every test uses the positional form |
 | ACK `res` | every ACK in the specifications is written `res: { "serials": [...] }`, a single object. `WebSocketTransport` (`websockettransport.py:191-193`) reads `res` as a list, one entry per acknowledged ProtocolMessage, which matches the protocol definition. The specification's single object is shorthand for the one-message case |
@@ -2105,7 +2130,7 @@ pseudocode is not mistaken for non-compliance.
 | TO3l8, CD2c | `maxMessageSize` is a client option, default 65536, which `connectionDetails.maxMessageSize` overrides for realtime publishes | The option and its default match, and REST and realtime publishes both measure per TM6 and raise 40009. `ConnectionDetails.from_dict` does not parse `maxMessageSize`, so a realtime publish is checked against the client option alone. No test asserts CD2c; `test_rtn24_connection_details_override` sends the field and reads back only the details ably-python parses | Open bug, CD2c only |
 | RTN15, RTN23 | A DISCONNECTED `ErrorInfo` needs no `statusCode` | `ConnectionManager.on_disconnected` evaluates `exception.status_code >= 500` unguarded, so a DISCONNECTED whose error omits `statusCode` raises `TypeError` in a task whose exception is only logged, and the connection silently stays CONNECTED. `DISCONNECTED_MESSAGE` supplies 400 | Open bug |
 | TO3l4, TO3l5 | `httpRequestTimeout` defaults to 10000 and `httpMaxRetryCount` to 3 on the options object | Both are defaulted on `Options`. `http_max_retry_count` reads back as 3 and matches; `http_request_timeout` reads back as 10, because ably-python's is seconds where the spec's is milliseconds, on the value a caller passes as much as on the default — gated, with the measurement, under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests | The unit is an open bug, recorded there |
-| RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | 4 and 10: both are defaulted on `Options`, in seconds where TO3l3 and TO3l4 count milliseconds. The three realtime timeouts the same test checks are milliseconds and match | Open bug, and the unit reaches the wire — `rest/proxy/RSC15l2/timeout-triggers-fallback-0` measures a request outliving its configured timeout by a factor of a thousand. Gated under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests. Moving the HTTP durations to milliseconds is breaking, and is held back from 4.0.0 pending a decision on units across the options |
+| RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | 4 and 10: both are defaulted on `Options`, in seconds where TO3l3 and TO3l4 count milliseconds. The three realtime timeouts the same test checks read back as `realtime_request_timeout_seconds == 10`, `disconnected_retry_timeout_seconds == 15` and `suspended_retry_timeout_seconds == 30`, which is intentional: see *Timing options are seconds, and named for it* | Open bug for the HTTP pair, and the unit reaches the wire — `rest/proxy/RSC15l2/timeout-triggers-fallback-0` measures a request outliving its configured timeout by a factor of a thousand. Gated under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests. Moving the HTTP durations to milliseconds is breaking, and is held back from 4.0.0 pending a decision on units across the options |
 | RTC1f | a `transportParams` boolean appears as `"true"` / `"false"` | `True` / `False`, because `WebSocketTransport.connect` builds the query string with `urllib.parse.urlencode`, which renders each value through `str()` (`websockettransport.py:89`). Integers are unaffected | Open bug. A caller can pass the strings directly, but a bool is what the spec's Stringifiable type admits |
 
 ### LiveObjects: the internal shapes the unit specifications assume — S-1 to S-6
@@ -2958,8 +2983,8 @@ module-level factory would outlive the test that set it and be shared by every
 client the suite builds.
 
 A derived test reaches for it where nothing else reaches the behaviour.
-`realtime_request_timeout`, `disconnected_retry_timeout`,
-`suspended_retry_timeout` and `channel_retry_timeout` are client options, so a
+`realtime_request_timeout_seconds`, `disconnected_retry_timeout_seconds`,
+`suspended_retry_timeout_seconds` and `channel_retry_timeout_seconds` are client options, so a
 real short value drives those and the test stays free of the interaction
 between faked time and the real `await`s around it. Two things have no such
 handle: `connection_state_ttl`, which is not a constructor parameter and which
@@ -3090,7 +3115,8 @@ renaming; the function name makes failures readable without it.
 `enable_fake_timers()` and `ADVANCE_TIME(ms)` correspond to the clock a client
 reads, which `rest_client(mock_http, clock=...)` replaces. The derived REST tests
 shorten the interval through a client option instead, which is what the
-specifications themselves do for `fallback_retry_timeout`, and reach for the clock
+specifications themselves do for `fallbackRetryTimeout` (`fallback_retry_timeout_seconds`
+here), and reach for the clock
 only where no option exposes the interval; see the fake time section above.
 
 ### A TokenDetails payload is recognised by its `token`, not only by `issued`

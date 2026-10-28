@@ -8,6 +8,18 @@ from ably.pubsub.types.authoptions import AuthOptions
 log = logging.getLogger(__name__)
 
 
+def seconds_to_ms(seconds):
+    """Converts a timing option from seconds to the milliseconds the clock counts in.
+
+    This is the one place a timing option is converted. It rounds to the microsecond
+    rather than truncating, so 0.0015 is 1.5 ms rather than 1, and float error cannot
+    leave 0.1 a hair over 100 ms, where a timer would miss a deadline the clock is
+    advanced to exactly. A whole number of milliseconds comes back as an int.
+    """
+    ms = round(seconds * 1000, 3)
+    return int(ms) if ms == int(ms) else ms
+
+
 class VCDiffDecoder(ABC):
     """
     The VCDiffDecoder class defines the interface for delta decoding operations.
@@ -25,25 +37,39 @@ class VCDiffDecoder(ABC):
 
 
 class Options(AuthOptions):
+    """The client options, as the factories in `ably.pubsub.server` document them.
+
+    The timing options are in seconds, where the Ably specification counts
+    milliseconds, and each name ends in `_seconds` to say so. Each reads back the value
+    in effect, its default if it was not given:
+
+    - `realtime_request_timeout_seconds`: TO3l11 realtimeRequestTimeout, default 10
+    - `disconnected_retry_timeout_seconds`: TO3l1 disconnectedRetryTimeout, default 15
+    - `suspended_retry_timeout_seconds`: TO3l2 suspendedRetryTimeout, default 30
+    - `channel_retry_timeout_seconds`: TO3l7 channelRetryTimeout, default 15
+    - `fallback_retry_timeout_seconds`: TO3l10 fallbackRetryTimeout, default 600
+    """
+
     def __init__(self, client_id=None, tls=True, port=0,
                  tls_port=0, use_binary_protocol=True, queue_messages=True, endpoint=None,
                  http_open_timeout=None, http_request_timeout=None,
-                 realtime_request_timeout=None, http_max_retry_count=None, http_max_retry_duration=None,
-                 fallback_hosts=None, fallback_retry_timeout=None, disconnected_retry_timeout=None,
+                 realtime_request_timeout_seconds=None, http_max_retry_count=None, http_max_retry_duration=None,
+                 fallback_hosts=None, fallback_retry_timeout_seconds=None, disconnected_retry_timeout_seconds=None,
                  idempotent_rest_publishing=None, loop=None, auto_connect=True,
-                 suspended_retry_timeout=None, connectivity_check_url=None,
-                 channel_retry_timeout=Defaults.channel_retry_timeout, add_request_ids=False,
+                 suspended_retry_timeout_seconds=None, connectivity_check_url=None,
+                 channel_retry_timeout_seconds=None, add_request_ids=False,
                  vcdiff_decoder: VCDiffDecoder = None, transport_params=None, echo_messages=True,
                  max_message_size=None, _test_options=None, **kwargs):
 
         super().__init__(**kwargs)
 
-        # TODO check these defaults
-        if fallback_retry_timeout is None:
-            fallback_retry_timeout = Defaults.fallback_retry_timeout
+        # TO3l10, TO3l11, TO3l1, TO3l2 and TO3l7 count milliseconds, and these options take
+        # seconds. The clock counts milliseconds, which the _ms properties convert to
+        if fallback_retry_timeout_seconds is None:
+            fallback_retry_timeout_seconds = Defaults.fallback_retry_timeout_seconds
 
-        if realtime_request_timeout is None:
-            realtime_request_timeout = Defaults.realtime_request_timeout
+        if realtime_request_timeout_seconds is None:
+            realtime_request_timeout_seconds = Defaults.realtime_request_timeout_seconds
 
         # RTC7: the HTTP defaults are resolved here too, so they read back from the options
         if http_open_timeout is None:
@@ -58,14 +84,17 @@ class Options(AuthOptions):
         if http_max_retry_duration is None:
             http_max_retry_duration = Defaults.http_max_retry_duration
 
-        if disconnected_retry_timeout is None:
-            disconnected_retry_timeout = Defaults.disconnected_retry_timeout
+        if disconnected_retry_timeout_seconds is None:
+            disconnected_retry_timeout_seconds = Defaults.disconnected_retry_timeout_seconds
 
         if connectivity_check_url is None:
             connectivity_check_url = Defaults.connectivity_check_url
 
-        if suspended_retry_timeout is None:
-            suspended_retry_timeout = Defaults.suspended_retry_timeout
+        if suspended_retry_timeout_seconds is None:
+            suspended_retry_timeout_seconds = Defaults.suspended_retry_timeout_seconds
+
+        if channel_retry_timeout_seconds is None:
+            channel_retry_timeout_seconds = Defaults.channel_retry_timeout_seconds
 
         # TO3l8
         if max_message_size is None:
@@ -90,19 +119,19 @@ class Options(AuthOptions):
         self.__endpoint = endpoint
         self.__http_open_timeout = http_open_timeout
         self.__http_request_timeout = http_request_timeout
-        self.__realtime_request_timeout = realtime_request_timeout
+        self.__realtime_request_timeout_seconds = realtime_request_timeout_seconds
         self.__http_max_retry_count = http_max_retry_count
         self.__http_max_retry_duration = http_max_retry_duration
         # Field for internal use only
         self.__fallback_host = None
         self.__fallback_hosts = fallback_hosts
-        self.__fallback_retry_timeout = fallback_retry_timeout
-        self.__disconnected_retry_timeout = disconnected_retry_timeout
-        self.__channel_retry_timeout = channel_retry_timeout
+        self.__fallback_retry_timeout_seconds = fallback_retry_timeout_seconds
+        self.__disconnected_retry_timeout_seconds = disconnected_retry_timeout_seconds
+        self.__channel_retry_timeout_seconds = channel_retry_timeout_seconds
         self.__idempotent_rest_publishing = idempotent_rest_publishing
         self.__loop = loop
         self.__auto_connect = auto_connect
-        self.__suspended_retry_timeout = suspended_retry_timeout
+        self.__suspended_retry_timeout_seconds = suspended_retry_timeout_seconds
         self.__connectivity_check_url = connectivity_check_url
         self.__add_request_ids = add_request_ids
         self.__vcdiff_decoder = vcdiff_decoder
@@ -181,8 +210,12 @@ class Options(AuthOptions):
         return self.__http_request_timeout
 
     @property
-    def realtime_request_timeout(self):
-        return self.__realtime_request_timeout
+    def realtime_request_timeout_seconds(self):
+        return self.__realtime_request_timeout_seconds
+
+    @property
+    def _realtime_request_timeout_ms(self):
+        return seconds_to_ms(self.__realtime_request_timeout_seconds)
 
     @http_request_timeout.setter
     def http_request_timeout(self, value):
@@ -209,16 +242,28 @@ class Options(AuthOptions):
         return self.__fallback_hosts
 
     @property
-    def fallback_retry_timeout(self):
-        return self.__fallback_retry_timeout
+    def fallback_retry_timeout_seconds(self):
+        return self.__fallback_retry_timeout_seconds
 
     @property
-    def disconnected_retry_timeout(self):
-        return self.__disconnected_retry_timeout
+    def _fallback_retry_timeout_ms(self):
+        return seconds_to_ms(self.__fallback_retry_timeout_seconds)
 
     @property
-    def channel_retry_timeout(self):
-        return self.__channel_retry_timeout
+    def disconnected_retry_timeout_seconds(self):
+        return self.__disconnected_retry_timeout_seconds
+
+    @property
+    def _disconnected_retry_timeout_ms(self):
+        return seconds_to_ms(self.__disconnected_retry_timeout_seconds)
+
+    @property
+    def channel_retry_timeout_seconds(self):
+        return self.__channel_retry_timeout_seconds
+
+    @property
+    def _channel_retry_timeout_ms(self):
+        return seconds_to_ms(self.__channel_retry_timeout_seconds)
 
     @property
     def idempotent_rest_publishing(self):
@@ -234,8 +279,12 @@ class Options(AuthOptions):
         return self.__auto_connect
 
     @property
-    def suspended_retry_timeout(self):
-        return self.__suspended_retry_timeout
+    def suspended_retry_timeout_seconds(self):
+        return self.__suspended_retry_timeout_seconds
+
+    @property
+    def _suspended_retry_timeout_ms(self):
+        return seconds_to_ms(self.__suspended_retry_timeout_seconds)
 
     @property
     def connectivity_check_url(self):

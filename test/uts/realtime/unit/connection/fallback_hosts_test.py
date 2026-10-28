@@ -211,8 +211,8 @@ async def test_rtn17g_empty_fallback_set_error(monkeypatch):
     # REC2c2: a custom domain has no fallback set of its own. The spec sets realtimeHost,
     # which ably-python omits (TO3k3); endpoint names the same host
     client = fallback_client(
-        mock_ws, endpoint='custom.example.com', realtime_request_timeout=300,
-        disconnected_retry_timeout=60000)
+        mock_ws, endpoint='custom.example.com', realtime_request_timeout_seconds=0.3,
+        disconnected_retry_timeout_seconds=60)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED, timeout=5.0)

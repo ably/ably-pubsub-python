@@ -139,7 +139,7 @@ async def test_rtp1_no_has_presence_clears_existing():
                 mock_ws.send_to_client(attached_message(channel_name))
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = await connected_client(mock_ws, disconnected_retry_timeout=100)
+    client = await connected_client(mock_ws, disconnected_retry_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)
@@ -318,8 +318,8 @@ async def test_rtp5f_suspended_maintains_presence_map():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = await connected_client(
-        mock_ws, clock=clock, realtime_request_timeout=300000,
-        disconnected_retry_timeout=1000, suspended_retry_timeout=600000)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=300,
+        disconnected_retry_timeout_seconds=1, suspended_retry_timeout_seconds=600)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)
@@ -455,8 +455,8 @@ async def test_rtl11_queued_presence_fail_suspended():
     # channel is to follow the connection to SUSPENDED rather than time its own
     # attach out first
     client = await connected_client(
-        mock_ws, clock=clock, client_id='my-client', realtime_request_timeout=300000,
-        disconnected_retry_timeout=1000, suspended_retry_timeout=600000)
+        mock_ws, clock=clock, client_id='my-client', realtime_request_timeout_seconds=300,
+        disconnected_retry_timeout_seconds=1, suspended_retry_timeout_seconds=600)
     channel = client.channels.get(channel_name)
 
     # The ATTACH is left unanswered, holding the channel in ATTACHING

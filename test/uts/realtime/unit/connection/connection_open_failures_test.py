@@ -83,7 +83,7 @@ async def test_rtn14b_token_error_with_renewal():
     # A token error met while CONNECTING is retried on the retry timer rather than
     # immediately, so the retry interval is kept short
     client = realtime_client(mock_ws, mock_http=mock_http, key='appId.keyId:keySecret',
-                             disconnected_retry_timeout=100)
+                             disconnected_retry_timeout_seconds=0.1)
 
     client.connect()
 
@@ -118,7 +118,7 @@ async def test_rtn14b_token_renewal_fails():
     # The retry that follows the failed renewal would ask the auth callback again,
     # so it is held off until the assertions have run
     client = realtime_client(mock_ws, auth_callback=auth_callback,
-                             disconnected_retry_timeout=60000)
+                             disconnected_retry_timeout_seconds=60)
 
     states = []
     client.connection.on(lambda change: states.append(change.current))
@@ -155,7 +155,7 @@ async def test_rtn14c_connection_timeout():
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_success())
     clock = FakeClock()
     client = realtime_client(mock_ws, clock=clock, key='appId.keyId:keySecret',
-                             realtime_request_timeout=1000)
+                             realtime_request_timeout_seconds=1)
 
     client.connect()
 
@@ -186,7 +186,7 @@ async def test_rtn14d_retry_recoverable_failure():
     # no failure path of its own, so the first attempt ends on the transition timer
     # rather than at once, and the test advances to it
     client = realtime_client(mock_ws, clock=clock, key='appId.keyId:keySecret',
-                             disconnected_retry_timeout=1000, realtime_request_timeout=1000)
+                             disconnected_retry_timeout_seconds=1, realtime_request_timeout_seconds=1)
 
     client.connect()
     await settle()
@@ -211,7 +211,7 @@ async def test_rtn14e_disconnected_to_suspended():
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_refused())
     clock = FakeClock()
     client = realtime_client(mock_ws, clock=clock, key='appId.keyId:keySecret',
-                             disconnected_retry_timeout=1000, realtime_request_timeout=1000)
+                             disconnected_retry_timeout_seconds=1, realtime_request_timeout_seconds=1)
 
     states = []
     client.connection.on(lambda change: states.append(change.current))
@@ -251,8 +251,8 @@ async def test_rtn14f_suspended_retries_indefinitely():
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     clock = FakeClock()
     client = realtime_client(mock_ws, clock=clock, key='appId.keyId:keySecret',
-                             disconnected_retry_timeout=500, suspended_retry_timeout=1000,
-                             realtime_request_timeout=1000)
+                             disconnected_retry_timeout_seconds=0.5, suspended_retry_timeout_seconds=1,
+                             realtime_request_timeout_seconds=1)
 
     def on_state_change(change):
         states.append(change.current)

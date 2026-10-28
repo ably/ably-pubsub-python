@@ -157,7 +157,7 @@ class WebSocketTransport(EventEmitter):
 
             max_idle_interval = connection_details.max_idle_interval
             if max_idle_interval:
-                self.max_idle_interval = max_idle_interval + self.options.realtime_request_timeout
+                self.max_idle_interval = max_idle_interval + self.options._realtime_request_timeout_ms
                 self.on_activity()
             self.is_connected = True
             if self.host != self.options.get_host():  # RTN17e

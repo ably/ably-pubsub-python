@@ -220,7 +220,7 @@ async def test_rtl14_cancels_pending_timers():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()

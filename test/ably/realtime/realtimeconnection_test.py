@@ -186,7 +186,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
         await ably.close()
 
     async def test_realtime_request_timeout_connect(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=0.000001)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=1e-9)
         state_change = await ably.connection.once_async()
         assert state_change.reason is not None
         assert state_change.reason.code == 50003
@@ -196,7 +196,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
         await ably.close()
 
     async def test_realtime_request_timeout_ping(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=2000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=2)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
 
         original_send_protocol_message = ably.connection.connection_manager.send_protocol_message
@@ -235,11 +235,11 @@ class TestRealtimeConnection(BaseAsyncTestCase):
 
     async def test_ping_survives_connection_drop(self):
         # RTN13d: a heartbeat lost with a dropped connection is sent again once the connection is
-        # back, rather than the ping failing or waiting out realtime_request_timeout
+        # back, rather than the ping failing or waiting out realtime_request_timeout_seconds
         outage_secs = 1
         async with WsProxy(self.test_vars["host"]) as proxy:
             ably = await TestApp.get_ably_realtime(
-                realtime_request_timeout=20000,
+                realtime_request_timeout_seconds=20,
                 tls=False,
                 endpoint=proxy.endpoint,
                 port=proxy.port,
@@ -276,7 +276,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
 
     async def test_ping_fails_when_connection_closes(self):
         # RTN13b: a ping cannot complete once the connection has transitioned to CLOSING
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=20000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=20)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
 
         connection_manager = ably.connection.connection_manager
@@ -318,7 +318,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
         await ably.close()
 
     async def test_disconnected_retry_timeout(self):
-        ably = await TestApp.get_ably_realtime(disconnected_retry_timeout=2000, auto_connect=False)
+        ably = await TestApp.get_ably_realtime(disconnected_retry_timeout_seconds=2, auto_connect=False)
         original_connect = ably.connection.connection_manager.connect_base
         call_count = 0
 
@@ -360,7 +360,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
         assert ably.connection.connection_manager.check_connection() is False
 
     async def test_unroutable_host(self):
-        ably = await TestApp.get_ably_realtime(endpoint="10.255.255.1", realtime_request_timeout=3000)
+        ably = await TestApp.get_ably_realtime(endpoint="10.255.255.1", realtime_request_timeout_seconds=3)
         state_change = await ably.connection.once_async()
         assert state_change.reason
         assert state_change.reason.code == 50003
@@ -418,7 +418,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
         await ably.close()
 
     async def test_max_idle_interval(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=2000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=2)
 
         def on_transport_pending(transport):
             original_on_protocol_message = transport.on_protocol_message
@@ -446,8 +446,8 @@ class TestRealtimeConnection(BaseAsyncTestCase):
     async def test_retry_immediately_upon_unexpected_disconnection(self):
         # Set timeouts to 500s so that if the client uses retry delay the test will fail with a timeout
         ably = await TestApp.get_ably_realtime(
-            disconnected_retry_timeout=500_000,
-            suspended_retry_timeout=500_000
+            disconnected_retry_timeout_seconds=500,
+            suspended_retry_timeout_seconds=500
         )
 
         # Wait for the client to connect
@@ -548,7 +548,8 @@ class TestRealtimeConnection(BaseAsyncTestCase):
         await ably.close()
 
     async def test_lost_connection_lifecycle(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=2000, disconnected_retry_timeout=2000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=2,
+                                               disconnected_retry_timeout_seconds=2)
 
         # when client connectivity is lost, the transport will become aware of a connectivity issue
         # when it stops seeing activity from realtime within maxIdleInterval, therefore setting the max idle
@@ -569,7 +570,7 @@ class TestRealtimeConnection(BaseAsyncTestCase):
         # should transition to disconnected due to lack of activity from realtime
         await ably.connection.once_async(ConnectionState.DISCONNECTED)
 
-        # should re-establish connection after disconnected_retry_timeout
+        # should re-establish connection after disconnected_retry_timeout_seconds
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
 
         await ably.close()
@@ -651,8 +652,8 @@ class TestRealtimeConnection(BaseAsyncTestCase):
         """
         async with WsProxy(self.test_vars["host"]) as proxy:
             ably = await TestApp.get_ably_realtime(
-                disconnected_retry_timeout=500_000,
-                suspended_retry_timeout=500_000,
+                disconnected_retry_timeout_seconds=500,
+                suspended_retry_timeout_seconds=500,
                 tls=False,
                 endpoint=proxy.endpoint,
                 port=proxy.port,

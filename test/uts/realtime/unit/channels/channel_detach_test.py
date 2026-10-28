@@ -229,7 +229,7 @@ async def test_rtl5j_detach_suspended_to_detached():
             detach_messages.append(msg)
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -293,7 +293,7 @@ async def test_rtl5l_detach_attached_when_disconnected():
         on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE_NO_IDLE),
     )
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=300, disconnected_retry_timeout=60000)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.3, disconnected_retry_timeout_seconds=60)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -379,7 +379,7 @@ async def test_rtl5f_timeout_returns_previous_state():
             mock_ws.send_to_client(attached_message(channel_name))
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -421,7 +421,7 @@ async def test_rtl5k_attached_while_detaching():
                 mock_ws.send_to_client(detached_message(channel_name))
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = await connected_client(mock_ws, realtime_request_timeout=300)
+    client = await connected_client(mock_ws, realtime_request_timeout_seconds=0.3)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)

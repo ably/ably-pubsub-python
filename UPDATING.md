@@ -773,13 +773,50 @@ except AblyException:
 
 `await connection.ping()` raised an `AblyException` with code 40000 at once when the connection
 was `DISCONNECTED`. In 4.0.0 it waits for the connection to reconnect, as it already did while
-`CONNECTING`, and then times out `realtime_request_timeout` after its heartbeat goes out. It
+`CONNECTING`, and then times out `realtime_request_timeout_seconds` after its heartbeat goes out. It
 still fails if the connection becomes `SUSPENDED`, `CLOSED` or `FAILED` first, which can be up to
 two minutes later. Bound the wait yourself if you need an answer sooner:
 
 Example 4.0.0 code:
 ```python
 response_time_ms = await asyncio.wait_for(pubsub_realtime_client.connection.ping(), timeout=5)
+```
+
+### The millisecond timing options take seconds, and end in `_seconds`
+
+**Passing an old name raises `TypeError`, so a missed rename fails at construction rather
+than silently scheduling a timeout a thousand times too long.** Four realtime timing options
+and `fallback_retry_timeout`, which the HTTP client reads too, took milliseconds, where the
+HTTP timeouts took seconds. They now take seconds, as an `int` or a `float`, and each is
+renamed with a `_seconds` suffix so the unit is in the name. They read back from
+`client.options` under the new names:
+
+| 3.x option | Unit | 4.0.0 option | Unit | Default |
+|---|---|---|---|---|
+| `realtime_request_timeout` | ms | `realtime_request_timeout_seconds` | s | 10 |
+| `disconnected_retry_timeout` | ms | `disconnected_retry_timeout_seconds` | s | 15 |
+| `suspended_retry_timeout` | ms | `suspended_retry_timeout_seconds` | s | 30 |
+| `channel_retry_timeout` | ms | `channel_retry_timeout_seconds` | s | 15 |
+| `fallback_retry_timeout` | ms | `fallback_retry_timeout_seconds` | s | 600 |
+
+Divide a 3.x value by 1000, or pass a `timedelta`'s `total_seconds()`. The values the Ably
+protocol carries are still milliseconds: a token's `ttl`, `connection.connection_details`,
+`auth.time_offset`, every timestamp and the round trip `connection.ping()` returns.
+
+Example 3.x code:
+```python
+realtime = AblyRealtime(key='xxx', disconnected_retry_timeout=5000, realtime_request_timeout=2500)
+```
+
+Example 4.0.0 code:
+```python
+from datetime import timedelta
+
+pubsub_realtime_client = create_realtime_client(
+    key='xxx',
+    disconnected_retry_timeout_seconds=5,
+    realtime_request_timeout_seconds=timedelta(milliseconds=2500).total_seconds(),
+)
 ```
 
 ## Version 2.x to 3.0.0

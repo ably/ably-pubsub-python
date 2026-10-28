@@ -643,8 +643,8 @@ async def test_rtn14h_resume_after_ttl_expiry(realtime_sandbox, proxy_session):
         },
     ])
 
-    # A short `suspended_retry_timeout` so the test does not wait long after SUSPENDED.
-    client = proxy_realtime_client(session, realtime_sandbox.key_str, suspended_retry_timeout=1000)
+    # A short `suspended_retry_timeout_seconds` so the test does not wait long after SUSPENDED.
+    client = proxy_realtime_client(session, realtime_sandbox.key_str, suspended_retry_timeout_seconds=1)
     state_changes = record_states(client.connection)
 
     # Connect through proxy -- first CONNECTED is replaced with short TTL and known connectionId

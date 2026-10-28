@@ -16,7 +16,11 @@ arithmetic on the unix epoch, are not clock readings and stay as they are.
 
 `asyncio.wait_for` in `ConnectionManager.ping` is the one delay that runs on the event
 loop's clock rather than this one; a test which waits it out sets a short real
-`realtime_request_timeout`.
+`realtime_request_timeout_seconds`.
+
+The timing client options are seconds, named `*_seconds`, where the clock counts
+milliseconds. `Options` converts them in one place, `seconds_to_ms`, behind a private
+`_<option>_ms` property for each, and code scheduling on the clock reads those.
 
 `Auth._timestamp` signs a token request the server validates, so a client which reads a
 fake clock talks to a mock rather than to the sandbox.

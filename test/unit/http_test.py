@@ -167,7 +167,7 @@ async def test_realtime_token_request_network_errors_reach_the_connection_wrappe
     mock_http = MockHttpClient(on_connection_attempt=lambda conn: conn.respond_with_refused())
     mock_ws = MockWebSocket()
     client = realtime_client(mock_ws, mock_http, key="appId.keyId:keySecret", use_token_auth=True,
-                             disconnected_retry_timeout=600000)
+                             disconnected_retry_timeout_seconds=600)
     try:
         client.connect()
         await await_connection_state(client, ConnectionState.DISCONNECTED)

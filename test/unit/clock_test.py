@@ -67,10 +67,10 @@ def test_a_client_without_test_options_reads_the_real_clock():
 
 
 async def test_the_cached_fallback_host_expires_on_the_clock():
-    # RSC15f: the cache lasts fallback_retry_timeout milliseconds
+    # RSC15f: the cache lasts fallback_retry_timeout_seconds, which the clock counts in milliseconds
     clock = FakeClock()
     transport = RecordingTransport()
-    ably = create_http_client(token='foo', fallback_retry_timeout=2000,
+    ably = create_http_client(token='foo', fallback_retry_timeout_seconds=2,
                               _test_options=TestOptions(http_transport=transport, clock=clock))
     primary = ably.options.get_host()
     transport.refusing = (primary,)

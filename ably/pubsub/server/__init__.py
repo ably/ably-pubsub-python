@@ -125,9 +125,10 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         fallback_hosts: list[str]
             Hosts to fall back to when the primary endpoint is unreachable. Set this only
             if Ably has provided you with a custom set.
-        fallback_retry_timeout: float
-            How long (in milliseconds) a fallback host stays preferred once the client has
-            failed over to it. The default is 10 minutes (600000 milliseconds).
+        fallback_retry_timeout_seconds: float
+            TO3l10 fallbackRetryTimeout, in seconds: how long a fallback host stays
+            preferred once the client has failed over to it. The default is 600 (10
+            minutes).
 
         **HTTP behaviour**
 
@@ -205,21 +206,24 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
 
         **Timeouts and retries**
 
-        realtime_request_timeout: float
-            How long (in milliseconds) to wait for acknowledgement of an operation
-            performed over the realtime connection, such as establishing a connection or
-            sending a HEARTBEAT, CONNECT, ATTACH, DETACH or CLOSE request. The default is
-            10 seconds (10000 milliseconds).
-        disconnected_retry_timeout: float
-            How long (in milliseconds) to stay DISCONNECTED before attempting to reconnect
-            automatically. The default is 15 seconds (15000 milliseconds).
-        suspended_retry_timeout: float
-            How long (in milliseconds) to stay SUSPENDED before attempting to reconnect
-            automatically. The default is 30 seconds (30000 milliseconds).
-        channel_retry_timeout: float
-            How long (in milliseconds) a channel stays SUSPENDED, following a server
-            initiated DETACHED, before the client re-attaches it — provided the connection
-            is CONNECTED. The default is 15 seconds (15000 milliseconds).
+        The timeouts are in seconds, where the Ably specification counts milliseconds, and
+        their names say so; a `datetime.timedelta` converts with `.total_seconds()`.
+
+        realtime_request_timeout_seconds: float
+            TO3l11 realtimeRequestTimeout, in seconds: how long to wait for
+            acknowledgement of an operation performed over the realtime connection, such
+            as establishing a connection or sending a HEARTBEAT, CONNECT, ATTACH, DETACH
+            or CLOSE request. The default is 10.
+        disconnected_retry_timeout_seconds: float
+            TO3l1 disconnectedRetryTimeout, in seconds: how long to stay DISCONNECTED
+            before attempting to reconnect automatically. The default is 15.
+        suspended_retry_timeout_seconds: float
+            TO3l2 suspendedRetryTimeout, in seconds: how long to stay SUSPENDED before
+            attempting to reconnect automatically. The default is 30.
+        channel_retry_timeout_seconds: float
+            TO3l7 channelRetryTimeout, in seconds: how long a channel stays SUSPENDED,
+            following a server initiated DETACHED, before the client re-attaches it —
+            provided the connection is CONNECTED. The default is 15.
         connectivity_check_url: str
             The URL the client requests to decide whether the internet is reachable. On
             failing to reach the primary endpoint, a success response from this URL tells

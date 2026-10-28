@@ -16,8 +16,8 @@ from test.uts.helpers.mock_websocket import MockWebSocket, connected_message
 AUTH_MESSAGE = {'action': int(ProtocolMessageAction.AUTH)}
 
 # A retry far enough out that a DISCONNECTED connection does not reconnect
-# behind the assertions.
-NO_RECONNECT = 60000
+# behind the assertions, in seconds.
+NO_RECONNECT = 60
 
 
 def now():
@@ -77,7 +77,7 @@ async def test_rtn2e_callback_error_prevents_connect():
         conn.respond_with_success(connected_message('connection-id', connectionKey='connection-key'))
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
-    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout=NO_RECONNECT)
+    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -146,7 +146,7 @@ async def test_rsa4c2_callback_error_causes_disconnected():
         return TokenDetails(token=f'valid-token-{auth_callback_count}', expires=now() + 3600000)
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
-    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout=NO_RECONNECT)
+    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -202,7 +202,7 @@ async def test_rsa4d_callback_403_causes_failed():
         raise AblyException('Account disabled', 403, 40300)
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
-    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout=NO_RECONNECT)
+    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.FAILED)
@@ -226,7 +226,7 @@ async def test_rsa4d_callback_403_reauth_causes_failed():
         raise AblyException('Account suspended', 403, 40300)
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
-    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout=NO_RECONNECT)
+    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)

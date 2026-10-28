@@ -3,8 +3,8 @@
 Spec points: RTN13, RTN13a, RTN13b, RTN13c, RTN13d, RTN13e
 
 `ping()`'s own timeout does not run on the timer seam — `ConnectionManager.ping`
-awaits `asyncio.wait_for(..., realtime_request_timeout / 1000)` on the loop
-clock — so the tests that wait one out use a short real `realtime_request_timeout`
+awaits `asyncio.wait_for(..., realtime_request_timeout_seconds)` on the loop
+clock — so the tests that wait one out use a short real `realtime_request_timeout_seconds`
 rather than a `FakeClock`. The fake clock is still installed where a
 specification advances past `connectionStateTtl` to reach SUSPENDED, which no
 client option reaches.
@@ -29,9 +29,10 @@ from test.uts.helpers.mock_websocket import (
 HEARTBEAT = int(ProtocolMessageAction.HEARTBEAT)
 
 # Long enough that a ping which is meant to resolve is never cut short, short
-# enough that a ping which is meant to time out does so quickly
-REQUEST_TIMEOUT = 2000
-SHORT_REQUEST_TIMEOUT = 300
+# enough that a ping which is meant to time out does so quickly, in the seconds the
+# client option takes
+REQUEST_TIMEOUT_SECONDS = 2
+SHORT_REQUEST_TIMEOUT_SECONDS = 0.3
 
 # `Defaults.connection_state_ttl` is 120 s and is read directly by the suspend
 # timer, which is the one interval no client option reaches
@@ -80,7 +81,7 @@ async def test_rtn13a_ping_heartbeat_roundtrip():
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_success(connected()))
     mock_ws.on_message_from_client = echo_heartbeats(mock_ws)
-    client = realtime_client(mock_ws, realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -107,7 +108,7 @@ async def test_rtn13e_heartbeat_random_id():
             mock_ws.send_to_client({'action': HEARTBEAT, 'id': message.get('id')})
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = realtime_client(mock_ws, realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -132,7 +133,7 @@ async def test_rtn13e_no_id_heartbeat_ignored():
             mock_ws.send_to_client({'action': HEARTBEAT, 'id': message.get('id')})
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = realtime_client(mock_ws, realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -148,7 +149,7 @@ async def test_rtn13e_concurrent_pings_unique_ids():
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_success(connected()))
     mock_ws.on_message_from_client = echo_heartbeats(mock_ws)
-    client = realtime_client(mock_ws, realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -170,10 +171,10 @@ async def test_rtn13e_concurrent_pings_unique_ids():
 # UTS: realtime/unit/RTN13c/ping-timeout-0
 async def test_rtn13c_ping_timeout():
     # The server answers no HEARTBEAT, so the ping runs out its
-    # `realtime_request_timeout`, which is real time here rather than advanced
+    # `realtime_request_timeout_seconds`, which is real time here rather than advanced
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_success(connected()))
-    client = realtime_client(mock_ws, realtime_request_timeout=SHORT_REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=SHORT_REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -206,8 +207,8 @@ async def test_rtn13b_ping_error_suspended():
     # A retry timeout past `connectionStateTtl` leaves the suspend timer as the
     # only thing the advance below fires
     client = realtime_client(
-        mock_ws, clock=clock, disconnected_retry_timeout=CONNECTION_STATE_TTL * 2,
-        suspended_retry_timeout=CONNECTION_STATE_TTL * 2)
+        mock_ws, clock=clock, disconnected_retry_timeout_seconds=CONNECTION_STATE_TTL * 2 / 1000,
+        suspended_retry_timeout_seconds=CONNECTION_STATE_TTL * 2 / 1000)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -225,7 +226,7 @@ async def test_rtn13b_ping_error_suspended():
 async def test_rtn13b_ping_error_closed():
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_success(connected()))
-    client = realtime_client(mock_ws, realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -243,7 +244,7 @@ async def test_rtn13b_ping_error_failed():
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_error(
             ERROR_MESSAGE(80000, 'Fatal error', status_code=400)))
-    client = realtime_client(mock_ws, realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await await_connection_state(client, ConnectionState.FAILED)
@@ -258,7 +259,7 @@ async def test_rtn13d_ping_deferred_connecting():
     attempts = []
     mock_ws = MockWebSocket(on_connection_attempt=attempts.append)
     mock_ws.on_message_from_client = echo_heartbeats(mock_ws)
-    client = realtime_client(mock_ws, realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     # `connect()` sets CONNECTING before the attempt is scheduled, so the attempt
@@ -299,8 +300,8 @@ async def test_rtn13d_ping_deferred_disconnected():
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     mock_ws.on_message_from_client = echo_heartbeats(mock_ws)
-    client = realtime_client(mock_ws, clock=clock, disconnected_retry_timeout=500,
-                             realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, clock=clock, disconnected_retry_timeout_seconds=0.5,
+                             realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -327,7 +328,7 @@ async def test_rtn13d_ping_deferred_disconnected():
 async def test_rtn13b_deferred_ping_error_failed():
     attempts = []
     mock_ws = MockWebSocket(on_connection_attempt=attempts.append)
-    client = realtime_client(mock_ws, realtime_request_timeout=REQUEST_TIMEOUT)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=REQUEST_TIMEOUT_SECONDS)
 
     client.connect()
     await poll_until(lambda: len(attempts) == 1, description='a connection attempt')
@@ -349,8 +350,8 @@ async def test_rtn13b_deferred_ping_error_suspended():
     clock = FakeClock()
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_dns_error())
     client = realtime_client(
-        mock_ws, clock=clock, disconnected_retry_timeout=CONNECTION_STATE_TTL * 2,
-        suspended_retry_timeout=CONNECTION_STATE_TTL * 2)
+        mock_ws, clock=clock, disconnected_retry_timeout_seconds=CONNECTION_STATE_TTL * 2 / 1000,
+        suspended_retry_timeout_seconds=CONNECTION_STATE_TTL * 2 / 1000)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -377,7 +378,7 @@ async def test_rtn13c_deferred_ping_timeout():
     mock_ws = MockWebSocket(on_connection_attempt=attempts.append)
     # The clock holds the CONNECTING transition timer, leaving the real interval
     # below as the only thing the connection waits on
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=400)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.4)
     timeout_in_secs = 0.4
 
     client.connect()

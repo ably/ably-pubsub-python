@@ -1,7 +1,7 @@
 import pytest
 
 from ably.pubsub.server import create_http_client
-from ably.pubsub.types.options import Options
+from ably.pubsub.types.options import Options, seconds_to_ms
 from ably.pubsub.util.exceptions import AblyException
 
 
@@ -154,3 +154,57 @@ def test_invalid_client_arguments_raise_40106(kwargs, status_code):
     assert exinfo.value.code == 40106
     assert exinfo.value.status_code == status_code
     assert isinstance(exinfo.value, ValueError)
+
+
+# TO3l1, TO3l2, TO3l7, TO3l10, TO3l11: the realtime timing options are seconds where the
+# specification counts milliseconds, and named for it
+REALTIME_TIMING_DEFAULTS = {
+    'realtime_request_timeout_seconds': 10,
+    'disconnected_retry_timeout_seconds': 15,
+    'suspended_retry_timeout_seconds': 30,
+    'channel_retry_timeout_seconds': 15,
+    'fallback_retry_timeout_seconds': 600,
+}
+
+
+@pytest.mark.parametrize('option, default', REALTIME_TIMING_DEFAULTS.items())
+def test_realtime_timing_options_read_back_their_defaults_in_seconds(option, default):
+    opts = Options()
+    assert getattr(opts, option) == default
+    assert getattr(opts, '_' + option.replace('_seconds', '_ms')) == default * 1000
+
+
+@pytest.mark.parametrize('option', REALTIME_TIMING_DEFAULTS)
+def test_realtime_timing_options_read_back_what_was_given(option):
+    opts = Options(**{option: 0.25})
+    assert getattr(opts, option) == 0.25
+    assert getattr(opts, '_' + option.replace('_seconds', '_ms')) == 250
+
+
+@pytest.mark.parametrize('option', ['realtime_request_timeout', 'disconnected_retry_timeout',
+                                    'suspended_retry_timeout', 'channel_retry_timeout',
+                                    'fallback_retry_timeout'])
+def test_options_should_reject_the_millisecond_names(option):
+    with pytest.raises(TypeError):
+        Options(**{option: 15000})
+
+
+@pytest.mark.parametrize('seconds, ms', [
+    (15, 15000),
+    (0.1, 100),
+    (0.3, 300),
+    (0.7, 700),
+    (2.3, 2300),
+    (0.0015, 1.5),
+    (0.0005, 0.5),
+    (600, 600000),
+    (0, 0),
+])
+def test_seconds_convert_to_milliseconds_exactly(seconds, ms):
+    assert seconds_to_ms(seconds) == ms
+
+
+def test_a_whole_number_of_milliseconds_is_an_int():
+    assert type(seconds_to_ms(0.1)) is int
+    assert type(seconds_to_ms(15)) is int
+    assert type(seconds_to_ms(0.0015)) is float

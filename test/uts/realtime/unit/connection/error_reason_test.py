@@ -50,7 +50,7 @@ async def test_rtn25_error_reason_disconnected():
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_refused())
     # A refused connect reaches DISCONNECTED when the connecting transition
     # timer expires, so a short request timeout keeps that wait small
-    client = realtime_client(mock_ws, realtime_request_timeout=300)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=0.3)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -63,7 +63,7 @@ async def test_rtn25_error_reason_disconnected():
 async def test_rtn25_error_reason_suspended():
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_refused())
     clock = FakeClock()
-    client = realtime_client(mock_ws, clock=clock, disconnected_retry_timeout=500)
+    client = realtime_client(mock_ws, clock=clock, disconnected_retry_timeout_seconds=0.5)
 
     client.connect()
     await settle()
@@ -107,7 +107,7 @@ async def test_rtn25_error_reason_cleared_on_connect():
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     clock = FakeClock()
     client = realtime_client(
-        mock_ws, clock=clock, disconnected_retry_timeout=100, realtime_request_timeout=300)
+        mock_ws, clock=clock, disconnected_retry_timeout_seconds=0.1, realtime_request_timeout_seconds=0.3)
 
     client.connect()
     await settle()

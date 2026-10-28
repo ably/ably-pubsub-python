@@ -214,7 +214,7 @@ async def test_rtl4c_clears_error_reason():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=300, suspended_retry_timeout=2000)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.3, suspended_retry_timeout_seconds=2)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -290,7 +290,8 @@ async def test_rtl4b_fails_connection_suspended():
     clock = FakeClock()
 
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_refused())
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=300, channel_retry_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.3,
+                             channel_retry_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -438,7 +439,7 @@ async def test_rtl4f_timeout_to_suspended():
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE_NO_IDLE),
     )
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()

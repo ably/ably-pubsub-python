@@ -55,24 +55,26 @@ class DefaultPubSubRealtimeClient(DefaultPubSubHttpClient, PubSubRealtimeClient)
         **kwargs: client options
             endpoint: str
                 Endpoint specifies either a routing policy name or fully qualified domain name to connect to Ably.
-            realtime_request_timeout: float
-                Timeout (in milliseconds) for the wait of acknowledgement for operations performed via a realtime
-                connection. Operations include establishing a connection with Ably, or sending a HEARTBEAT,
-                CONNECT, ATTACH, DETACH or CLOSE request. The default is 10 seconds(10000 milliseconds).
-            disconnected_retry_timeout: float
-                If the connection is still in the DISCONNECTED state after this delay, the client library will
-                attempt to reconnect automatically. The default is 15 seconds.
-            channel_retry_timeout: float
-                When a channel becomes SUSPENDED following a server initiated DETACHED, after this delay, if the
-                channel is still SUSPENDED and the connection is in CONNECTED, the client library will attempt to
-                re-attach the channel automatically. The default is 15 seconds.
+            realtime_request_timeout_seconds: float
+                TO3l11 realtimeRequestTimeout, in seconds: the wait for acknowledgement of operations performed
+                via a realtime connection. Operations include establishing a connection with Ably, or sending a
+                HEARTBEAT, CONNECT, ATTACH, DETACH or CLOSE request. The default is 10.
+            disconnected_retry_timeout_seconds: float
+                TO3l1 disconnectedRetryTimeout, in seconds: if the connection is still in the DISCONNECTED state
+                after this delay, the client library will attempt to reconnect automatically. The default is 15.
+            channel_retry_timeout_seconds: float
+                TO3l7 channelRetryTimeout, in seconds: when a channel becomes SUSPENDED following a server
+                initiated DETACHED, after this delay, if the channel is still SUSPENDED and the connection is in
+                CONNECTED, the client library will attempt to re-attach the channel automatically. The default
+                is 15.
             fallback_hosts: list[str]
                 An array of fallback hosts to be used in the case of an error necessitating the use of an
                 alternative host. If you have been provided a set of custom fallback hosts by Ably, please specify
                 them here.
-            suspended_retry_timeout: float
-                When the connection enters the SUSPENDED state, after this delay, if the state is still SUSPENDED,
-                the client library attempts to reconnect automatically. The default is 30 seconds.
+            suspended_retry_timeout_seconds: float
+                TO3l2 suspendedRetryTimeout, in seconds: when the connection enters the SUSPENDED state, after
+                this delay, if the state is still SUSPENDED, the client library attempts to reconnect
+                automatically. The default is 30.
             connectivity_check_url: string
                 Override the URL used by the realtime client to check if the internet is available.
                 In the event of a failure to connect to the primary endpoint, the client will send a

@@ -28,7 +28,8 @@ CONNECTED_MESSAGE = connected_message(
 IDLE_FREE_CONNECTED_MESSAGE = connected_message(
     'connection-id', connectionKey='connection-key', maxIdleInterval=0, connectionStateTtl=120000)
 
-CUSTOM_REQUEST_TIMEOUT = 500
+# The specification's `realtimeRequestTimeout: 500`, in seconds
+CUSTOM_REQUEST_TIMEOUT = 0.5
 
 
 def attached_message(channel_name):
@@ -49,7 +50,7 @@ async def test_rtc7_attach_request_timeout():
     )
     clock = FakeClock()
     client = realtime_client(mock_ws, clock=clock, key=SPEC_KEY, auto_connect=False,
-                             realtime_request_timeout=CUSTOM_REQUEST_TIMEOUT)
+                             realtime_request_timeout_seconds=CUSTOM_REQUEST_TIMEOUT)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -89,7 +90,7 @@ async def test_rtc7_detach_request_timeout():
     )
     clock = FakeClock()
     client = realtime_client(mock_ws, clock=clock, key=SPEC_KEY, auto_connect=False,
-                             realtime_request_timeout=CUSTOM_REQUEST_TIMEOUT)
+                             realtime_request_timeout_seconds=CUSTOM_REQUEST_TIMEOUT)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -125,7 +126,7 @@ async def test_rtc7_disconnected_retry_timeout():
         else:
             # The spec refuses the attempt. `ws_connect` catches only WebSocketException
             # and socket.gaierror, so a refused connection is left to the transition
-            # timer and takes `realtime_request_timeout` to surface; a DNS failure
+            # timer and takes `realtime_request_timeout_seconds` to surface; a DNS failure
             # fails fast and reaches the retry logic the same way. See
             # deviations.md.
             conn.respond_with_dns_error()
@@ -138,7 +139,7 @@ async def test_rtc7_disconnected_retry_timeout():
     )
     clock = FakeClock()
     client = realtime_client(mock_ws, mock_http=mock_http, clock=clock, key=SPEC_KEY,
-                             auto_connect=False, disconnected_retry_timeout=2000, fallback_hosts=[])
+                             auto_connect=False, disconnected_retry_timeout_seconds=2, fallback_hosts=[])
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -168,9 +169,13 @@ async def test_rtc7_disconnected_retry_timeout():
 async def test_rtc7_default_timeouts_applied():
     client = realtime_client(key=SPEC_KEY, auto_connect=False)
 
-    assert client.options.realtime_request_timeout == 10000
-    assert client.options.disconnected_retry_timeout == 15000
-    assert client.options.suspended_retry_timeout == 30000
+    # DEVIATION: the spec asserts realtimeRequestTimeout == 10000, disconnectedRetryTimeout
+    # == 15000 and suspendedRetryTimeout == 30000. ably-python's timing options are in
+    # seconds and named for it, so the same defaults read back as 10, 15 and 30 under
+    # `*_seconds` names. See deviations.md.
+    assert client.options.realtime_request_timeout_seconds == 10
+    assert client.options.disconnected_retry_timeout_seconds == 15
+    assert client.options.suspended_retry_timeout_seconds == 30
 
     # DEVIATION: the spec asserts httpOpenTimeout == 4000 and httpRequestTimeout ==
     # 10000. ably-python's HTTP timeouts are in seconds rather than milliseconds, so the

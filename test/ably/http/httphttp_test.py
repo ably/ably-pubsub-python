@@ -104,8 +104,8 @@ class TestHttpHttp(BaseAsyncTestCase):
 
     # RSC15f
     async def test_cached_fallback(self):
-        timeout = 2000
-        ably = await TestApp.get_ably_rest(fallback_retry_timeout=timeout)
+        timeout = 2
+        ably = await TestApp.get_ably_rest(fallback_retry_timeout_seconds=timeout)
         host = ably.options.get_host()
 
         state = {'errors': 0}
@@ -130,7 +130,7 @@ class TestHttpHttp(BaseAsyncTestCase):
             assert state['errors'] == 1
 
             # The cached host has expired, we've an error again
-            time.sleep(timeout / 1000.0)
+            time.sleep(timeout)
             await ably.time()
             assert state['errors'] == 2
 

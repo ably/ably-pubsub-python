@@ -113,9 +113,9 @@ class TestHttpInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
         # RSC15f
         ably = create_http_client(token='foo')
-        assert 600000 == ably.options.fallback_retry_timeout
-        ably = create_http_client(token='foo', fallback_retry_timeout=1000)
-        assert 1000 == ably.options.fallback_retry_timeout
+        assert 600 == ably.options.fallback_retry_timeout_seconds
+        ably = create_http_client(token='foo', fallback_retry_timeout_seconds=1)
+        assert 1 == ably.options.fallback_retry_timeout_seconds
 
     @dont_vary_protocol
     def test_specified_host(self):

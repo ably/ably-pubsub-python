@@ -349,7 +349,7 @@ async def test_rsc15f_successful_fallback_cached():
         mock_http.queue_response_for_host(host, 200, TIME_BODY)
         mock_http.queue_response_for_host(host, 200, TIME_BODY)
 
-    client = rest_client(mock_http, fallback_retry_timeout=60000)
+    client = rest_client(mock_http, fallback_retry_timeout_seconds=60)
 
     # First request - triggers fallback
     await client.time()
@@ -378,7 +378,7 @@ async def test_rsc15f_cached_fallback_expires():
     # After timeout, primary should be tried again
     mock_http.queue_response_for_host(PRIMARY_HOST, 200, TIME_BODY)
 
-    client = rest_client(mock_http, fallback_retry_timeout=100)
+    client = rest_client(mock_http, fallback_retry_timeout_seconds=0.1)
 
     # First request triggers fallback
     await client.time()
@@ -421,7 +421,7 @@ async def test_rsc15f_expired_not_resurrected():
             req.respond_with(200, TIME_BODY)
 
     mock_http = MockHttpClient(on_connection_attempt=connect_successfully, on_request=on_request)
-    client = rest_client(mock_http, fallback_retry_timeout=100)
+    client = rest_client(mock_http, fallback_retry_timeout_seconds=0.1)
 
     # Request 1+2: primary fails -> fallback succeeds -> fallback cached
     await client.time()

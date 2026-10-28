@@ -367,7 +367,7 @@ async def test_rtl6c2_queued_when_disconnected():
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     mock_ws.on_message_from_client = attaching_server(mock_ws, captured_messages)
     # A retry timeout longer than the test keeps the connection in DISCONNECTED
-    client = await connected_client(mock_ws, disconnected_retry_timeout=60000)
+    client = await connected_client(mock_ws, disconnected_retry_timeout_seconds=60)
     channel = client.channels.get(channel_name)
 
     state_changes = []
@@ -431,7 +431,7 @@ async def test_rtl6c4_fails_conn_suspended():
     channel_name = f'test-RTL6c4-suspended-{random_id()}'
     clock = FakeClock()
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_refused())
-    client = realtime_client(mock_ws, clock=clock, disconnected_retry_timeout=1000)
+    client = realtime_client(mock_ws, clock=clock, disconnected_retry_timeout_seconds=1)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -497,7 +497,7 @@ async def test_rtl6c4_fails_channel_suspended():
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE),
         on_message_from_client=on_message_from_client)
-    client = await connected_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = await connected_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     attach_task = asyncio.ensure_future(channel.attach())
