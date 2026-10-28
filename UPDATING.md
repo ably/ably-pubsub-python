@@ -912,6 +912,16 @@ pubsub_realtime_client = create_realtime_client(
     key='xxx', disconnected_retry_timeout_seconds=timedelta(seconds=5).total_seconds())
 ```
 
+### A `timedelta` ttl is sent to the millisecond
+
+A token `ttl` given as a `timedelta` is now converted to milliseconds exactly. 3.x went through
+`total_seconds()` and truncated, so many values were sent one millisecond short: a ttl of
+`timedelta(milliseconds=1001)` was requested as 1000. Whole seconds were unaffected. This applies
+to token requests and to the params sent to an `auth_url`. A `ttl` given as a number of
+milliseconds is sent as before.
+
+No change is needed.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
