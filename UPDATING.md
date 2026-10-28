@@ -922,6 +922,31 @@ milliseconds is sent as before.
 
 No change is needed.
 
+### `PresenceAction` is an `IntEnum`
+
+`PresenceAction` is now an `IntEnum`, as `MessageAction` and `AnnotationAction` are, and the
+`action` of a `PresenceMessage` received from Ably is one of its members, where 3.x gave a
+bare `int` from a plain class of constants. A member is still an `int`: it compares equal to
+its wire value, so `member.action == 2` and `member.action == PresenceAction.ENTER` both still
+hold, it hashes like that value, and it is still sent to Ably as the number. Two things do
+change. `type(member.action) is int` no longer holds, and `repr()` of an action is now
+`<PresenceAction.ENTER: 2>` rather than `2`; before Python 3.11, `str()` and `%s` give
+`PresenceAction.ENTER` too, though an f-string still gives `2`. Use `int()` where you need the
+plain number, and `.name` for the name. An action this version does not know is left as the
+`int` Ably sent.
+
+Example 3.x code:
+```python
+if type(member.action) is int:
+    log.info('presence action %s', member.action)
+```
+
+Example 4.0.0 code:
+```python
+if isinstance(member.action, PresenceAction):
+    log.info('presence action %s', member.action.name)
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

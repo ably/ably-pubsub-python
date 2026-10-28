@@ -15,7 +15,7 @@ from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 from ably.pubsub.types.testoptions import TestOptions
 
 #: The lowercase action names `RealtimePresence` emits its events under, which come
-#: from `PresenceAction._action_name` and exist only once `presence.py` is imported.
+#: from the `PresenceAction` member names, lowercased.
 PRESENCE_EVENT_NAMES = ('absent', 'present', 'enter', 'leave', 'update')
 
 
