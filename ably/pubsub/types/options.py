@@ -2,9 +2,11 @@ import logging
 import math
 import random
 from abc import ABC, abstractmethod
+from datetime import timedelta
 
 from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.authoptions import AuthOptions
+from ably.pubsub.util.exceptions import InvalidArgumentException
 
 log = logging.getLogger(__name__)
 
@@ -19,6 +21,21 @@ def seconds_to_ms(seconds):
     """
     ms = round(seconds * 1000, 3)
     return int(ms) if ms == int(ms) else ms
+
+
+def validate_seconds(name, value):
+    """Returns `value` if it is a valid timing option, and raises if it is not.
+
+    A timing option is a finite, non-negative int or float of seconds. A bool is an int to
+    Python but not a duration, and a `timedelta` is rejected here rather than reaching a
+    timer that cannot schedule it.
+    """
+    if (isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) or value < 0):
+        hint = '; pass a timedelta as its total_seconds()' if isinstance(value, timedelta) else ''
+        raise InvalidArgumentException(
+            f'{name} must be a finite, non-negative number of seconds, not {value!r}{hint}', 400, 40000)
+    return value
 
 
 # The timing options renamed in 4.0, by their 3.x name, with the 3.x unit and default
@@ -85,6 +102,9 @@ class Options(AuthOptions):
     - `suspended_retry_timeout_seconds`: TO3l2 suspendedRetryTimeout, default 30
     - `channel_retry_timeout_seconds`: TO3l7 channelRetryTimeout, default 15
     - `fallback_retry_timeout_seconds`: TO3l10 fallbackRetryTimeout, default 600
+
+    Each takes a finite, non-negative int or float, and anything else, a `bool` or a
+    `timedelta` among them, raises an `InvalidArgumentException` with code 40000.
     """
 
     def __init__(self, client_id=None, tls=True, port=0,
@@ -147,6 +167,20 @@ class Options(AuthOptions):
         # rest_host and realtime_host options (TO3k1-3), so REC1c and REC1d do not apply
         if endpoint is None:
             endpoint = Defaults.endpoint
+
+        # The timing options, given or defaulted, before anything schedules with them
+        timing_options = {
+            'realtime_request_timeout_seconds': realtime_request_timeout_seconds,
+            'disconnected_retry_timeout_seconds': disconnected_retry_timeout_seconds,
+            'suspended_retry_timeout_seconds': suspended_retry_timeout_seconds,
+            'channel_retry_timeout_seconds': channel_retry_timeout_seconds,
+            'fallback_retry_timeout_seconds': fallback_retry_timeout_seconds,
+            'http_open_timeout_seconds': http_open_timeout_seconds,
+            'http_request_timeout_seconds': http_request_timeout_seconds,
+            'http_max_retry_duration_seconds': http_max_retry_duration_seconds,
+        }
+        for name, value in timing_options.items():
+            validate_seconds(name, value)
 
         self.__client_id = client_id
         self.__tls = tls
@@ -242,7 +276,7 @@ class Options(AuthOptions):
 
     @http_open_timeout_seconds.setter
     def http_open_timeout_seconds(self, value):
-        self.__http_open_timeout_seconds = value
+        self.__http_open_timeout_seconds = validate_seconds('http_open_timeout_seconds', value)
 
     @property
     def http_request_timeout_seconds(self):
@@ -258,7 +292,7 @@ class Options(AuthOptions):
 
     @http_request_timeout_seconds.setter
     def http_request_timeout_seconds(self, value):
-        self.__http_request_timeout_seconds = value
+        self.__http_request_timeout_seconds = validate_seconds('http_request_timeout_seconds', value)
 
     @property
     def http_max_retry_count(self):
@@ -274,7 +308,7 @@ class Options(AuthOptions):
 
     @http_max_retry_duration_seconds.setter
     def http_max_retry_duration_seconds(self, value):
-        self.__http_max_retry_duration_seconds = value
+        self.__http_max_retry_duration_seconds = validate_seconds('http_max_retry_duration_seconds', value)
 
     @property
     def fallback_hosts(self):

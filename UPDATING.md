@@ -879,6 +879,39 @@ All eight renames together:
 
 A value held as a `timedelta` converts with `total_seconds()`, whichever option it is for.
 
+### Timing options are validated when the client is created
+
+The eight `_seconds` timing options must each be a finite, non-negative `int` or `float`.
+Anything else raises an `InvalidArgumentException`, an `AblyException` with code 40000 that
+is also a `ValueError`, when the client is created. In 3.x nothing was checked: a string or
+a negative number failed later or not at all, and a `timedelta` passed to a realtime option
+was accepted and then raised inside the timer, so the retry it scheduled never ran. Zero is
+accepted, and no value is too small or too large to pass.
+
+| 3.x option | Unit | 4.0.0 option | Unit | Accepts |
+|---|---|---|---|---|
+| `realtime_request_timeout` | ms | `realtime_request_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `disconnected_retry_timeout` | ms | `disconnected_retry_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `suspended_retry_timeout` | ms | `suspended_retry_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `channel_retry_timeout` | ms | `channel_retry_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `fallback_retry_timeout` | ms | `fallback_retry_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `http_open_timeout` | s | `http_open_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `http_request_timeout` | s | `http_request_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `http_max_retry_duration` | s | `http_max_retry_duration_seconds` | s | `int` or `float`, ≥ 0 |
+
+Convert a `timedelta` with `total_seconds()`:
+
+Example 3.x code:
+```python
+realtime = AblyRealtime(key='xxx', disconnected_retry_timeout=timedelta(seconds=5))
+```
+
+Example 4.0.0 code:
+```python
+pubsub_realtime_client = create_realtime_client(
+    key='xxx', disconnected_retry_timeout_seconds=timedelta(seconds=5).total_seconds())
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

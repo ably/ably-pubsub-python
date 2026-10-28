@@ -55,7 +55,9 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     ------
     AblyException
         With code 40106, if no means of authenticating is given, or if `key` is
-        combined with `key_name` or `key_secret`. It is also a ValueError.
+        combined with `key_name` or `key_secret`; with code 40000 if a `*_seconds`
+        timing option is not a finite, non-negative int or float. It is also a
+        ValueError.
     """
     with factory_construction():
         return _DefaultPubSubHttpClientSync(**kwargs)

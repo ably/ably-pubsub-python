@@ -172,9 +172,14 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     ------
     AblyException
         With code 40106, if no means of authenticating is given, or if `key` is
-        combined with `key_name` or `key_secret`. It is also a ValueError.
+        combined with `key_name` or `key_secret`; with code 40000 if a `*_seconds`
+        timing option is not a finite, non-negative int or float. It is also a
+        ValueError.
     IncompatibleClientIdException
         If `client_id` conflicts with the client ID of `token_details`.
+    TypeError
+        If an option is passed under a name it does not have, including a timing
+        option's 3.x name, which the message names the replacement for.
     """
     with factory_construction():
         return _DefaultPubSubHttpClient(**kwargs)
@@ -248,7 +253,9 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
     ------
     AblyException
         With code 40106, if no means of authenticating is given, or if `key` is
-        combined with `key_name` or `key_secret`. It is also a ValueError.
+        combined with `key_name` or `key_secret`; with code 40000 if a `*_seconds`
+        timing option is not a finite, non-negative int or float. It is also a
+        ValueError.
     """
     with factory_construction():
         return _DefaultPubSubRealtimeClient(**kwargs)

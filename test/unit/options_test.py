@@ -4,7 +4,7 @@ import pytest
 
 from ably.pubsub.server import create_http_client, create_realtime_client
 from ably.pubsub.types.options import Options, seconds_to_ms
-from ably.pubsub.util.exceptions import AblyException
+from ably.pubsub.util.exceptions import AblyException, InvalidArgumentException
 
 
 # TO3k1-3: the deprecated environment, rest_host and realtime_host options are omitted,
@@ -258,3 +258,52 @@ def test_a_whole_number_of_milliseconds_is_an_int():
     assert type(seconds_to_ms(0.1)) is int
     assert type(seconds_to_ms(15)) is int
     assert type(seconds_to_ms(0.0015)) is float
+
+
+TIMING_OPTIONS = list(REALTIME_TIMING_DEFAULTS) + list(HTTP_TIMING_DEFAULTS)
+
+
+@pytest.mark.parametrize('option', TIMING_OPTIONS)
+@pytest.mark.parametrize('value', [0, 1, 0.0015, 2.5, 600])
+def test_timing_options_accept_finite_non_negative_ints_and_floats(option, value):
+    assert getattr(Options(**{option: value}), option) == value
+
+
+@pytest.mark.parametrize('option', TIMING_OPTIONS)
+@pytest.mark.parametrize('value', [True, False, '15', b'15', [15], -1, -0.001, float('nan'), float('inf'),
+                                   float('-inf'), timedelta(seconds=15)])
+def test_timing_options_reject_anything_else_with_a_40000(option, value):
+    with pytest.raises(InvalidArgumentException) as excinfo:
+        Options(**{option: value})
+    assert excinfo.value.code == 40000
+    assert excinfo.value.status_code == 400
+    assert isinstance(excinfo.value, ValueError)
+    assert option in excinfo.value.message
+
+
+def test_a_timedelta_is_rejected_with_a_hint():
+    # 3.x accepted a timedelta and then failed inside the timer task, so the retry never fired
+    with pytest.raises(InvalidArgumentException, match=r'total_seconds\(\)'):
+        Options(disconnected_retry_timeout_seconds=timedelta(seconds=15))
+
+
+def test_none_takes_the_default_rather_than_failing_validation():
+    opts = Options(**dict.fromkeys(TIMING_OPTIONS))
+    for option, default in {**REALTIME_TIMING_DEFAULTS, **HTTP_TIMING_DEFAULTS}.items():
+        assert getattr(opts, option) == default
+
+
+@pytest.mark.parametrize('option', list(HTTP_TIMING_DEFAULTS))
+def test_the_http_timing_setters_validate_too(option):
+    opts = Options()
+    setattr(opts, option, 0.5)
+    assert getattr(opts, option) == 0.5
+    with pytest.raises(InvalidArgumentException):
+        setattr(opts, option, -1)
+
+
+def test_the_factories_raise_the_validation_error():
+    with pytest.raises(InvalidArgumentException, match='http_request_timeout_seconds'):
+        create_http_client(key='appId.keyId:keySecret', http_request_timeout_seconds='10')
+    with pytest.raises(InvalidArgumentException, match='channel_retry_timeout_seconds'):
+        create_realtime_client(key='appId.keyId:keySecret', auto_connect=False, channel_retry_timeout_seconds=-15)
