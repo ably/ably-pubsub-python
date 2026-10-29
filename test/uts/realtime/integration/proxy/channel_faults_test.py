@@ -39,10 +39,10 @@ from test.uts.helpers.client import (
 )
 from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt, random_id
 
-# The specification's `realtimeRequestTimeout: 3000`, in the milliseconds the client
-# option takes. It is the deadline on both the attach and the detach the two timeout
-# tests provoke (TO3l11).
-REALTIME_REQUEST_TIMEOUT_MS = 3000
+# The specification's `realtimeRequestTimeout: 3000`, in the seconds the client option
+# takes. It is the deadline on both the attach and the detach the two timeout tests
+# provoke (TO3l11).
+REALTIME_REQUEST_TIMEOUT_SECONDS = 3
 
 # The specification's `AWAIT_STATE ... WITH timeout` values, as wall-clock seconds.
 CONNECT_TIMEOUT = 15.0
@@ -119,7 +119,7 @@ async def test_rtl4f_attach_timeout_suppressed(realtime_sandbox, proxy_session):
     }])
 
     client = proxied_client(realtime_sandbox.key_str, session,
-                            realtime_request_timeout=REALTIME_REQUEST_TIMEOUT_MS)
+                            realtime_request_timeout_seconds=REALTIME_REQUEST_TIMEOUT_SECONDS)
     channel = client.channels.get(channel_name)
 
     # Record channel state changes for sequence verification
@@ -226,7 +226,7 @@ async def test_rtl5f_detach_timeout_suppressed(realtime_sandbox, proxy_session):
     session = await proxy_session(rules=[])
 
     client = proxied_client(realtime_sandbox.key_str, session,
-                            realtime_request_timeout=REALTIME_REQUEST_TIMEOUT_MS)
+                            realtime_request_timeout_seconds=REALTIME_REQUEST_TIMEOUT_SECONDS)
     channel = client.channels.get(channel_name)
 
     # Record channel state changes for sequence verification

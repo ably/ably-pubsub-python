@@ -35,11 +35,12 @@ CONNECTED = int(ProtocolMessageAction.CONNECTED)
 CLOSE = int(ProtocolMessageAction.CLOSE)
 
 # Short enough that a test which waits out a connect timeout stays quick, and
-# long enough that it never pre-empts a response the test means to give.
-SHORT_REQUEST_TIMEOUT = 300
+# long enough that it never pre-empts a response the test means to give. Seconds,
+# like NO_RETRY.
+SHORT_REQUEST_TIMEOUT = 0.3
 
 # Long enough that no test reconnects behind its own assertions.
-NO_RETRY = 60000
+NO_RETRY = 60
 
 
 def succeeding(message=CONNECTED_MESSAGE):
@@ -57,7 +58,7 @@ async def wait_for(predicate, timeout=3.0):
 
 async def connected(mock, **kwargs):
     """A client which has reached CONNECTED through `mock`."""
-    kwargs.setdefault('disconnected_retry_timeout', NO_RETRY)
+    kwargs.setdefault('disconnected_retry_timeout_seconds', NO_RETRY)
     client = realtime_client(mock, **kwargs)
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -83,7 +84,7 @@ async def test_respond_with_success_alone_leaves_the_client_connecting():
     # A connection that opens and then says nothing is a silent server, which
     # the client waits out rather than treating as a failure
     mock = MockWebSocket(on_connection_attempt=lambda connection: connection.respond_with_success())
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY)
 
     client.connect()
     await wait_for(lambda: len(mock.connections) == 1)
@@ -93,7 +94,7 @@ async def test_respond_with_success_alone_leaves_the_client_connecting():
 
 async def test_an_unanswered_attempt_succeeds_with_no_messages():
     mock = MockWebSocket()
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY)
 
     client.connect()
     await wait_for(lambda: len(mock.connections) == 1)
@@ -107,8 +108,8 @@ async def test_respond_with_refused_is_indistinguishable_from_a_silent_server():
     # ConnectionRefusedError a refused TCP connection raises never reaches the
     # transport's failure path; the connect timeout is what ends the attempt
     mock = MockWebSocket(on_connection_attempt=lambda connection: connection.respond_with_refused())
-    client = realtime_client(mock, realtime_request_timeout=SHORT_REQUEST_TIMEOUT,
-                             disconnected_retry_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=SHORT_REQUEST_TIMEOUT,
+                             disconnected_retry_timeout_seconds=NO_RETRY)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -120,8 +121,8 @@ async def test_respond_with_refused_is_indistinguishable_from_a_silent_server():
 
 async def test_respond_with_timeout_reaches_the_same_generic_timeout():
     mock = MockWebSocket(on_connection_attempt=lambda connection: connection.respond_with_timeout())
-    client = realtime_client(mock, realtime_request_timeout=SHORT_REQUEST_TIMEOUT,
-                             disconnected_retry_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=SHORT_REQUEST_TIMEOUT,
+                             disconnected_retry_timeout_seconds=NO_RETRY)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -131,8 +132,8 @@ async def test_respond_with_timeout_reaches_the_same_generic_timeout():
 
 async def test_respond_with_dns_error_fails_the_attempt_with_its_cause():
     mock = MockWebSocket(on_connection_attempt=lambda connection: connection.respond_with_dns_error())
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY,
-                             disconnected_retry_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY,
+                             disconnected_retry_timeout_seconds=NO_RETRY)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -146,7 +147,7 @@ async def test_respond_with_dns_error_fails_the_attempt_with_its_cause():
 async def test_respond_with_error_fails_the_connection():
     mock = MockWebSocket(on_connection_attempt=lambda connection: connection.respond_with_error(
         ERROR_MESSAGE(40000, 'Bad request')))
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY)
 
     client.connect()
     await await_connection_state(client, ConnectionState.FAILED)
@@ -158,7 +159,7 @@ async def test_respond_with_error_fails_the_connection():
 async def test_respond_with_error_can_leave_the_connection_open():
     mock = MockWebSocket(on_connection_attempt=lambda connection: connection.respond_with_error(
         ERROR_MESSAGE(40000, 'Bad request'), then_close=False))
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY)
 
     client.connect()
     await await_connection_state(client, ConnectionState.FAILED)
@@ -275,7 +276,7 @@ async def test_events_of_type_filters_the_timeline():
 
 async def test_simulate_disconnect_drops_the_transport():
     mock = MockWebSocket(on_connection_attempt=succeeding())
-    client = await connected(mock, disconnected_retry_timeout=NO_RETRY)
+    client = await connected(mock, disconnected_retry_timeout_seconds=NO_RETRY)
     states = []
     client.connection.on(lambda change: states.append(change.current))
 
@@ -302,7 +303,7 @@ async def test_simulate_disconnect_carries_its_error_to_the_state_change():
 
 async def test_send_to_client_and_close_delivers_the_message_before_the_close():
     mock = MockWebSocket(on_connection_attempt=succeeding())
-    client = await connected(mock, disconnected_retry_timeout=NO_RETRY)
+    client = await connected(mock, disconnected_retry_timeout_seconds=NO_RETRY)
 
     mock.send_to_client_and_close(ERROR_MESSAGE(40000, 'Bad request'))
     await await_connection_state(client, ConnectionState.FAILED)
@@ -316,7 +317,7 @@ async def test_send_to_client_and_close_delivers_the_message_before_the_close():
 
 async def test_a_server_sent_closed_message_leaves_the_connection_state_alone():
     mock = MockWebSocket(on_connection_attempt=succeeding())
-    client = await connected(mock, disconnected_retry_timeout=NO_RETRY)
+    client = await connected(mock, disconnected_retry_timeout_seconds=NO_RETRY)
 
     mock.send_to_client_and_close(CLOSED_MESSAGE)
     await wait_for(lambda: mock.connections[0].closed)
@@ -329,7 +330,7 @@ async def test_a_server_sent_closed_message_leaves_the_connection_state_alone():
 
 async def test_a_closed_connection_ignores_a_second_server_close():
     mock = MockWebSocket(on_connection_attempt=succeeding())
-    client = await connected(mock, disconnected_retry_timeout=NO_RETRY)
+    client = await connected(mock, disconnected_retry_timeout_seconds=NO_RETRY)
     connection = mock.active_connection
 
     states = []
@@ -372,7 +373,7 @@ async def test_a_client_close_clears_the_active_connection():
 
 async def test_await_connection_attempt_hands_the_attempt_to_the_test():
     mock = MockWebSocket()
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY)
 
     waiting = mock.await_connection_attempt(timeout=2)
     client.connect()
@@ -386,7 +387,7 @@ async def test_await_connection_attempt_hands_the_attempt_to_the_test():
 async def test_a_waiting_test_takes_precedence_over_the_connection_handler():
     handled = []
     mock = MockWebSocket(on_connection_attempt=handled.append)
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY)
 
     waiting = mock.await_connection_attempt(timeout=2)
     client.connect()
@@ -399,8 +400,8 @@ async def test_a_waiting_test_takes_precedence_over_the_connection_handler():
 
 async def test_a_second_attempt_is_caught_by_awaiting_before_responding():
     mock = MockWebSocket()
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY,
-                             disconnected_retry_timeout=50)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY,
+                             disconnected_retry_timeout_seconds=0.05)
 
     first_attempt = mock.await_connection_attempt(timeout=2)
     client.connect()
@@ -440,8 +441,8 @@ async def test_an_await_reports_a_handler_that_raised():
         raise TypeError('a handler bug')
 
     mock = MockWebSocket(on_connection_attempt=broken)
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY,
-                             disconnected_retry_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY,
+                             disconnected_retry_timeout_seconds=NO_RETRY)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -467,8 +468,8 @@ async def test_the_connection_handler_can_branch_on_the_attempt_count():
             connection.respond_with_success(CONNECTED_MESSAGE)
 
     mock = MockWebSocket(on_connection_attempt=connect)
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY,
-                             disconnected_retry_timeout=50)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY,
+                             disconnected_retry_timeout_seconds=0.05)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -488,7 +489,7 @@ async def test_the_message_handler_receives_every_message_from_the_client():
 
 async def test_the_handlers_can_be_assigned_after_construction():
     mock = MockWebSocket()
-    client = realtime_client(mock, realtime_request_timeout=NO_RETRY)
+    client = realtime_client(mock, realtime_request_timeout_seconds=NO_RETRY)
 
     mock.on_connection_attempt = succeeding()
     client.connect()
@@ -701,7 +702,7 @@ async def test_close_delivers_its_notification_asynchronously():
 
 async def test_a_server_close_reaches_the_client_on_a_later_turn():
     mock = MockWebSocket(on_connection_attempt=succeeding())
-    client = await connected(mock, disconnected_retry_timeout=NO_RETRY)
+    client = await connected(mock, disconnected_retry_timeout_seconds=NO_RETRY)
     states = []
     client.connection.on(lambda change: states.append(change.current))
 

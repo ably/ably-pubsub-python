@@ -78,7 +78,7 @@ async def test_rtn7e_pending_fail_suspended():
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     mock_ws.on_message_from_client = attach_only_server(mock_ws)
-    client = await connected_client(mock_ws, clock=clock, disconnected_retry_timeout=1000)
+    client = await connected_client(mock_ws, clock=clock, disconnected_retry_timeout_seconds=1)
     channel = client.channels.get(channel_name)
 
     await channel.attach()

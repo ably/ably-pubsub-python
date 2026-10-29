@@ -408,7 +408,9 @@ await pubsub_http_client.auth.request_token({'ttl': 600000, 'capability': capabi
 `http_open_timeout`, `http_request_timeout`, `http_max_retry_count` and
 `http_max_retry_duration` on `client.options` used to read `None` unless you set them, while
 the client applied defaults of its own. They now read back the values in effect: 4, 10, 3 and
-15 by default. The timeouts and the retry duration are still in seconds. Code that tested an
+15 by default. The timeouts and the retry duration are still in seconds, and are renamed
+`http_open_timeout_seconds`, `http_request_timeout_seconds` and
+`http_max_retry_duration_seconds`, as described below. Code that tested an
 option for `None`, to tell whether it had been set, will no longer find it so.
 
 ### Requests no longer take a `timeout` argument
@@ -427,21 +429,21 @@ await rest.time(timeout=5)
 
 Example 4.0.0 code:
 ```python
-pubsub_http_client = create_http_client(key='xxx', http_request_timeout=5)
+pubsub_http_client = create_http_client(key='xxx', http_request_timeout_seconds=5)
 await pubsub_http_client.time()
 ```
 
-### `http_request_timeout` bounds writes and connection-pool waits
+### `http_request_timeout_seconds` bounds writes and connection-pool waits
 
 In 3.x, `http_open_timeout` bounded connecting and `http_request_timeout` bounded each read
 of a response, while writing a request body and waiting for a free pooled connection had no
-timeout at all. `http_request_timeout` now bounds those too, so a request stuck writing to,
+timeout at all. `http_request_timeout_seconds` now bounds those too, so a request stuck writing to,
 or waiting for, a wedged connection raises `httpx.TimeoutException` and is retried against a
 fallback host instead of hanging. If you publish large bodies over a slow link, raise
-`http_request_timeout` to fit:
+`http_request_timeout_seconds` to fit:
 
 ```python
-pubsub_http_client = create_http_client(key='xxx', http_request_timeout=30)
+pubsub_http_client = create_http_client(key='xxx', http_request_timeout_seconds=30)
 ```
 
 ### `http_max_retry_count` counts fallback hosts only
@@ -773,7 +775,7 @@ except AblyException:
 
 `await connection.ping()` raised an `AblyException` with code 40000 at once when the connection
 was `DISCONNECTED`. In 4.0.0 it waits for the connection to reconnect, as it already did while
-`CONNECTING`, and then times out `realtime_request_timeout` after its heartbeat goes out. It
+`CONNECTING`, and then times out `realtime_request_timeout_seconds` after its heartbeat goes out. It
 still fails if the connection becomes `SUSPENDED`, `CLOSED` or `FAILED` first, which can be up to
 two minutes later. Bound the wait yourself if you need an answer sooner:
 
@@ -781,6 +783,144 @@ Example 4.0.0 code:
 ```python
 response_time_ms = await asyncio.wait_for(pubsub_realtime_client.connection.ping(), timeout=5)
 ```
+
+### The millisecond timing options take seconds, and end in `_seconds`
+
+**Passing an old name raises `TypeError`, so a missed rename fails at construction rather
+than silently scheduling a timeout a thousand times too long.** Four realtime timing options
+and `fallback_retry_timeout`, which the HTTP client reads too, took milliseconds, where the
+HTTP timeouts took seconds. They now take seconds, as an `int` or a `float`, and each is
+renamed with a `_seconds` suffix so the unit is in the name. They read back from
+`client.options` under the new names:
+
+| 3.x option | Unit | 4.0.0 option | Unit | Default |
+|---|---|---|---|---|
+| `realtime_request_timeout` | ms | `realtime_request_timeout_seconds` | s | 10 |
+| `disconnected_retry_timeout` | ms | `disconnected_retry_timeout_seconds` | s | 15 |
+| `suspended_retry_timeout` | ms | `suspended_retry_timeout_seconds` | s | 30 |
+| `channel_retry_timeout` | ms | `channel_retry_timeout_seconds` | s | 15 |
+| `fallback_retry_timeout` | ms | `fallback_retry_timeout_seconds` | s | 600 |
+
+Divide a 3.x value by 1000, or pass a `timedelta`'s `total_seconds()`. The values the Ably
+protocol carries are still milliseconds: a token's `ttl`, `connection.connection_details`,
+`auth.time_offset`, every timestamp and the round trip `connection.ping()` returns.
+
+Example 3.x code:
+```python
+realtime = AblyRealtime(key='xxx', disconnected_retry_timeout=5000, realtime_request_timeout=2500)
+```
+
+Example 4.0.0 code:
+```python
+from datetime import timedelta
+
+pubsub_realtime_client = create_realtime_client(
+    key='xxx',
+    disconnected_retry_timeout_seconds=5,
+    realtime_request_timeout_seconds=timedelta(milliseconds=2500).total_seconds(),
+)
+```
+
+### The HTTP timing options end in `_seconds`
+
+**Passing an old name raises `TypeError`.** The HTTP timing options were already seconds, and
+still are, but their names did not say so where the other timing options were milliseconds.
+Each is renamed with a `_seconds` suffix, to match the options above, and reads back from
+`client.options` under the new name. Only the name changes:
+
+| 3.x option | Unit | 4.0.0 option | Unit | Default |
+|---|---|---|---|---|
+| `http_open_timeout` | s | `http_open_timeout_seconds` | s | 4 |
+| `http_request_timeout` | s | `http_request_timeout_seconds` | s | 10 |
+| `http_max_retry_duration` | s | `http_max_retry_duration_seconds` | s | 15 |
+
+Keep a 3.x value as it is, or pass a `timedelta`'s `total_seconds()`.
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', http_open_timeout=2, http_request_timeout=5)
+```
+
+Example 4.0.0 code:
+```python
+from datetime import timedelta
+
+pubsub_http_client = create_http_client(
+    key='xxx',
+    http_open_timeout_seconds=2,
+    http_request_timeout_seconds=timedelta(seconds=5).total_seconds(),
+)
+```
+
+### An old timing option name says what to pass instead
+
+Passing a timing option under its 3.x name raises a `TypeError` that names its replacement
+and, where the unit changed, converts the value you passed, so a 3.x configuration fails at
+construction with the fix in the message. Unknown options already raised `TypeError`, so
+code that caught it still does:
+
+```
+TypeError: `disconnected_retry_timeout` was renamed to `disconnected_retry_timeout_seconds` in 4.0 and is now in seconds (15000 ms → 15)
+TypeError: `http_request_timeout` was renamed to `http_request_timeout_seconds` in 4.0; it is still in seconds
+```
+
+All eight renames together:
+
+| 3.x option | Unit | 4.0.0 option | Unit |
+|---|---|---|---|
+| `realtime_request_timeout` | ms | `realtime_request_timeout_seconds` | s |
+| `disconnected_retry_timeout` | ms | `disconnected_retry_timeout_seconds` | s |
+| `suspended_retry_timeout` | ms | `suspended_retry_timeout_seconds` | s |
+| `channel_retry_timeout` | ms | `channel_retry_timeout_seconds` | s |
+| `fallback_retry_timeout` | ms | `fallback_retry_timeout_seconds` | s |
+| `http_open_timeout` | s | `http_open_timeout_seconds` | s |
+| `http_request_timeout` | s | `http_request_timeout_seconds` | s |
+| `http_max_retry_duration` | s | `http_max_retry_duration_seconds` | s |
+
+A value held as a `timedelta` converts with `total_seconds()`, whichever option it is for.
+
+### Timing options are validated when the client is created
+
+The eight `_seconds` timing options must each be a finite, non-negative `int` or `float`.
+Anything else raises an `InvalidArgumentException`, an `AblyException` with code 40000 that
+is also a `ValueError`, when the client is created. In 3.x nothing was checked: a string or
+a negative number failed later or not at all, and a `timedelta` passed to a realtime option
+was accepted and then raised inside the timer, so the retry it scheduled never ran. Zero is
+accepted, and no value is too small or too large to pass.
+
+| 3.x option | Unit | 4.0.0 option | Unit | Accepts |
+|---|---|---|---|---|
+| `realtime_request_timeout` | ms | `realtime_request_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `disconnected_retry_timeout` | ms | `disconnected_retry_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `suspended_retry_timeout` | ms | `suspended_retry_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `channel_retry_timeout` | ms | `channel_retry_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `fallback_retry_timeout` | ms | `fallback_retry_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `http_open_timeout` | s | `http_open_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `http_request_timeout` | s | `http_request_timeout_seconds` | s | `int` or `float`, ≥ 0 |
+| `http_max_retry_duration` | s | `http_max_retry_duration_seconds` | s | `int` or `float`, ≥ 0 |
+
+Convert a `timedelta` with `total_seconds()`:
+
+Example 3.x code:
+```python
+realtime = AblyRealtime(key='xxx', disconnected_retry_timeout=timedelta(seconds=5))
+```
+
+Example 4.0.0 code:
+```python
+pubsub_realtime_client = create_realtime_client(
+    key='xxx', disconnected_retry_timeout_seconds=timedelta(seconds=5).total_seconds())
+```
+
+### A `timedelta` ttl is sent to the millisecond
+
+A token `ttl` given as a `timedelta` is now converted to milliseconds exactly. 3.x went through
+`total_seconds()` and truncated, so many values were sent one millisecond short: a ttl of
+`timedelta(milliseconds=1001)` was requested as 1000. Whole seconds were unaffected. This applies
+to token requests and to the params sent to an `auth_url`. A `ttl` given as a number of
+milliseconds is sent as before.
+
+No change is needed.
 
 ## Version 2.x to 3.0.0
 

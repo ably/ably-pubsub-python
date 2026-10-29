@@ -196,8 +196,8 @@ class Http:
             all_headers.update(headers)
 
         # TO3l3 bounds opening the connection, and TO3l4 each read, write and wait for a pooled connection
-        timeout = httpx.Timeout(self.http_request_timeout, connect=self.http_open_timeout)
-        http_max_retry_duration = self.http_max_retry_duration
+        timeout = httpx.Timeout(self.http_request_timeout_seconds, connect=self.http_open_timeout_seconds)
+        http_max_retry_duration_seconds = self.http_max_retry_duration_seconds
         requested_at = self.__clock.now_ms()
 
         hosts = self.get_hosts()
@@ -205,7 +205,7 @@ class Http:
             def should_stop_retrying(retry_count=retry_count):
                 time_passed = (self.__clock.now_ms() - requested_at) / 1000
                 # if it's the last try or cumulative timeout is done, we stop retrying
-                return retry_count == len(hosts) - 1 or time_passed > http_max_retry_duration
+                return retry_count == len(hosts) - 1 or time_passed > http_max_retry_duration_seconds
 
             base_url = f"{self.preferred_scheme}://{HttpUtils.host_for_url(host)}:{self.preferred_port}"
             url = urljoin(base_url, path)
@@ -247,7 +247,7 @@ class Http:
                     # Keep fallback host for later (RSC15f)
                     if retry_count > 0 and host != self.options.get_host():
                         self.__host = host
-                        self.__host_expires = self.__clock.now_ms() + self.options.fallback_retry_timeout
+                        self.__host_expires = self.__clock.now_ms() + self.options._fallback_retry_timeout_ms
 
                     return Response(response)
                 except AblyException as e:
@@ -311,17 +311,17 @@ class Http:
         return Defaults.get_scheme(self.options)
 
     @property
-    def http_open_timeout(self):
-        return self.options.http_open_timeout
+    def http_open_timeout_seconds(self):
+        return self.options.http_open_timeout_seconds
 
     @property
-    def http_request_timeout(self):
-        return self.options.http_request_timeout
+    def http_request_timeout_seconds(self):
+        return self.options.http_request_timeout_seconds
 
     @property
     def http_max_retry_count(self):
         return self.options.http_max_retry_count
 
     @property
-    def http_max_retry_duration(self):
-        return self.options.http_max_retry_duration
+    def http_max_retry_duration_seconds(self):
+        return self.options.http_max_retry_duration_seconds

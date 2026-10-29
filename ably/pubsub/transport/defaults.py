@@ -11,21 +11,21 @@ class Defaults:
     suspended_timeout = 60000
     comet_recv_timeout = 90000
     comet_send_timeout = 10000
-    realtime_request_timeout = 10000
-    channel_retry_timeout = 15000
-    disconnected_retry_timeout = 15000
     connection_state_ttl = 120000
-    suspended_retry_timeout = 30000
 
     transports = []  # ["web_socket", "comet"]
 
-    # The HTTP timeouts are in seconds, unlike the realtime ones above
-    http_open_timeout = 4
-    http_request_timeout = 10
-    http_max_retry_count = 3
-    http_max_retry_duration = 15
+    # The defaults of the timing client options, in seconds where the values above are milliseconds
+    realtime_request_timeout_seconds = 10
+    channel_retry_timeout_seconds = 15
+    disconnected_retry_timeout_seconds = 15
+    suspended_retry_timeout_seconds = 30
+    fallback_retry_timeout_seconds = 600  # 10min
+    http_open_timeout_seconds = 4
+    http_request_timeout_seconds = 10
+    http_max_retry_duration_seconds = 15
 
-    fallback_retry_timeout = 600000  # 10min
+    http_max_retry_count = 3
 
     max_message_size = 65536  # 64KiB
 

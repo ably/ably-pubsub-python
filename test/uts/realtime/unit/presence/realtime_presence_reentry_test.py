@@ -124,7 +124,7 @@ async def test_rtp17i_auto_reentry_on_attached():
     echoing_server(mock_ws, channel_name, connections, captured_presence)
 
     client = await connected_client(
-        mock_ws, client_id='my-client', disconnected_retry_timeout=100)
+        mock_ws, client_id='my-client', disconnected_retry_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)
@@ -165,7 +165,7 @@ async def test_rtp17g_reentry_publishes_enter_with_data():
     # RTP15f has a client with a concrete clientId refused `enterClient` for any
     # other one, so the client entering alice and bob on their behalf holds the
     # wildcard clientId the specification's own note allows for
-    client = await connected_client(mock_ws, client_id='*', disconnected_retry_timeout=100)
+    client = await connected_client(mock_ws, client_id='*', disconnected_retry_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)
@@ -217,7 +217,7 @@ async def test_rtp17g1_reentry_omits_id_new_connid():
     echoing_server(mock_ws, channel_name, connections, captured_presence)
 
     client = await connected_client(
-        mock_ws, client_id='my-client', disconnected_retry_timeout=100)
+        mock_ws, client_id='my-client', disconnected_retry_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)
@@ -298,7 +298,7 @@ async def test_rtp17e_failed_reentry_emits_update_error():
     mock_ws.on_message_from_client = on_message_from_client
 
     client = await connected_client(
-        mock_ws, client_id='my-client', disconnected_retry_timeout=100)
+        mock_ws, client_id='my-client', disconnected_retry_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)

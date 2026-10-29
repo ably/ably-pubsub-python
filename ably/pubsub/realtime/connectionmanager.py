@@ -147,7 +147,7 @@ class ConnectionManager(EventEmitter):
         self.__ably = realtime
         self.__state: ConnectionState = initial_state
         self.__pending_pings: dict[str, PendingPing] = {}
-        self.__timeout_in_secs: float = self.options.realtime_request_timeout / 1000
+        self.__timeout_in_secs: float = self.options.realtime_request_timeout_seconds
         self.transport: WebSocketTransport | None = None
         self.__connection_details: ConnectionDetails | None = None
         self.connection_id: str | None = None
@@ -682,9 +682,9 @@ class ConnectionManager(EventEmitter):
         if retry_immediately:
             self.options.loop.call_soon(self.request_state, ConnectionState.CONNECTING)
         elif state == ConnectionState.DISCONNECTED:
-            self.start_retry_timer(self.options.disconnected_retry_timeout)
+            self.start_retry_timer(self.options._disconnected_retry_timeout_ms)
         elif state == ConnectionState.SUSPENDED:
-            self.start_retry_timer(self.options.suspended_retry_timeout)
+            self.start_retry_timer(self.options._suspended_retry_timeout_ms)
 
         if (state == ConnectionState.DISCONNECTED and not retry_immediately) or state == ConnectionState.SUSPENDED:
             self.disconnect_transport()
@@ -721,7 +721,7 @@ class ConnectionManager(EventEmitter):
         if fail_state is None:
             fail_state = self.__fail_state if state != ConnectionState.CLOSING else ConnectionState.CLOSED
 
-        timeout = self.options.realtime_request_timeout
+        timeout = self.options._realtime_request_timeout_ms
 
         def on_transition_timer_expire():
             if self.transition_timer:
@@ -774,7 +774,7 @@ class ConnectionManager(EventEmitter):
             self.suspend_timer.cancel()
             self.suspend_timer = None
 
-    def start_retry_timer(self, interval: int) -> None:
+    def start_retry_timer(self, interval: float) -> None:
         def on_retry_timeout():
             log.info('ConnectionManager retry timer expired, retrying')
             self.retry_timer = None

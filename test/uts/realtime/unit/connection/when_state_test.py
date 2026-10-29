@@ -98,7 +98,7 @@ async def test_rtn26b_fires_only_once():
             connected_message(f'connection-id-{index}', connectionKey=f'connection-key-{index}'))
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
-    client = realtime_client(mock_ws, disconnected_retry_timeout=100)
+    client = realtime_client(mock_ws, disconnected_retry_timeout_seconds=0.1)
 
     invocations = []
 
@@ -168,7 +168,7 @@ async def test_rtn26_whenstate_different_states():
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_refused())
     # A refused connect reaches DISCONNECTED when the connecting transition
     # timer expires, so a short request timeout keeps that wait small
-    client = realtime_client(mock_ws, realtime_request_timeout=300)
+    client = realtime_client(mock_ws, realtime_request_timeout_seconds=0.3)
 
     initialized = when_state(client.connection, ConnectionState.INITIALIZED)
     connecting = when_state(client.connection, ConnectionState.CONNECTING)

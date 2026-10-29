@@ -332,7 +332,7 @@ async def test_rtl3c_suspended_attached_to_suspended():
     # A refused attempt is only given up on when the connecting transition timer
     # expires, so a short request timeout keeps each retry cycle short
     client = realtime_client(
-        mock_ws, clock=clock, disconnected_retry_timeout=1000, realtime_request_timeout=300)
+        mock_ws, clock=clock, disconnected_retry_timeout_seconds=1, realtime_request_timeout_seconds=0.3)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -371,7 +371,7 @@ async def test_rtl3c_suspended_attaching_to_suspended():
     # RTL4f suspends the channel on its own before the connection gets there,
     # and the transition RTL3c is about never happens
     client = realtime_client(
-        mock_ws, clock=clock, disconnected_retry_timeout=1000, realtime_request_timeout=300000)
+        mock_ws, clock=clock, disconnected_retry_timeout_seconds=1, realtime_request_timeout_seconds=300)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -409,7 +409,7 @@ async def test_rtl3d_reattach_attached_with_serial():
     )
     mock_ws.on_message_from_client = echo_attach_and_detach(
         mock_ws, attach_messages, channelSerial='serial-001')
-    client = await connected_client(mock_ws, disconnected_retry_timeout=100)
+    client = await connected_client(mock_ws, disconnected_retry_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)
@@ -444,8 +444,8 @@ async def test_rtl3d_reattach_suspended_channels():
     )
     mock_ws.on_message_from_client = echo_attach_and_detach(mock_ws, attach_messages)
     client = realtime_client(
-        mock_ws, clock=clock, disconnected_retry_timeout=1000, suspended_retry_timeout=2000,
-        realtime_request_timeout=300)
+        mock_ws, clock=clock, disconnected_retry_timeout_seconds=1, suspended_retry_timeout_seconds=2,
+        realtime_request_timeout_seconds=0.3)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -486,7 +486,7 @@ async def test_rtl3d_init_detached_not_reattached():
         on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE),
     )
     mock_ws.on_message_from_client = echo_attach_and_detach(mock_ws, attach_messages)
-    client = await connected_client(mock_ws, disconnected_retry_timeout=100)
+    client = await connected_client(mock_ws, disconnected_retry_timeout_seconds=0.1)
     initialized_channel = client.channels.get(initialized_channel_name)
     detached_channel = client.channels.get(detached_channel_name)
 
@@ -524,7 +524,7 @@ async def test_rtl3d_multiple_channels_reattached():
         on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE),
     )
     mock_ws.on_message_from_client = echo_attach_and_detach(mock_ws, attach_messages)
-    client = await connected_client(mock_ws, disconnected_retry_timeout=100)
+    client = await connected_client(mock_ws, disconnected_retry_timeout_seconds=0.1)
     channel1 = client.channels.get(channel1_name)
     channel2 = client.channels.get(channel2_name)
 

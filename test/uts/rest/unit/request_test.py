@@ -433,14 +433,14 @@ async def test_rsc19e_network_error_propagated():
 # UTS: rest/unit/RSC19e/timeout-error-handling-1
 async def test_rsc19e_timeout_error_handling():
     # NOTE: the spec drives this with a 5s delayed response against a 1s
-    # http_request_timeout (which it gives in milliseconds; ably-python takes seconds).
+    # httpRequestTimeout, which is http_request_timeout_seconds=1 here.
     # An injected transport is responsible for enforcing httpx timeouts, and the mock
     # does not implement them, so a delayed response would simply be waited out.
     # queue_timeout() raises the read timeout the client would otherwise have seen.
     mock_http = MockHttpClient(on_connection_attempt=succeed)
     mock_http.queue_timeout()
 
-    client = rest_client(mock_http, key=SPEC_KEY, http_request_timeout=1, fallback_hosts=[])
+    client = rest_client(mock_http, key=SPEC_KEY, http_request_timeout_seconds=1, fallback_hosts=[])
 
     with pytest.raises(AblyException) as excinfo:
         await client.request('GET', '/test', version='3')

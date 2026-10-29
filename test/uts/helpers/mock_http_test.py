@@ -614,7 +614,7 @@ async def test_queue_response_for_url_matches_a_key_written_with_a_default_port(
 async def test_a_delayed_response_beyond_the_read_budget_times_out():
     mock = MockHttpClient()
     mock.queue_delayed_response(5000, 200, [1])
-    ably = rest_client(mock, http_request_timeout=0.05)
+    ably = rest_client(mock, http_request_timeout_seconds=0.05)
 
     started = time.monotonic()
     with pytest.raises(AblyException):
@@ -629,7 +629,7 @@ async def test_a_delayed_response_beyond_the_read_budget_times_out():
 async def test_a_delayed_response_within_the_read_budget_arrives():
     mock = MockHttpClient()
     mock.queue_delayed_response(20, 200, [7])
-    ably = rest_client(mock, http_request_timeout=5)
+    ably = rest_client(mock, http_request_timeout_seconds=5)
 
     assert await ably.time() == 7
 

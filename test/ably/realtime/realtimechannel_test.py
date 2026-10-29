@@ -253,7 +253,7 @@ class TestRealtimeChannel(BaseAsyncTestCase):
         await rest.close()
 
     async def test_realtime_request_timeout_attach(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=2000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=2)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
         original_send_protocol_message = ably.connection.connection_manager.send_protocol_message
 
@@ -271,7 +271,7 @@ class TestRealtimeChannel(BaseAsyncTestCase):
         await ably.close()
 
     async def test_realtime_request_timeout_detach(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=2000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=2)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
         original_send_protocol_message = ably.connection.connection_manager.send_protocol_message
 
@@ -290,7 +290,7 @@ class TestRealtimeChannel(BaseAsyncTestCase):
         await ably.close()
 
     async def test_channel_detached_once_connection_closed(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=2000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=2)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
         channel = ably.channels.get(random_string(5))
         await channel.attach()
@@ -299,7 +299,7 @@ class TestRealtimeChannel(BaseAsyncTestCase):
         assert channel.state == ChannelState.DETACHED
 
     async def test_channel_failed_once_connection_failed(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=2000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=2)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
         channel = ably.channels.get(random_string(5))
         await channel.attach()
@@ -310,7 +310,7 @@ class TestRealtimeChannel(BaseAsyncTestCase):
         await ably.close()
 
     async def test_channel_suspended_once_connection_suspended(self):
-        ably = await TestApp.get_ably_realtime(realtime_request_timeout=2000)
+        ably = await TestApp.get_ably_realtime(realtime_request_timeout_seconds=2)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
         channel = ably.channels.get(random_string(5))
         await channel.attach()
@@ -329,7 +329,7 @@ class TestRealtimeChannel(BaseAsyncTestCase):
 
     # RTL13a
     async def test_channel_attach_retry_immediately_on_unexpected_detached(self):
-        ably = await TestApp.get_ably_realtime(channel_retry_timeout=500)
+        ably = await TestApp.get_ably_realtime(channel_retry_timeout_seconds=0.5)
         channel_name = random_string(5)
         channel = ably.channels.get(channel_name)
         await channel.attach()
@@ -352,7 +352,8 @@ class TestRealtimeChannel(BaseAsyncTestCase):
 
     # RTL13b
     async def test_channel_attach_retry_after_unsuccessful_attach(self):
-        ably = await TestApp.get_ably_realtime(channel_retry_timeout=500, realtime_request_timeout=1000)
+        ably = await TestApp.get_ably_realtime(channel_retry_timeout_seconds=0.5,
+                                               realtime_request_timeout_seconds=1)
         channel_name = random_string(5)
         channel = ably.channels.get(channel_name)
         call_count = 0
@@ -371,7 +372,7 @@ class TestRealtimeChannel(BaseAsyncTestCase):
         with pytest.raises(AblyException):
             await channel.attach()
 
-        # The channel should become SUSPENDED but will still retry again after channel_retry_timeout
+        # The channel should become SUSPENDED but will still retry again after channel_retry_timeout_seconds
         assert channel.state == ChannelState.SUSPENDED
 
         # Make sure the channel sucessfully re-attaches

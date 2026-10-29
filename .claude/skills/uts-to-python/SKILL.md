@@ -603,7 +603,7 @@ from CONNECTED (`loop.call_soon`, not a timer), so DISCONNECTED is gone before t
 `await` returns and `await_connection_state(client, DISCONNECTED)` times out. Record
 the sequence with `connection.on(...)` and assert on the list, as `mock_websocket.md`
 says. To *rest* in DISCONNECTED, use `drop_transport(...)`, or fail the immediate retry
-and raise `disconnected_retry_timeout`.
+and raise `disconnected_retry_timeout_seconds`.
 
 **5. Deadlock: `await connection.once_async(SUSPENDED)` before calling `advance()`
 hangs forever** — nothing fires timers but `advance`. Record with `connection.on(...)`,
@@ -621,7 +621,7 @@ a small `maxIdleInterval` in `connected_message(...)`, on real time. For every *
 
 **7. `ping()`'s timeout is real loop time, not the seam.**
 `connectionmanager.py:375` is `asyncio.wait_for(pending_ping.future, timeout)`, so
-`advance()` will not move it. Use a short real `realtime_request_timeout`.
+`advance()` will not move it. Use a short real `realtime_request_timeout_seconds`.
 
 **8. `clock.settle()` is twenty event-loop yields, not true quiescence.** The
 disconnect path chains `create_task` several levels deep. If a derived test shows a
@@ -640,7 +640,7 @@ the attempt hangs until the transition timer fires with a generic 50003/504, and
 one leaks a `connect_base` task. `respond_with_dns_error()` is the only fast, caught
 failure — 40000/400 with the real cause — so **prefer it** whenever you just need "the
 connect failed", and note the substitution at the site. Keep
-`realtime_request_timeout` short in any test that does wait a refusal out.
+`realtime_request_timeout_seconds` short in any test that does wait a refusal out.
 
 **11. Keep the fallback hosts empty** unless the spec is about them.
 `check_connection()` is a module-level, **synchronous** `httpx.get` that no seam
@@ -699,7 +699,7 @@ failure; do not chase them.
 a bare `simulate_disconnect()` leaves the channel ATTACHED. And RTL4f's channel attach
 timeout and the connection's transition timeout are the **same option** (TO3l11), so a
 test that needs the connection to suspend before the channel does must set
-`realtime_request_timeout` very high.
+`realtime_request_timeout_seconds` very high.
 
 **21. `presence.subscribe()` and `annotations.subscribe()` are coroutines that
 attach.** They must be awaited, and they cannot run before `connect()`. `unsubscribe()`
@@ -755,7 +755,7 @@ Infrastructure Limitation. RTN23a via `send_to_client(HEARTBEAT_MESSAGE)` works.
   response processor decodes the body through `Response.to_native()`. A native dict or
   list body gets one automatically.
 - **The mock enforces the client's read timeout**, so `respond_with_delay` beyond
-  `http_request_timeout` raises rather than arriving late.
+  `http_request_timeout_seconds` raises rather than arriving late.
 - **Several client options are missing entirely** — `max_message_size` and
   `log_handler` among them — and raise `TypeError` rather than being ignored. Check
   `ably/types/options.py` first.
@@ -861,14 +861,13 @@ Established against the real proxy and the real sandbox while deriving
   same client adds its own `http_request` events. In `RSL1k4` the log is read
   **before** the history call, and the history read is a `wall_clock_poll_until` rather
   than a single fetch, because a published message does not reach history at once.
-- **`httpRequestTimeout` is milliseconds in the specification and seconds in
-  ably-python.** `ably/http/http.py:193` hands `(http_open_timeout,
-  http_request_timeout)` to `httpx`, which reads seconds, so the specification's
-  `http_request_timeout=3000` is a 3000-second deadline: measured, the request sat out
-  the proxy's whole 20-second delay and then succeeded on the primary host, and no
-  fallback was attempted. Passing `3` makes the same test pass in 3.1s, so only the
-  unit is wrong. The test is written as the specification has it and gated with
-  `@deviation`; `test/uts/deviations.md` carries the entry.
+- **`httpRequestTimeout` is milliseconds in the specification and
+  `http_request_timeout_seconds` is seconds in ably-python**, as are
+  `http_open_timeout_seconds` and `http_max_retry_duration_seconds`. Divide the
+  specification's value by 1000: passed undivided, `httpRequestTimeout: 3000` is a
+  3000-second deadline, and measured, the request sat out the proxy's whole 20-second
+  delay and then succeeded on the primary host with no fallback attempted. `3` makes
+  the same test pass in 3.1s.
 
 ## Traps found while deriving the realtime integration tier
 
@@ -896,10 +895,11 @@ Each was established against the sandbox, or against the sandbox behind `uts-pro
   `respond_with_refused`. The proxy answers the upgrade with HTTP 502, `websockets`
   raises, and the SDK reports `40000/400 'Error opening websocket connection: server
   rejected WebSocket connection: HTTP 502'` at once. No timeout shortening is needed.
-- **`realtime_request_timeout` is milliseconds at the client option**, and `Timer`
-  divides by 1000, so a specification's `realtimeRequestTimeout: 3000` maps straight
-  across. That is the opposite of `http_request_timeout`, which the REST proxy tier found
-  is applied as seconds; the defect does not generalise, so do not carry it over.
+- **The realtime timing options are seconds, and named `*_seconds`.** A specification's
+  `realtimeRequestTimeout: 3000` is `realtime_request_timeout_seconds=3`, and the same
+  division by 1000 applies to `disconnectedRetryTimeout`, `suspendedRetryTimeout` and
+  `channelRetryTimeout`. Only the options move: `ADVANCE_TIME`, `maxIdleInterval`,
+  `connectionStateTtl` and every `FakeClock` value stay milliseconds.
 - **The proxy's event timestamps are RFC 3339 with a variable number of fractional
   digits.** Comparing them as strings is wrong, and `datetime.fromisoformat` will not
   take the trailing `Z` on Python 3.9. Order the log by position rather than by timestamp
@@ -929,12 +929,14 @@ Three regimes; pick by tier.
 `rest_client(mock_http, clock=...)` replaces it: a stand-in supplies `now_ms()`,
 `monotonic_ms()` and `timer(timeout_ms, callback)`, and is where a spec's
 `enable_fake_timers()` / `ADVANCE_TIME(ms)` goes. Where a spec shortens an interval
-through a client option instead (`fallback_retry_timeout=100`), follow the spec.
+through a client option instead (`fallbackRetryTimeout: 100`, which is
+`fallback_retry_timeout_seconds=0.1`), follow the spec.
 
 **Realtime unit.** The same seam, with `realtime_client(mock, clock=clock)` installing a
 `FakeClock` on it. Still prefer a short real interval through a client option
-(`realtime_request_timeout`, `disconnected_retry_timeout`, `suspended_retry_timeout`,
-`channel_retry_timeout`) or through `connected_message(maxIdleInterval=...)`, and reach
+(`realtime_request_timeout_seconds`, `disconnected_retry_timeout_seconds`,
+`suspended_retry_timeout_seconds`, `channel_retry_timeout_seconds`, each the spec's
+milliseconds divided by 1000) or through `connected_message(maxIdleInterval=...)`, and reach
 for `FakeClock` where nothing else reaches the elapsing: `connection_state_ttl`, whose
 default costs 120 real seconds, and the transport's idle detection, which measures the
 silence against the same clock it arms its timer on. See the fake-time section of

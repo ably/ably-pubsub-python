@@ -223,14 +223,14 @@ async def test_rsc8_error_decoded_from_msgpack():
 
 # UTS: rest/unit/RSC13/request-timeout-enforced-0
 async def test_rsc13_request_timeout_enforced():
-    # NOTE: http_request_timeout is seconds in ably-python where the spec counts milliseconds,
-    # so the spec's 1000ms is shortened to 0.1 to keep the test quick.
+    # NOTE: the spec's httpRequestTimeout of 1000 ms would be http_request_timeout_seconds=1;
+    # it is shortened to 0.1 to keep the test quick.
     # Every host delays, because a timed-out request sends the client on to the next one.
     mock_http = MockHttpClient(
         on_connection_attempt=connect_successfully,
         on_request=lambda request: request.respond_with_delay(5000, 200, TIME_RESPONSE),
     )
-    client = rest_client(mock_http, http_request_timeout=0.1)
+    client = rest_client(mock_http, http_request_timeout_seconds=0.1)
 
     with pytest.raises(AblyException) as excinfo:
         await client.time()

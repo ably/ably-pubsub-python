@@ -149,8 +149,8 @@ async def test_rtn16g3_recovery_key_null_inactive():
 
     suspended_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     client_suspended = realtime_client(
-        suspended_ws, clock=clock, disconnected_retry_timeout=500,
-        suspended_retry_timeout=CONNECTION_STATE_TTL * 2)
+        suspended_ws, clock=clock, disconnected_retry_timeout_seconds=0.5,
+        suspended_retry_timeout_seconds=CONNECTION_STATE_TTL * 2 / 1000)
 
     client_suspended.connect()
     await await_connection_state(client_suspended, ConnectionState.CONNECTED)

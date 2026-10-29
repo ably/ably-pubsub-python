@@ -53,7 +53,7 @@ async def test_http_sends_requests_through_an_injected_transport():
 
 async def test_http_bounds_every_phase_of_a_request():
     transport = RecordingTransport(lambda request: httpx.Response(200, json=[1500000000000]))
-    ably = create_http_client(token="foo", http_open_timeout=2, http_request_timeout=7,
+    ably = create_http_client(token="foo", http_open_timeout_seconds=2, http_request_timeout_seconds=7,
                               _test_options=TestOptions(http_transport=transport))
 
     await ably.time()
@@ -167,7 +167,7 @@ async def test_realtime_token_request_network_errors_reach_the_connection_wrappe
     mock_http = MockHttpClient(on_connection_attempt=lambda conn: conn.respond_with_refused())
     mock_ws = MockWebSocket()
     client = realtime_client(mock_ws, mock_http, key="appId.keyId:keySecret", use_token_auth=True,
-                             disconnected_retry_timeout=600000)
+                             disconnected_retry_timeout_seconds=600)
     try:
         client.connect()
         await await_connection_state(client, ConnectionState.DISCONNECTED)

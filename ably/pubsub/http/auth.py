@@ -31,6 +31,17 @@ __all__ = ["Auth"]
 log = logging.getLogger(__name__)
 
 
+def ttl_ms(ttl):
+    """Returns a token ttl as an int of milliseconds (TK2a)
+
+    A timedelta is converted with integer arithmetic. Going through total_seconds() truncated
+    many whole-millisecond values by one, so 1001 ms was sent as 1000.
+    """
+    if isinstance(ttl, timedelta):
+        return ttl // timedelta(milliseconds=1)
+    return int(ttl)
+
+
 class Auth:
     class Method:
         BASIC = "BASIC"
@@ -299,9 +310,7 @@ class Auth:
 
         ttl = token_params.get('ttl')
         if ttl is not None:
-            if isinstance(ttl, timedelta):
-                ttl = ttl.total_seconds() * 1000
-            token_request['ttl'] = int(ttl)
+            token_request['ttl'] = ttl_ms(ttl)
 
         capability = token_params.get('capability')
         if capability is not None:
@@ -437,7 +446,7 @@ class Auth:
             if name == 'client_id':
                 name = 'clientId'
             elif name == 'ttl' and isinstance(value, timedelta):
-                value = int(value.total_seconds() * 1000)
+                value = ttl_ms(value)
             elif name == 'capability' and not isinstance(value, str):
                 value = str(Capability(value))
             params[name] = value
