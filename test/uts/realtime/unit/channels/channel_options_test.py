@@ -3,10 +3,7 @@
 Spec points: DO2a, RTL16, RTL16a, RTS3b, RTS3c, RTS3c1, RTS5, RTS5a, RTS5a1,
 RTS5a2, TB2, TB2c, TB2d, TB3, TB4
 
-`ChannelOptions.cipher` is the specification's `cipherParams`, and the options a
-channel carries are the mapping `ChannelOptions.to_dict()` produces rather than
-a `ChannelOptions` object, so `channel.options['params']` stands in for the
-specification's `channel.options.params`.
+`ChannelOptions.cipher` is the specification's `cipherParams`.
 """
 
 import asyncio
@@ -138,8 +135,8 @@ async def test_rts3b_options_set_on_new():
 
     channel = client.channels.get(channel_name, channel_options)
 
-    assert channel.options['params']['rewind'] == '1'
-    assert ChannelMode.SUBSCRIBE in channel.options['modes']
+    assert channel.options.params['rewind'] == '1'
+    assert ChannelMode.SUBSCRIBE in channel.options.modes
 
 
 # UTS: realtime/unit/RTS3c/options-updated-existing-0
@@ -157,8 +154,8 @@ async def test_rts3c_options_updated_existing():
     same_channel = client.channels.get(channel_name, new_options)
 
     assert same_channel is channel
-    assert channel.options['cipher'] is not None
-    assert 'modes' not in channel.options
+    assert channel.options.cipher is not None
+    assert channel.options.modes is None
 
 
 # UTS: realtime/unit/RTS3c1/error-reattach-params-0
@@ -179,7 +176,7 @@ async def test_rts3c1_error_reattach_params():
         client.channels.get(channel_name, new_options)
     assert error.value.code == 40000
 
-    assert channel.options.get('params') is None
+    assert channel.options.params is None
 
 
 # UTS: realtime/unit/RTS3c1/error-reattach-modes-1
@@ -213,20 +210,11 @@ async def test_rtl16_set_options_updates():
     new_options = ChannelOptions(params={'delta': 'vcdiff'})
     await asyncio.wait_for(channel.set_options(new_options), OPERATION_TIMEOUT)
 
-    assert channel.options['params']['delta'] == 'vcdiff'
+    assert channel.options.params['delta'] == 'vcdiff'
 
 
 # UTS: realtime/unit/RTL16a/triggers-reattach-0
-@deviation
 async def test_rtl16a_triggers_reattach():
-    # DEVIATION: `set_options` never returns for an attached channel. It calls
-    # `_attach_impl()` directly and then awaits the internal state emitter
-    # (`ably/realtime/channel.py:99-102`), but the server's ATTACHED arrives while the
-    # channel is still ATTACHED, so `_on_message` takes the RTL12 branch (`:722-726`) and
-    # emits `update` on the public emitter alone. Nothing ever reaches the internal
-    # emitter, so the await hangs. Because `_attach_impl()` is called in place of
-    # `_request_state(ATTACHING)`, no ATTACHING state change is emitted either. The
-    # options themselves are stored, before the reattach is requested.
     channel_name = 'test-RTL16a'
     attach_messages = []
 
@@ -245,22 +233,18 @@ async def test_rtl16a_triggers_reattach():
     channel.on(record)
 
     new_options = ChannelOptions(params={'rewind': '1'})
-    # The specification awaits this without a deadline; a deadline is what turns the
-    # hang into a failure rather than a stuck test run
     await asyncio.wait_for(channel.set_options(new_options), OPERATION_TIMEOUT)
 
     assert any(change.current == ChannelState.ATTACHING for change in state_changes)
     assert channel.state == ChannelState.ATTACHED
-    assert channel.options['params']['rewind'] == '1'
+    assert channel.options.params['rewind'] == '1'
 
 
 # UTS: realtime/unit/RTS5a/creates-derived-channel-0
 @deviation
 async def test_rts5a_creates_derived_channel():
     # DEVIATION: `Channels.get_derived` is absent (`ably/realtime/channel.py:964`), as is
-    # `DeriveOptions`. `Channels.__getattr__` (`ably/rest/channel.py:408`) answers any
-    # unknown attribute with a channel of that name, so the call raises
-    # `TypeError: 'RealtimeChannel' object is not callable` rather than AttributeError.
+    # `DeriveOptions`, so the import fails before the call would raise AttributeError.
     from ably.pubsub.server import DeriveOptions
 
     base_channel_name = 'test-RTS5a'
@@ -333,8 +317,8 @@ async def test_rts5_get_derived_with_options():
 
     channel = client.channels.get_derived(base_channel_name, derive_options, channel_options)
 
-    assert ChannelMode.SUBSCRIBE in channel.options['modes']
-    assert channel.options['attachOnSubscribe'] is False
+    assert ChannelMode.SUBSCRIBE in channel.options.modes
+    assert channel.options.attach_on_subscribe is False
 
 
 # UTS: realtime/unit/DO2a/filter-attribute-0

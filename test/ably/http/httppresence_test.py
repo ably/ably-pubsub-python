@@ -81,7 +81,7 @@ class TestPresence(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
             kwargs['port_sufix'] = ''
         else:
             kwargs['port_sufix'] = ':' + str(port)
-        url = '{scheme}://{host}{port_sufix}/channels/persisted%3Apresence_fixtures/presence'
+        url = '{scheme}://{host}{port_sufix}/channels/persisted:presence_fixtures/presence'
         return url.format(**kwargs)
 
     def history_mock_url(self):
@@ -94,7 +94,7 @@ class TestPresence(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
             kwargs['port_sufix'] = ''
         else:
             kwargs['port_sufix'] = ':' + str(port)
-        url = '{scheme}://{host}{port_sufix}/channels/persisted%3Apresence_fixtures/presence/history'
+        url = '{scheme}://{host}{port_sufix}/channels/persisted:presence_fixtures/presence/history'
         return url.format(**kwargs)
 
     @dont_vary_protocol

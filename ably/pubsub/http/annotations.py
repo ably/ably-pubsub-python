@@ -116,8 +116,7 @@ class HttpAnnotations:
         Returns:
             str: The API path
         """
-        channel_path = '/channels/{}/'.format(parse.quote_plus(self.__channel.name, safe=':'))
-        return channel_path + 'messages/' + parse.quote_plus(serial, safe=':') + '/annotations'
+        return self.__channel.base_path + 'messages/' + parse.quote(serial, safe=':') + '/annotations'
 
     async def __send_annotation(self, annotation: Annotation, params: dict | None = None):
         """

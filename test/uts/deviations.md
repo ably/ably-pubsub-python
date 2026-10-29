@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1295 Test IDs
-(1304 tests, 1429 cases) pass, 150 (150 tests, 152 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1303 Test IDs
+(1312 tests, 1437 cases) pass, 142 (142 tests, 144 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,16 +45,16 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 66 are REST and 84 realtime, which is 67 REST cases
-and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+within each. Of the gated Test IDs 64 are REST and 78 realtime, which is 65 REST cases
+and 79 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 139 gated Test IDs that record SDK non-compliance — 139 tests, 141 cases — reduce to
-**59 distinct root causes**, 19 on the REST side and 40 on the realtime side. One further
+The 131 gated Test IDs that record SDK non-compliance — 131 tests, 133 cases — reduce to
+**55 distinct root causes**, 18 on the REST side and 37 on the realtime side. One further
 defect is recorded below with no test of its own, because the specification's test
-cannot discriminate (RTP18a), so the file carries **60 SDK root causes** in all. The
+cannot discriminate (RTP18a), so the file carries **56 SDK root causes** in all. The
 remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
 records no SDK non-compliance; its specification faults are all corrected or worked
 around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
@@ -1054,7 +1054,6 @@ option is gone, after RTN16d has done its first phase against the sandbox throug
 | RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_level` and `log_handler` as client options. The library logs through the standard `logging` module under the `ably.pubsub` logger, whose level and handlers are the idiomatic way to do both; `log_level`, which was stored on `Options` and read by nothing, was removed in 4.0.0, so passing either raises `TypeError` | 4 |
 | RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` is `get(self, limit=None)` (`ably/types/presence.py:216`), while `Presence.history` does take its documented params. `presence.get(client_id=...)` raises `TypeError: get() got an unexpected keyword argument 'client_id'`. The absence also forces the RSP5 decoding adaptation below | 4 (5 cases) |
 | TB4, RTL7h, RTP6e | `attachOnSubscribe`. `ChannelOptions.__init__` (`channeloptions.py:22-26`) takes only `cipher`, `params` and `modes`, and `subscribe()` on the channel, on presence and on annotations all end unconditionally with `await attach()`. This absence also forces the largest single adaptation in the suite, below | 3 |
-| RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
 | RTL7f | `echoMessages` in its client-filter form. The `echo_messages` option sends `echo=false` (RTC1a), which the server honours, but the client does not itself drop a message carrying its own `connectionId`, and that is the only form a mock-backed test can observe | 1 |
 | RTP12, RTP12a, RTP12c | `RealtimePresence#history`. The realtime *channel* does delegate `history` to the REST implementation; only the presence object is missing it | 2 |
 | RTN23c1, RTN23c2 | PING/PONG. `ProtocolMessageAction` stops at `ANNOTATION` (21), so PING (22) and PONG (23) are not modelled and action 22 matches no branch of `on_protocol_message` (`websockettransport.py:37-59`, `:143-199`). The message is counted as activity and discarded | 2 |
@@ -1254,83 +1253,9 @@ that the first merely permitted.
 the adapted RTN25 unit test round to the specification's option A, so that test's
 adaptation goes with the fix.
 
-#### `ping()` rejects DISCONNECTED instead of deferring, and charges the wait to the caller — 3 tests
-
-**Spec points:** RTN13b, RTN13c, RTN13d.
-
-Two defects in the same method.
-
-- RTN13b errors only for INITIALIZED, SUSPENDED, CLOSING, CLOSED and FAILED, and RTN13d
-  defers a ping requested while CONNECTING *or DISCONNECTED* until the connection is
-  CONNECTED. `ConnectionManager.ping` (`connectionmanager.py:362`) admits only CONNECTED
-  and CONNECTING and raises `AblyException("Cannot send ping request. Calling ping in
-  invalid state", 400, 40000)` for DISCONNECTED. Note that
-  `deferred-ping-error-suspended-5` would otherwise pass for the wrong reason: its only
-  stated assertion is that an error arrives, and one does — just immediately, rather than
-  when the connection suspends.
-- RTN13c with RTN13d requires a deferred ping's timeout to run "from when the HEARTBEAT is
-  actually sent, not when `ping()` is called". `ping()` enters
-  `asyncio.wait_for(pending_ping.future, self.__timeout_in_secs)` (`:375`) as soon as it is
-  called, so the whole CONNECTING period is charged against it and a ping requested while
-  connecting can expire before its HEARTBEAT has gone out.
-
-**Tests affected:** `test_rtn13d_ping_deferred_disconnected` and
-`test_rtn13b_deferred_ping_error_suspended` fail with "the ping errored instead of waiting
-for the connection"; `test_rtn13c_deferred_ping_timeout` fails with
-`assert 0.096… >= (0.4 * 0.9)` — the error arrived 96 ms after CONNECTED where a 400 ms
-`realtimeRequestTimeout` should have run from that point.
-
-**Status:** open bug.
-
 ### Channels
 
-#### `detach()` never returns when the connection is not CONNECTED — 2 tests
-
-**Spec point:** RTL5l.
-
-When the connection is in any state other than CONNECTED and no earlier channel-state
-condition applies, the channel must transition immediately to DETACHED. Instead `detach()`
-requests DETACHING, `_check_pending_state()` returns without sending anything because the
-connection is not CONNECTED, and `detach()` then awaits the internal state emitter
-(`channel.py:212`) for a transition nothing will produce. **The coroutine never returns**
-and the channel is left in DETACHING.
-
-**Tests affected:** `test_rtl5l_detach_not_connected_immediate` and
-`test_rtl5l_detach_attached_when_disconnected`, each with a one-second `asyncio.wait_for`
-so the hang is reported as a failure rather than a stuck run. Both fail with
-`asyncio.exceptions.TimeoutError`. In the second, the assertions that set the scene — the
-connection settling in DISCONNECTED with the channel still ATTACHED — pass first, so the
-failure is unambiguously the detach.
-
-**Status:** open bug. A hang, not a wrong value.
-
-#### `set_options()` never returns for an already-ATTACHED channel — 1 test
-
-**Spec point:** RTL16a.
-
-When `params` or `modes` are supplied to `setOptions` on an attached channel, the channel
-must reattach, pass through ATTACHING, return to ATTACHED, and `setOptions` must resolve.
-Instead it hangs, and the root cause is a single missing call.
-
-`set_options` (`channel.py:93-102`) calls `_attach_impl()` and then awaits
-`self.__internal_state_emitter.once_async()`. `_attach_impl()` sends the ATTACH **without
-going through `_request_state(ChannelState.ATTACHING)`**, so the channel is still ATTACHED
-when the server's ATTACHED arrives. `_on_message` therefore takes the RTL12 branch
-(`:722-726`), which emits `update` on the *public* emitter and returns. The internal state
-emitter is written only by `_notify_state` (`:821`), which that branch never reaches, so
-the await has nothing to wake it. Both halves of the defect — no ATTACHING transition, and
-no internal event — follow from the one missing `_request_state`.
-
-Measured: the second ATTACH is sent, the server's ATTACHED is received, the options *are*
-stored, and `asyncio.wait_for(channel.set_options(...), 1.0)` raises `TimeoutError`.
-
-**Tests affected:** `test_rtl16a_triggers_reattach`. It also constrains
-`test_rtl4c1_includes_channel_serial` and `test_rtl4j_attach_resume_flag_not_set`, which run
-`set_options` as a task and cancel it — recorded under Adapted Tests.
-
-**Status:** open bug. A hang, not a wrong value.
-
-#### A server-initiated DETACHED discards its error, and the pending call then raises `TypeError` — 3 tests
+#### A server-initiated DETACHED discards its error, which `detach` then raises as `TypeError` — 3 tests
 
 **Spec points:** RTL24, RTL4c, with RTL13a and RTL13b.
 
@@ -1341,23 +1266,23 @@ An attach rejected by a DETACHED carrying an `ErrorInfo` must fail with that err
    `self._notify_state(ChannelState.SUSPENDED)` (`channel.py:735`), passing **no reason**,
    so the message's error is dropped. The same shape applies to RTL13a's
    `_request_state(ATTACHING)` and RTL13b's `_notify_state(SUSPENDED)`.
-2. `attach()` then reaches `raise state_change.reason` (`channel.py:150`) with `reason`
-   `None`, which Python reports as `TypeError: exceptions must derive from BaseException`
-   rather than as an `AblyException`. The same unguarded `raise` is at `:102` in
-   `set_options` and `:219` in `detach`.
+2. `attach()` and `set_options` then raise their 90001 fallback, having no reason to
+   raise, but `detach` reaches `raise state_change.reason` with `reason` `None`, which
+   Python reports as `TypeError: exceptions must derive from BaseException` rather than as
+   an `AblyException`.
 
 **Tests affected:** `test_rtl24_error_reason_attach_failure` and
-`test_rtl4c_error_cleared_on_attach`, both `TypeError: exceptions must derive from
-BaseException` at `channel.py:150`, and `test_rtl13b_attaching_detached_to_suspended`,
+`test_rtl4c_error_cleared_on_attach`, both failing on `error_reason` being `None` once the
+attach has raised, and `test_rtl13b_attaching_detached_to_suspended`,
 which reads the dropped error off the SUSPENDED state change and so falls one step
 earlier. The clearing half of RTL4c is still covered by
 `test_rtl4c_error_cleared_preserved_detach`, which sets the error with an ERROR message
 instead and passes. One adapted test — `test_rtl13a_attached_reattach_triggered` —
 asserts `reason is None`, and will need revisiting once the reason is carried through.
 
-**Status:** open bug, in two parts. The `raise None` is worth fixing on its own even before
-the reason is plumbed through: a missing reason should give an `AblyException`, not a
-`TypeError`.
+**Status:** open bug, in two parts. The `raise None` is worth fixing in `detach` on its
+own, as it is in `attach` and `set_options`, even before the reason is plumbed through: a
+missing reason should give an `AblyException`, not a `TypeError`.
 
 #### An ATTACHED received while DETACHING or DETACHED is ignored — 2 tests
 
@@ -1869,8 +1794,6 @@ through an internal object to get at a value the specification makes public.
 | RTP17, RTP17h | a distinct `LocalPresenceMap` type keyed by `clientId` | `RealtimePresence._my_members`, the same `PresenceMap` class built with `member_key_fn=lambda msg: msg.client_id` (`presence.py:79-81`). The keying requirement is met; the newness check is not, and is gated above | all of `local_presence_map_test.py` |
 | RTP2d1, RTP2h1a, and the `Interface Under Test` blocks of all three presence-map specs | `put(message) -> PresenceMessage?` and `remove(message) -> PresenceMessage?` | both return `bool` (`presencemap.py:111`, `:159`); the message to emit is the caller's own, which `set_presence` appends to `broadcast_messages` when the return is true. `IS NOT null` is read as `is True`. `put` stores a *copy* with the action rewritten to PRESENT and leaves the caller's message untouched, so RTP2d1's "emit the original action" falls out for free | all of `presence_map_test.py` |
 | RTP19, and the `Interface Under Test` block of `presence_sync.md` | `endSync() -> List<PresenceMessage>`, the synthesized LEAVEs | `end_sync()` returns `(residual, absent)` of the *stored* members; the synthesis lives one level up in `RealtimePresence.set_presence` (`presence.py:575-587`). Tests reading only counts and clientIds concatenate the two lists exactly as `set_presence` does; tests reading the LEAVE itself drive a `RealtimePresence` and assert on what its subscribers receive | 4 in `presence_sync_test.py` |
-| TB2, RTS3b, RTS3c, RTS3c1, RTL16 | `channel.options` as a `ChannelOptions` | a dict keyed by wire names, because `RealtimeChannel` passes `ChannelOptions.to_dict()` to the REST `Channel` constructor (`channel.py:84`). Assertions read `channel.options['params']['rewind']`. On `ChannelOptions` itself the cipher attribute is spelled `cipher`, not `cipherParams`. `set_options_without_reattach` replaces the stored mapping wholesale rather than merging, which `test_rts3c_options_updated_existing` pins | 5 |
-| RTS2, RTS4c, RTS4d, RTS4e | `channels.exists(name)` and `channels.names` | `name in client.channels` (`Channels.__contains__`); the collection iterates over its channels rather than their names. Genuinely idiomatic spelling rather than an absence — recorded only because of the `__getattr__` hazard noted below | 6 |
 
 **Status:** open bugs of the missing-API kind, not of the wrong-behaviour kind. Adding the
 accessors would leave every assertion above unchanged; only the spelling would move.
@@ -2072,24 +1995,6 @@ POSTed to `/keys/{keyName}/revokeTokens` directly, reproduced three times.
 RSA4a does not say which state a token error observed mid-connection should be reported in,
 and other SDKs may report DISCONNECTED first and fail afterwards.
 
-### A pending `attach()` resolves, rather than failing, when the connection closes
-
-**Spec points:** RTL3b, RTL4d.
-
-RTL3b moves an ATTACHING channel to DETACHED when the connection closes, and RTL4d has the
-attach's callback invoked with an `ErrorInfo` "in all other cases" than ATTACHED.
-`channel_connection_state.md` spells it `AWAIT attach_future FAILS WITH error`. The RTL3b
-transition is correct; the pending `attach()` then returns `None`, because `attach()` ends
-with `if state_change.current in (SUSPENDED, FAILED): raise state_change.reason`
-(`channel.py:148-150`) and DETACHED is in neither, so the coroutine falls through as a
-success.
-
-**Tests affected:** `test_rtl3b_closed_attaching_to_detached` asserts `await attach_future is
-None`, and makes every other assertion the specification does. It fails if the SDK starts
-raising, so it does guard the behaviour.
-
-**Status:** open bug.
-
 ### An attach requested while DETACHING pre-empts the detach
 
 **Spec point:** RTL4h.
@@ -2154,7 +2059,7 @@ adapted.
 | Spec points | Specification | ably-python | Tests |
 |---|---|---|---|
 | RTL13a | the ATTACHING state change triggered by a server-initiated DETACHED carries that message's `error` as its `reason` | `_on_message` discards the error and calls `_request_state(ATTACHING)` with no reason, so `reason` is null. Gated in its own right under RTL24/RTL4c above; this test asserts `reason is None` | `test_rtl13a_attached_reattach_triggered` |
-| RTP16c | answering an ATTACH with a DETACHED puts the channel in DETACHED, and a presence operation from there errors | the channel lands in SUSPENDED (`channel.py:735`) and `attach()` raises `TypeError` on the null reason. RTP16c is about the presence error, which does arrive with 90001, so the test accepts either channel state and either attach error and turns on the presence operation alone | `test_rtp16c_presence_errors_other_states` |
+| RTP16c | answering an ATTACH with a DETACHED puts the channel in DETACHED, and a presence operation from there errors | the channel lands in SUSPENDED (`channel.py:735`) and `attach()` raises its 90001 fallback for want of a reason. RTP16c is about the presence error, which does arrive with 90001, so the test accepts either channel state and either attach error and turns on the presence operation alone | `test_rtp16c_presence_errors_other_states` |
 | RTL7g | `channel.subscribe(listener)` registers the listener even when the implicit attach is rejected | the listener *is* registered (`channel.py:279-282`), and then `subscribe` awaits `attach()`, which re-raises the failure (`:150`). So `await channel.subscribe(...)` raises where the specification's fire-and-forget call returns. The RTL7g requirement itself holds | `test_rtl7g_listener_registered_attach_fails`, `test_rtl7g_no_attach_when_attaching` |
 | RTL10b | an `AblyException` when `untilAttach` is used on an unattached channel | an `AblyException`, but for the wrong reason: `history` takes no `until_attach`, and `catch_all` wraps the `TypeError` as `50000 500 Unexpected exception` whatever the channel's state. The test also asserts that no HTTP request was made | `test_rtl10b_errors_when_not_attached` |
 | RTL19b, RTL19c, RTL20, RTL21, PC3 | a vcdiff-decoded payload equals a string literal | a `bytearray`. `EncodeDataMixin.decode` (`mixins.py:106`) leaves the vcdiff result binary because no further encoding step turns it back into text, which is correct — the specification's own `RTL19b/json-wire-form-base-1`, which does carry `utf-8/vcdiff`, receives a string. Five tests assert `b'second message'` where the specification writes the string | 5 in `channel_delta_decoding_test.py` |
@@ -2169,7 +2074,7 @@ pseudocode is not mistaken for non-compliance.
 | Subject | Note |
 |---|---|
 | DISCONNECTED as a restable state | RTN15a retries a drop from CONNECTED through `loop.call_soon` (`connectionmanager.py:668`) with no time passing, so DISCONNECTED is left within the same turn of the event loop and a listener registered afterwards never sees it. The heartbeat specification says so itself, under "Verifying Transient States"; tests record the whole sequence with `connection.on(...)` and assert `CONTAINS_IN_ORDER`. Where a test needs the connection to *rest* in DISCONNECTED it fails the immediate retry and raises `disconnected_retry_timeout`. Correct RTN15a behaviour |
-| `Channels.__getattr__` | `ably/rest/channel.py:408` answers **any** unknown attribute with `self.get(name)`, so reading an attribute that does not exist creates a channel named after it and never raises — `hasattr(channels, 'get_derived')` is `True`, and mutates the collection. Consequences: a typo becomes a phantom channel, and `client.channels.get_derived(...)` fails with `TypeError: 'RealtimeChannel' object is not callable` rather than `AttributeError`. No test loses coverage to it, because no derived test names an attribute the collection does not define; it is recorded because it silently changes what a probing test measures. `Channels.__iter__` is annotated `Iterator[str]` but yields `Channel` objects, which is a second, smaller instance |
+| `Channels.__iter__` | annotated `Iterator[str]`, but yields the `Channel` objects rather than their names |
 | `RealtimeChannel.publish()` | positional-only (`*args`, `channel.py:342`). The keyword form the specifications write raises `ValueError`, although `RestChannel.publish()` accepts it. Every test uses the positional form |
 | ACK `res` | every ACK in the specifications is written `res: { "serials": [...] }`, a single object. `WebSocketTransport` (`websockettransport.py:191-193`) reads `res` as a list, one entry per acknowledged ProtocolMessage, which matches the protocol definition. The specification's single object is shorthand for the one-message case |
 | `subscribe` before `connect` | all eight `message_field_population.md` tests subscribe in their setup, before `client.connect()`. `subscribe` awaits `attach()`, which raises 90001 unless the connection is CONNECTING, CONNECTED or DISCONNECTED, so the derived tests connect first. Nothing they assert depends on the order |
@@ -2186,9 +2091,7 @@ pseudocode is not mistaken for non-compliance.
 
 | Spec points | Specification | ably-python | Status |
 |---|---|---|---|
-| RSL2 | A space in a channel name is `%20` | `+`, from `parse.quote_plus` in `Channel.__init__`. `quote_plus` is form encoding, and a `+` in a URL *path* is a literal plus, so the name reaching the server is altered | Open bug, and a genuine correctness issue |
-| RSL8 | `Channel#status` URI-encodes the channel id | `status()` interpolates the name with no escaping at all. `a/b` addresses the wrong resource, `a?b` truncates the name into a query string, `a#b` becomes a fragment | Open bug |
-| RSL2, RSL11b, RSL15b | `:` is `%3A` | Left literal, from `safe=':'`. RFC 3986 allows `:` in a path segment and Ably uses it for namespaces, so the server receives the same value | Intentional |
+| RSL2, RSL8, RSL11b, RSL15b | `:` is `%3A` | Left literal, from `safe=':'`. RFC 3986 allows `:` in a path segment and Ably uses it for namespaces, so the server receives the same value | Intentional |
 | RTC12 / RSC1, RSC1a, RSC1c | A string constructor argument is an API key when it contains `:` and a token when it does not | `AblyRest.__init__` treats its first positional argument as a key unconditionally and hands it to `AuthOptions.set_key`, which requires exactly two colon-separated parts, so a token string raises 40101/401 "key of not len 2 parameters". A token is supplied through the separate `token` or `token_details` arguments. The empty-string case is compliant | Intentional / SDK-wide: the constructor takes credentials as distinct named arguments and has no string-sniffing path to restore |
 | RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
 | RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000 | Cosmetic; worth aligning cross-SDK |
@@ -2622,22 +2525,6 @@ connection fails.
 `test/uts/realtime/unit/channels/channel_publish_pending_test.py -k rtn7e`
 `test/uts/realtime/integration/proxy/connection_resume_test.py -k rtn15j`
 
-**1.3 `detach()` never returns when the connection is not CONNECTED.** RTL5l.
-RTL5l requires an immediate transition to DETACHED. `detach()` requests DETACHING,
-`_check_pending_state()` sends nothing because the connection is not CONNECTED, and
-`detach()` then awaits the internal state emitter (`channel.py:212`) for a transition
-nothing will produce. The coroutine never returns and the channel is stuck in DETACHING.
-`test/uts/realtime/unit/channels/channel_detach_test.py -k rtl5l`
-
-**1.4 `set_options()` never returns for an already-ATTACHED channel.** RTL16a.
-`_attach_impl()` (`channel.py:99`) sends the ATTACH without going through
-`_request_state(ATTACHING)`, so the channel is still ATTACHED when the server's ATTACHED
-arrives; `_on_message` takes the RTL12 branch (`:722-726`), which emits `update` on the
-*public* emitter, while `set_options` awaits the *internal* one, written only by
-`_notify_state`. The options are stored; the call never resolves. Adding the
-`_request_state` fixes both halves.
-`test/uts/realtime/unit/channels/channel_options_test.py -k rtl16a`
-
 **1.5 A presence action on a DETACHED channel re-attaches and then hangs.** RTL11, RTP8g.
 Both require an immediate error with nothing sent. `_enter_or_update_client` groups DETACHED
 with INITIALIZED (`presence.py:258-264`), starts an implicit attach and queues the message,
@@ -2648,8 +2535,8 @@ have the grouping, so the SDK is inconsistent with itself.
 ### Tier 2 — the wrong error, or an error where there should be none
 
 **2.1 `raise state_change.reason` raises `TypeError` when the reason is `None`.** RTL24,
-RTL4c, RTL13b, RTP16c. Three sites — `channel.py:102` (`set_options`), `:150` (`attach`),
-`:219` (`detach`) — raise whatever the state change carries, and the state change often
+RTL4c, RTL13b, RTP16c. `detach` raises whatever the state change carries, where `attach`
+and `set_options` fall back to a 90001, and the state change often
 carries nothing, because a server-initiated DETACHED's error is discarded at `:735`,
 `_request_state(ATTACHING)` and `_notify_state(SUSPENDED)` being called with no reason. The
 caller gets `TypeError: exceptions must derive from BaseException` instead of an
@@ -2673,21 +2560,6 @@ e.on('alpha', listener); e.on('beta', listener); e.off('alpha', listener)
 The registry needs an `(event, listener)` key holding a list per key.
 `test/uts/realtime/unit/channels/channel_subscribe_test.py -k rtl8b`
 `test/uts/realtime/unit/presence/realtime_presence_subscribe_test.py -k rtp7b`
-
-**2.3 `Channels.__getattr__` answers any unknown attribute by creating a channel.**
-`ably/rest/channel.py:408` is `return self.get(name)`, so `hasattr(client.channels, 'x')`
-is always `True` **and creates a channel called `x`**. A typo becomes a phantom channel,
-`client.channels.get_derived(...)` raises `TypeError: 'RealtimeChannel' object is not
-callable` rather than `AttributeError`, and any code that probes the collection mutates it.
-No derived test loses coverage to it, because none names an attribute the collection does
-not define — that constraint is itself the evidence. `Channels.__iter__` is annotated
-`Iterator[str]` and yields `Channel` objects, which is the same carelessness one size down.
-No gated test; reproduce with:
-```python
-len(client.channels)            # 0
-hasattr(client.channels, 'foo') # True
-len(client.channels)            # 1
-```
 
 **2.5 `Channels._on_channel_message` subscripts before it checks.** `channel.py:1038-1045`
 does `channel = self.__all[channel_name]` and only then `if not channel:`, so a message for
@@ -2829,13 +2701,6 @@ missing-decoder branch at all.
 NACK as `reason`, where the spec requires `resumed` true and a 91004 naming the clientId with
 the NACK as `cause`. Local to one method.
 `test/uts/realtime/unit/presence/realtime_presence_reentry_test.py -k rtp17e`
-
-**3.14 `ping()` rejects DISCONNECTED, and charges the connect wait to the caller's timeout.**
-RTN13b, RTN13c, RTN13d. `ConnectionManager.ping` (`:362`) admits only CONNECTED and
-CONNECTING where RTN13d requires a ping from DISCONNECTED to be deferred; and `:375` enters
-`asyncio.wait_for` as soon as `ping()` is called, so a ping requested while CONNECTING can
-expire before its HEARTBEAT has gone out.
-`test/uts/realtime/unit/connection/connection_ping_test.py -k "rtn13b_deferred or rtn13c or rtn13d"`
 
 **3.15 A failed RTN22 reauth leaves no trace on the connection.** RSA4c1, RSA4c3.
 `websockettransport.py:170-175` awaits `auth.authorize()` inside a bare `except Exception`
@@ -3517,8 +3382,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 152 failures, 1577 passes and 27 skips with the variable
-set, and 179 skips and 1577 passes without it, the 1577 being 1429 derived cases and 148
+it. As of this writing that is 144 failures, 1585 passes and 27 skips with the variable
+set, and 171 skips and 1585 passes without it, the 1585 being 1437 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

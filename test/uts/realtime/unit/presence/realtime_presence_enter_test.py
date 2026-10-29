@@ -502,9 +502,9 @@ async def test_rtp16c_presence_errors_other_states():
     # RTP16c is about the presence error below, so the attach is only asked to leave the
     # channel somewhere other than ATTACHED. A DETACHED received while ATTACHING moves
     # the channel to SUSPENDED rather than the DETACHED the specification expects, with
-    # no reason attached, so `attach()` raises `None` as a TypeError. Both are recorded
+    # no reason attached, so `attach()` raises its 90001 fallback. Both are recorded
     # against the channel specifications; see test/uts/deviations.md.
-    with pytest.raises((AblyException, TypeError)):
+    with pytest.raises(AblyException):
         await channel.attach()
     assert channel.state in (ChannelState.DETACHED, ChannelState.SUSPENDED)
 

@@ -215,8 +215,7 @@ async def test_rtl13b_attaching_detached_to_suspended():
     # DEVIATION: RTL13b carries the DETACHED message's error onto the SUSPENDED state
     # change. `RealtimeChannel._on_message` answers a DETACHED received while ATTACHING
     # with `_notify_state(ChannelState.SUSPENDED)` and no reason, so the error is
-    # discarded, and the pending `attach()` reaches `raise state_change.reason` with
-    # `reason` None, raising `TypeError` rather than an AblyException. The state cycle
+    # discarded, and the pending `attach()` raises its 90001 fallback instead. The state cycle
     # this drives is covered ungated by
     # `test_rtl13b_failed_reattach_suspended_retry` above.
     channel_name = 'test-RTL13b-attaching'

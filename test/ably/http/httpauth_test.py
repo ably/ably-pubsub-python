@@ -186,11 +186,11 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
     @dont_vary_protocol
     async def test_authorize_always_creates_new_token(self):
         await self.ably.auth.authorize({'capability': {'test': ['publish']}})
-        await self.ably.channels.test.publish('event', 'data')
+        await self.ably.channels.get('test').publish('event', 'data')
 
         await self.ably.auth.authorize({'capability': {'test': ['subscribe']}})
         with pytest.raises(AblyAuthException):
-            await self.ably.channels.test.publish('event', 'data')
+            await self.ably.channels.get('test').publish('event', 'data')
 
     async def test_authorize_create_new_token_if_expired(self):
         token = await self.ably.auth.authorize()
@@ -223,7 +223,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
         token = token.token
         ably = await TestApp.get_ably_rest(key=None, token=token, tls=True,
                                            use_binary_protocol=self.use_binary_protocol)
-        await ably.channels.test_auth_with_token_str.publish('event', 'foo_bar')
+        await ably.channels.get('test_auth_with_token_str').publish('event', 'foo_bar')
         await ably.close()
 
     async def test_with_token_str_http(self):
@@ -231,7 +231,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
         token = token.token
         ably = await TestApp.get_ably_rest(key=None, token=token, tls=False,
                                            use_binary_protocol=self.use_binary_protocol)
-        await ably.channels.test_auth_with_token_str.publish('event', 'foo_bar')
+        await ably.channels.get('test_auth_with_token_str').publish('event', 'foo_bar')
         await ably.close()
 
     async def test_if_default_client_id_is_used(self):

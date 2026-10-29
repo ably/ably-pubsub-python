@@ -676,6 +676,112 @@ token = device.push.recipient['deviceToken']
 decoding a dict, where 3.x raised `TypeError` on any field the server added. A misspelled key
 in a dict you pass to `save()` is therefore ignored rather than rejected.
 
+### Setting channel options replaces them, cipher included
+
+**`set_options(ChannelOptions(params=...))` on an encrypted channel now turns encryption off.**
+`channel.set_options(options)`, and `channels.get(name, options)` on a channel that already
+exists, replace the channel's options whole rather than merging them, so options without a
+`cipher` leave the channel unencrypted. 3.x kept the old cipher whenever the new options left
+it out, and on a realtime channel even when they gave `cipher=None`. Pass the cipher again
+whenever you set the options of an encrypted channel:
+
+Example 3.x code:
+```python
+channel = realtime.channels.get('my-channel', ChannelOptions(cipher=cipher_params))
+await channel.set_options(ChannelOptions(params={'rewind': '1'}))
+```
+
+Example 4.0.0 code:
+```python
+channel = pubsub_realtime_client.channels.get('my-channel', ChannelOptions(cipher=cipher_params))
+await channel.set_options(ChannelOptions(cipher=cipher_params, params={'rewind': '1'}))
+```
+
+`channel.options` is now the `ChannelOptions` that was last set, rather than a dict, so read
+its attributes rather than its keys:
+
+Example 3.x code:
+```python
+rewind = channel.options['params']['rewind']
+```
+
+Example 4.0.0 code:
+```python
+rewind = channel.options.params['rewind']
+```
+
+HTTP channels now take a `ChannelOptions` too, through `channels.get(name, options)` or
+`await channel.set_options(options)`. `channels.get` raises when given options that would make
+an attaching or attached realtime channel reattach, which only a change to `params` or `modes`
+does; a change to the cipher alone no longer raises.
+
+### Channels are no longer attributes of the channels collection
+
+`client.channels.my_channel` used to get or create the channel called `my_channel`, because the
+collection answered any attribute it did not define with a channel of that name. That made a
+typo, or even `hasattr(client.channels, ...)`, create a channel. In 4.0.0 an unknown attribute
+raises `AttributeError`, so get the channel by name instead:
+
+Example 3.x code:
+```python
+channel = rest.channels.my_channel
+```
+
+Example 4.0.0 code:
+```python
+channel = pubsub_http_client.channels.get('my_channel')
+```
+
+### A space in a channel name reaches the channel it names over HTTP
+
+3.x wrote a space in a channel name as `+` in HTTP request paths, which the Ably service reads
+as a literal plus, so HTTP publishes, history, presence, annotations, message reads and
+`status()` for `my channel` all went to a different channel, `my+channel`, from the one
+realtime clients attach to. 4.0.0 writes the space as `%20`, so they reach `my channel`.
+Messages that 3.x stored over HTTP for such a name are in the `+` channel, and stay reachable
+by that name:
+
+Example 4.0.0 code:
+```python
+stored_by_3x = pubsub_http_client.channels.get('my+channel')
+history = await stored_by_3x.history()
+```
+
+`status()` now escapes the channel name too, so a name containing `/`, `?` or `#` no longer
+addresses the wrong resource.
+
+### `attach()` raises when the channel does not attach
+
+`await channel.attach()` raised only when the channel became `SUSPENDED` or `FAILED`. When the
+connection closed while the channel was attaching, the channel became `DETACHED` and `attach()`
+returned as if it had succeeded; so did an `attach()` overtaken by a `detach()`. In 4.0.0 it
+raises an `AblyException` whenever the channel moves to any state but `ATTACHED`, carrying the
+reason for that state, or code 90001 when there is none. `subscribe()`, which attaches, raises
+in the same cases. Code that closes the client, or detaches, while an attach may be pending
+should expect the exception:
+
+Example 4.0.0 code:
+```python
+try:
+    await channel.attach()
+except AblyException:
+    # the channel did not attach, for instance because the client was closed meanwhile
+    ...
+```
+
+### `connection.ping()` waits for a disconnected connection
+
+`await connection.ping()` raised an `AblyException` with code 40000 at once when the connection
+was `DISCONNECTED`. In 4.0.0 it waits for the connection to reconnect, as it already did while
+`CONNECTING`, and then times out `realtime_request_timeout` after its heartbeat goes out. It
+still fails if the connection becomes `SUSPENDED`, `CLOSED` or `FAILED` first, which can be up to
+two minutes later. Bound the wait yourself if you need an answer sooner:
+
+Example 4.0.0 code:
+```python
+response_time_ms = await asyncio.wait_for(pubsub_realtime_client.connection.ping(), timeout=5)
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

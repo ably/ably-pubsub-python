@@ -127,6 +127,8 @@ class PendingPing:
         self.id = id
         self.clock = clock
         self.future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+        # done once the heartbeat has gone out, which is when the ping's timeout starts (RTN13c)
+        self.sent: asyncio.Future[None] = asyncio.get_running_loop().create_future()
         self.start_time: float = clock.monotonic_ms()
 
     @property
@@ -364,17 +366,25 @@ class ConnectionManager(EventEmitter):
 
     async def ping(self) -> float:
         # RTN13b
-        if self.__state not in (ConnectionState.CONNECTED, ConnectionState.CONNECTING):
+        if self.__state not in (
+            ConnectionState.CONNECTED,
+            ConnectionState.CONNECTING,
+            ConnectionState.DISCONNECTED,
+        ):
             raise AblyException("Cannot send ping request. Calling ping in invalid state", 400, 40000)
 
         # RTN13e: the id tells this ping's echo apart from server heartbeats and other pings
         pending_ping = PendingPing(get_random_id(), self.clock)
         self.__pending_pings[pending_ping.id] = pending_ping
         try:
-            # RTN13d: while connecting, the heartbeat goes out once the connection is established
             if self.__state == ConnectionState.CONNECTED:
                 await self.__send_heartbeat(pending_ping)
-            # RTN13c
+            else:
+                # RTN13d: the heartbeat goes out once the connection is established, unless a state
+                # that fails the ping (RTN13b) comes first
+                await asyncio.wait(
+                    (pending_ping.sent, pending_ping.future), return_when=asyncio.FIRST_COMPLETED)
+            # RTN13c: counted from the heartbeat going out, not from the call
             await asyncio.wait_for(pending_ping.future, self.__timeout_in_secs)
         except asyncio.TimeoutError:
             raise AblyException("Timeout waiting for ping response", 504, 50003) from None
@@ -384,6 +394,8 @@ class ConnectionManager(EventEmitter):
 
     async def __send_heartbeat(self, pending_ping: PendingPing) -> None:
         pending_ping.start_time = self.clock.monotonic_ms()
+        if not pending_ping.sent.done():
+            pending_ping.sent.set_result(None)
         try:
             await self.send_protocol_message(pending_ping.message)
         except Exception as error:

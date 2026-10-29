@@ -71,7 +71,6 @@ class RealtimeChannel(EventEmitter, Channel):
         self.__channel_serial: str | None = None
         self.__retry_timer: Timer | None = None
         self.__error_reason: AblyException | None = None
-        self.__channel_options = channel_options or ChannelOptions()
         self.__params: dict[str, str] | None = None
         self.__modes: list[ChannelMode] = []  # Channel mode flags from ATTACHED message
 
@@ -84,8 +83,7 @@ class RealtimeChannel(EventEmitter, Channel):
         # will be disrupted if the user called .off() to remove all listeners
         self.__internal_state_emitter = EventEmitter()
 
-        # Pass channel options as dictionary to parent Channel class
-        Channel.__init__(self, realtime, name, self.__channel_options.to_dict())
+        Channel.__init__(self, realtime, name, channel_options)
 
         # Initialize presence for this channel
 
@@ -97,22 +95,21 @@ class RealtimeChannel(EventEmitter, Channel):
         # RTL27: the LiveObjects entry point for this channel
         self.__object = RealtimeObject(self)
 
+    # RTL16
     async def set_options(self, channel_options: ChannelOptions) -> None:
-        """Set channel options"""
+        """Replaces the channel's options, reattaching if their params or modes change.
+
+        The options are replaced whole rather than merged, so options without a cipher turn
+        encryption off.
+        """
         should_reattach = self.should_reattach_to_set_options(channel_options)
-        self.set_options_without_reattach(channel_options)
+        self._set_options(channel_options)
 
         if should_reattach:
-            self._attach_impl()
+            # RTL16a: through ATTACHING, so that the ATTACHED answering the ATTACH ends the wait
+            self._request_state(ChannelState.ATTACHING)
             state_change = await self.__internal_state_emitter.once_async()
-            if state_change.current in (ChannelState.SUSPENDED, ChannelState.FAILED):
-                raise state_change.reason
-
-    def set_options_without_reattach(self, channel_options: ChannelOptions) -> None:
-        """Internal method"""
-        self.__channel_options = channel_options
-        # Update parent class options
-        self.options = channel_options.to_dict()
+            self.__raise_unless_attached(state_change)
 
     # RTL4
     async def attach(self) -> None:
@@ -124,23 +121,15 @@ class RealtimeChannel(EventEmitter, Channel):
         Raises
         ------
         AblyException
-            If unable to attach channel
-        """
-        await self._attach()
-
-    async def _attach(self) -> ChannelStateChange | None:
-        """The attach procedure `attach` runs, returning the state change it ended with, or None if
-        the channel was already ATTACHED.
-
-        Raises where `attach` does. An attach that ends in a state other than ATTACHED,
-        SUSPENDED or FAILED, such as DETACHED when the connection closes first, returns that
-        state change.
+            If unable to attach channel, including when the channel moves to DETACHED instead, as
+            it does when the connection closes first (RTL4d). It carries the reason for the state
+            the channel moved to, else code 90001
         """
         log.info(f'RealtimeChannel.attach() called, channel = {self.name}')
 
         # RTL4a - if channel is attached do nothing
         if self.state == ChannelState.ATTACHED:
-            return None
+            return
 
         self.__error_reason = None
 
@@ -161,10 +150,23 @@ class RealtimeChannel(EventEmitter, Channel):
             self._request_state(ChannelState.ATTACHING)
 
         state_change = await self.__internal_state_emitter.once_async()
+        self.__raise_unless_attached(state_change)
 
-        if state_change.current in (ChannelState.SUSPENDED, ChannelState.FAILED):
-            raise state_change.reason
-        return state_change
+    def __raise_unless_attached(self, state_change: ChannelStateChange) -> None:
+        # RTL4d: any state but ATTACHED fails the attach, DETACHED included (RTL3b)
+        if state_change.current != ChannelState.ATTACHED:
+            raise state_change.reason or AblyException(
+                f'Unable to attach channel; channel state = {state_change.current.value}, '
+                f'connection state = {self.__realtime.connection.state.value}', 400, 90001)
+
+    def _attach_implicitly(self) -> None:
+        """Starts an attach nobody awaits, logging its failure rather than leaving it unretrieved."""
+        def on_done(task: asyncio.Task) -> None:
+            if not task.cancelled() and task.exception() is not None:
+                log.warning(f'RealtimeChannel implicit attach failed; channel = {self.name}, '
+                            f'error = {task.exception()}')
+
+        asyncio.create_task(self.attach()).add_done_callback(on_done)
 
     def _attach_impl(self):
         log.debug("RealtimeChannel.attach_impl(): sending ATTACH protocol message")
@@ -172,7 +174,7 @@ class RealtimeChannel(EventEmitter, Channel):
         # RTL4c
         attach_msg = {
             "action": ProtocolMessageAction.ATTACH,
-            "params": self.__channel_options.params,
+            "params": self.options.params,
             "channel": self.name,
         }
 
@@ -203,14 +205,9 @@ class RealtimeChannel(EventEmitter, Channel):
         if self.state == ChannelState.FAILED:
             raise AblyException(f"Channel operation failed as channel state is {self.state.value}", 400, 90001)
 
-        # RTL33b
-        state_change = await self._attach()
-        if state_change is not None and state_change.current != ChannelState.ATTACHED:
-            # RTL33b1, RTL4d: the attach ended without the channel attaching, as when the connection
-            # closes or `detach` is called first
-            raise state_change.reason or AblyException(
-                f'Unable to attach channel; channel state = {state_change.current.value}, '
-                f'connection state = {self.__realtime.connection.state.value}', 400, 90001)
+        # RTL33b, RTL33b1: `attach` raises unless the channel attaches, as when the connection closes
+        # or `detach` is called first
+        await self.attach()
 
     # RTL5
     async def detach(self) -> None:
@@ -228,29 +225,25 @@ class RealtimeChannel(EventEmitter, Channel):
 
         log.info(f'RealtimeChannel.detach() called, channel = {self.name}')
 
-        # RTL5g, RTL5b - raise exception if state invalid
-        if self.__realtime.connection.state in [ConnectionState.CLOSING, ConnectionState.FAILED]:
-            raise AblyException(
-                message=f"Unable to detach; channel state = {self.state}",
-                code=90001,
-                status_code=400
-            )
-
         # RTL5a - if channel already detached do nothing
         if self.state in [ChannelState.INITIALIZED, ChannelState.DETACHED]:
             return
 
+        # RTL5b
+        if self.state == ChannelState.FAILED:
+            raise AblyException("Unable to detach; channel state = failed", 400, 90001)
+
+        # RTL5j
         if self.state == ChannelState.SUSPENDED:
             self._notify_state(ChannelState.DETACHED)
             return
-        elif self.state == ChannelState.FAILED:
-            raise AblyException("Unable to detach; channel state = failed", 400, 90001)
-        else:
-            self._request_state(ChannelState.DETACHING)
 
-        # RTL5h - wait for pending connection
-        if self.__realtime.connection.state == ConnectionState.CONNECTING:
-            self.__realtime.connect()
+        # RTL5l: with no connection to send a DETACH on, the channel detaches at once
+        if self.__realtime.connection.state != ConnectionState.CONNECTED:
+            self._notify_state(ChannelState.DETACHED)
+            return
+
+        self._request_state(ChannelState.DETACHING)
 
         state_change = await self.__internal_state_emitter.once_async()
         new_state = state_change.current
@@ -946,9 +939,13 @@ class RealtimeChannel(EventEmitter, Channel):
 
     def should_reattach_to_set_options(self, new_options: ChannelOptions) -> bool:
         """Internal method"""
+        # RTL16a: only params or modes that differ from the current ones call for a reattach, and
+        # only while attaching or attached; the cipher never reaches the server
         if self.state != ChannelState.ATTACHING and self.state != ChannelState.ATTACHED:
             return False
-        return self.__channel_options != new_options
+        if new_options.params is not None and new_options.params != (self.options.params or {}):
+            return True
+        return new_options.modes is not None and set(new_options.modes) != set(self.options.modes or [])
 
     # RTL23
     @property
@@ -1016,7 +1013,7 @@ class RealtimeChannel(EventEmitter, Channel):
         self._check_pending_state()
 
     def _encode_flags(self) -> int | None:
-        if not self.__channel_options.modes and not self.__attach_resume:
+        if not self.options.modes and not self.__attach_resume:
             return None
 
         flags = 0
@@ -1024,8 +1021,8 @@ class RealtimeChannel(EventEmitter, Channel):
         if self.__attach_resume:
             flags |= Flag.ATTACH_RESUME
 
-        if self.__channel_options.modes:
-            flags |= encode_channel_mode(self.__channel_options.modes)
+        if self.options.modes:
+            flags |= encode_channel_mode(self.options.modes)
 
         return flags
 
@@ -1051,30 +1048,33 @@ class Channels(HttpChannels):
         name: str
             Channel name
         options: ChannelOptions or dict, optional
-            Channel options for the channel
+            Channel options for the channel. For an existing channel they replace its options (RTS3c)
         **kwargs:
             Additional keyword arguments to create ChannelOptions (e.g., cipher, params)
+
+        Raises
+        ------
+        AblyException
+            With code 40000 if the options for an existing channel would make it reattach (RTS3c1).
+            Use RealtimeChannel.set_options() for those.
         """
-        # Convert kwargs to ChannelOptions if provided
-        if kwargs and not options:
-            options = ChannelOptions(**kwargs)
-        elif options and isinstance(options, dict):
-            options = ChannelOptions.from_dict(options)
+        options = self._channel_options(options, kwargs)
 
         if name not in self.__all:
             channel = self.__all[name] = RealtimeChannel(self.__ably, name, options)
         else:
             channel = self.__all[name]
-            # Update options if channel is not attached or currently attaching
-            if options and channel.should_reattach_to_set_options(options):
-                raise AblyException(
-                    'Channels.get() cannot be used to set channel options that would cause the channel to '
-                    'reattach. Please, use RealtimeChannel.setOptions() instead.',
-                    400,
-                    40000
-                )
-            elif options:
-                channel.set_options_without_reattach(options)
+            if options is not None:
+                # RTS3c1
+                if channel.should_reattach_to_set_options(options):
+                    raise AblyException(
+                        'Channels.get() cannot be used to set channel options that would cause the channel to '
+                        'reattach. Please, use RealtimeChannel.set_options() instead.',
+                        400,
+                        40000
+                    )
+                # RTS3c
+                channel._set_options(options)
         return channel
 
     # RTS4
@@ -1160,7 +1160,7 @@ class Channels(HttpChannels):
             if channel.state == ChannelState.ATTACHING or channel.state == ChannelState.DETACHING:
                 channel._check_pending_state()
             elif channel.state == ChannelState.SUSPENDED:
-                asyncio.create_task(channel.attach())
+                channel._attach_implicitly()
             elif channel.state == ChannelState.ATTACHED:
                 channel._request_state(ChannelState.ATTACHING)
 

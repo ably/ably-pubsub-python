@@ -309,10 +309,8 @@ async def test_rtl3b_closed_attaching_to_detached():
     await asyncio.wait_for(client.close(), OPERATION_TIMEOUT)
     assert client.connection.state == ConnectionState.CLOSED
 
-    # The specification has the pending attach fail. ably-python's `attach()`
-    # raises only for SUSPENDED and FAILED, so the DETACHED which RTL3b brings
-    # about resolves it instead. See deviations.md
-    assert await asyncio.wait_for(attach_future, OPERATION_TIMEOUT) is None
+    with pytest.raises(AblyException):
+        await asyncio.wait_for(attach_future, OPERATION_TIMEOUT)
 
     assert channel.state == ChannelState.DETACHED
 
