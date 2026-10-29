@@ -241,14 +241,9 @@ async def test_rsa1_token_auth_takes_precedence():
 
     await client.request('GET', '/channels/test', version=api_version)
 
-    # DEVIATION: RSA4 selects token auth whenever use_token_auth is unspecified
-    # and any of auth_url, auth_callback, token or token_details is given, so
-    # the spec expects `bearer('callback-token')`. ably-python prefers basic auth
-    # whenever a key secret is present and use_token_auth is not True, and never
-    # calls the auth_callback.
+    # authCallback takes precedence, so Bearer auth is used
     request = captured_requests[0]
-    expected_basic = 'Basic ' + base64.b64encode(b'appId.keyId:keySecret').decode('ascii')
-    assert request.headers['Authorization'] == expected_basic
+    assert request.headers['Authorization'] == bearer('callback-token')
 
 
 # UTS: rest/unit/RSA2/basic-auth-header-format-0

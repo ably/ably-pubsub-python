@@ -50,9 +50,7 @@ def test_td1_token_details_attributes():
         expires=1234567890000,
         capability='{"*":["*"]}',
     )
-    # NOTE: the spec asserts capability IS the JSON string. ably-python parses it into a
-    # Capability mapping, which stringifies back to the same JSON.
-    assert json.loads(str(token_with_capability.capability)) == {'*': ['*']}
+    assert token_with_capability.capability == '{"*":["*"]}'
 
     # TD5 - clientId attribute
     token_with_client = TokenDetails(
@@ -79,7 +77,7 @@ def test_td_token_details_from_json():
     assert token_details.token == 'deserialized-token'
     assert token_details.expires == 1234567890000
     assert token_details.issued == 1234567800000
-    assert json.loads(str(token_details.capability)) == {'channel-1': ['publish']}
+    assert token_details.capability == '{"channel-1":["publish"]}'
     assert token_details.client_id == 'json-client'
 
 

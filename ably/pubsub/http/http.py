@@ -69,14 +69,15 @@ class DefaultPubSubHttpClient(PubSubHttpClient):
         if key is not None and ('key_name' in kwargs or 'key_secret' in kwargs):
             raise InvalidArgumentException("key and key_name or key_secret are mutually exclusive. "
                                            "Provider either a key or key_name & key_secret", 401, 40106)
-        if key is not None:
-            options = Options(key=key, **kwargs)
-        elif token is not None:
-            options = Options(auth_token=token, **kwargs)
+        # RSA4: a key given alongside a token is kept, to renew the token with
+        if token is not None:
+            options = Options(key=key, auth_token=token, **kwargs)
         elif token_details is not None:
             if not isinstance(token_details, TokenDetails):
                 raise InvalidArgumentException("token_details must be an instance of TokenDetails", 401, 40106)
-            options = Options(token_details=token_details, **kwargs)
+            options = Options(key=key, token_details=token_details, **kwargs)
+        elif key is not None:
+            options = Options(key=key, **kwargs)
         elif not ('auth_callback' in kwargs or 'auth_url' in kwargs or
                   # and don't have both key_name and key_secret
                   ('key_name' in kwargs and 'key_secret' in kwargs)):

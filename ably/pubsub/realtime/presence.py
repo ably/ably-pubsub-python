@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 def _get_client_id(presence: RealtimePresence) -> str | None:
     """Get the clientId for the current connection."""
-    # Use auth.client_id if available (set after CONNECTED),
+    # Use auth.client_id if available,
     # otherwise fall back to auth_options.client_id
     return presence.channel.ably.auth.client_id or presence.channel.ably.auth.auth_options.client_id
 

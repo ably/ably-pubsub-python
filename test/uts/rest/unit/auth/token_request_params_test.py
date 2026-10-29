@@ -4,7 +4,6 @@ Spec points: RSA5, RSA6, RSA9
 """
 
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
 
 KEY = 'appId.keyId:keySecret'
@@ -34,15 +33,11 @@ async def test_rsa5b_explicit_ttl_preserved():
 
 
 # UTS: rest/unit/RSA5c/ttl-from-default-params-0
-@deviation
 async def test_rsa5c_ttl_from_default_params():
     client = rest_client(unreachable_mock(), key=KEY, default_token_params={'ttl': 1800000})
 
     token_request = await client.auth.create_token_request()
 
-    # DEVIATION: `Auth.create_token_request` reads only the token params handed
-    # to it (`token_params = token_params or {}`); the defaults are merged in
-    # `Auth.request_token`, one level up, so a direct call sees none of them.
     assert token_request.ttl == 1800000
 
 
@@ -79,15 +74,13 @@ async def test_rsa6b_explicit_capability_preserved():
 
 
 # UTS: rest/unit/RSA6c/capability-from-default-params-0
-@deviation
 async def test_rsa6c_capability_from_default_params():
     client = rest_client(unreachable_mock(), key=KEY,
                          default_token_params={'capability': '{"*":["subscribe"]}'})
 
     token_request = await client.auth.create_token_request()
 
-    # DEVIATION: as for RSA5c, `Auth.create_token_request` does not merge
-    # `default_token_params`.
+    # NOTE: canonical rendering, as in RSA6b.
     assert token_request.capability == '{"*": ["subscribe"]}'
 
 

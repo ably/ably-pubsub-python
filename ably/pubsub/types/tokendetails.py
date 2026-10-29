@@ -1,5 +1,4 @@
 import json
-import time
 
 from ably.pubsub.types.capability import Capability
 
@@ -12,15 +11,16 @@ class TokenDetails:
     # new requests 9000ms before it expires
     TOKEN_EXPIRY_BUFFER = 15 * 1000
 
-    def __init__(self, token=None, expires=None, issued=0,
+    def __init__(self, token=None, expires=None, issued=None,
                  capability=None, client_id=None):
-        if expires is None:
-            self.__expires = time.time() * 1000 + TokenDetails.DEFAULTS['ttl']
-        else:
-            self.__expires = expires
+        # RSA16b: nothing is invented for a token whose details are unknown
+        self.__expires = expires
         self.__token = token
         self.__issued = issued
-        self.__capability = Capability(capability or {})
+        # TD5, RSA16a: the capability JSON as the server sent it, not a canonical form
+        if capability is not None and not isinstance(capability, str):
+            capability = str(Capability(capability))
+        self.__capability = capability
         self.__client_id = client_id
 
     @property
@@ -48,7 +48,7 @@ class TokenDetails:
             'expires': self.expires,
             'token': self.token,
             'issued': self.issued,
-            'capability': self.capability.to_dict(),
+            'capability': self.capability,
             'clientId': self.client_id,
         }
 

@@ -10,6 +10,7 @@ from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from ably.pubsub.types.channelstate import ChannelState
 from ably.pubsub.types.connectionstate import ConnectionEvent
 from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import IncompatibleClientIdException
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, random_string
 
@@ -625,24 +626,20 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await realtime.close()
         await rest.close()
 
-    # Rest token generation with client_id, then connecting with a
-    # different client_id, should fail with a library-generated message
-    # (RSA15a, RSA15c)
+    # Rest token generation with client_id, then constructing a client with a
+    # different client_id, should fail with a library-generated error before
+    # connecting (RSA15a, RSA15c)
     async def test_auth_client_id_mismatch(self):
         rest = await TestApp.get_ably_rest()
         client_id = 'test_client_id'
 
         token_details = await rest.auth.request_token({"client_id": client_id})
 
-        realtime = await TestApp.get_ably_realtime(token_details=token_details, client_id="WRONG")
+        with pytest.raises(IncompatibleClientIdException) as excinfo:
+            await TestApp.get_ably_realtime(token_details=token_details, client_id="WRONG")
 
-        assert realtime.auth.client_id is None
+        assert excinfo.value.code == 40102
 
-        state_change = await realtime.connection.once_async(ConnectionState.FAILED)
-
-        assert state_change.reason.code == 40102
-
-        await realtime.close()
         await rest.close()
 
     # Rest token generation with clientId '*', then connecting with just the
@@ -655,7 +652,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
         realtime = await TestApp.get_ably_realtime(token_details=token_details, client_id=client_id)
 
-        assert realtime.auth.client_id is None
+        # RTC17: the configured clientId holds before CONNECTED
+        assert realtime.auth.client_id == client_id
 
         await realtime.connection.once_async(ConnectionState.CONNECTED)
 
@@ -674,7 +672,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
         realtime = await TestApp.get_ably_realtime(token_details=token_details)
 
-        assert realtime.auth.client_id is None
+        # RSA7b2: the token's clientId holds before CONNECTED confirms it
+        assert realtime.auth.client_id == client_id
 
         await realtime.connection.once_async(ConnectionState.CONNECTED)
 

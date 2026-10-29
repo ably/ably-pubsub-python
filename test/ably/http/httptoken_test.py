@@ -38,7 +38,7 @@ class TestHttpToken(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         assert token_details.token is not None, "Expected token"
         assert token_details.issued + 300 >= pre_time, "Unexpected issued time"
         assert token_details.issued <= post_time + 500, "Unexpected issued time"
-        assert self.permit_all == str(token_details.capability), "Unexpected capability"
+        assert self.permit_all == str(Capability(token_details.capability)), "Unexpected capability"
 
     async def test_request_token_explicit_timestamp(self):
         pre_time = await self.server_time()
@@ -87,7 +87,7 @@ class TestHttpToken(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
         assert token_details is not None
         assert token_details.token is not None
-        assert capability == token_details.capability, "Unexpected capability"
+        assert capability == Capability(token_details.capability), "Unexpected capability"
 
     async def test_request_token_with_specified_key(self):
         test_vars = await TestApp.get_test_vars()
@@ -95,7 +95,7 @@ class TestHttpToken(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         token_details = await self.ably.auth.request_token(
             key_name=key["key_name"], key_secret=key["key_secret"])
         assert token_details.token is not None, "Expected token"
-        assert key.get("capability") == token_details.capability, "Unexpected capability"
+        assert key.get("capability") == Capability(token_details.capability), "Unexpected capability"
 
     @dont_vary_protocol
     async def test_request_token_with_invalid_mac(self):
@@ -309,7 +309,7 @@ class TestCreateTokenRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
 
         token = await ably.auth.authorize()
 
-        assert str(token.capability) == str(capability)
+        assert str(Capability(token.capability)) == str(capability)
         await ably.close()
 
     @dont_vary_protocol

@@ -93,8 +93,10 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         auth_params: dict
             Query parameters to include in the `auth_url` request.
         use_token_auth: bool
-            Force token authentication even when an API key is available. By default the
-            client uses basic auth where a key is present.
+            Whether to use token authentication. By default the client uses token auth when
+            any of `auth_callback`, `auth_url`, `token` or `token_details` is given, and
+            basic auth when only a key is. Set it to False to authenticate with the key
+            regardless, or to True to request tokens with the key.
         query_time: bool
             Query the Ably service for the current time when signing token requests, rather
             than trusting the local clock. Defaults to False.
@@ -167,6 +169,8 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         With code 40106, if no means of authenticating is given, if `key` is combined
         with `key_name` or `key_secret`, or if `endpoint` is combined with
         `environment`, `rest_host` or `realtime_host`. It is also a ValueError.
+    IncompatibleClientIdException
+        If `client_id` conflicts with the client ID of `token_details`.
     """
     with factory_construction():
         return _DefaultPubSubHttpClient(**kwargs)

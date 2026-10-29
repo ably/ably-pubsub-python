@@ -23,7 +23,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         token_details = await self.ably.auth.request_token(key_name=key['key_name'], key_secret=key['key_secret'])
         expected_capability = Capability(key["capability"])
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability."
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability."
 
     async def test_equal_intersection_with_key(self):
         key = self.test_vars['keys'][1]
@@ -36,7 +36,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         expected_capability = Capability(key["capability"])
 
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability"
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability"
 
     @dont_vary_protocol
     async def test_empty_ops_intersection(self):
@@ -74,7 +74,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         token_details = await self.ably.auth.request_token(token_params, **kwargs)
 
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability"
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability"
 
     async def test_non_empty_paths_intersection(self):
         key = self.test_vars['keys'][4]
@@ -97,7 +97,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         token_details = await self.ably.auth.request_token(token_params, **kwargs)
 
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability"
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability"
 
     async def test_wildcard_ops_intersection(self):
         key = self.test_vars['keys'][4]
@@ -119,7 +119,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         token_details = await self.ably.auth.request_token(token_params, **kwargs)
 
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability"
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability"
 
     async def test_wildcard_ops_intersection_2(self):
         key = self.test_vars['keys'][4]
@@ -141,7 +141,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         token_details = await self.ably.auth.request_token(token_params, **kwargs)
 
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability"
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability"
 
     async def test_wildcard_resources_intersection(self):
         key = self.test_vars['keys'][2]
@@ -163,7 +163,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         token_details = await self.ably.auth.request_token(token_params, **kwargs)
 
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability"
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability"
 
     async def test_wildcard_resources_intersection_2(self):
         key = self.test_vars['keys'][2]
@@ -185,7 +185,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         token_details = await self.ably.auth.request_token(token_params, **kwargs)
 
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability"
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability"
 
     async def test_wildcard_resources_intersection_3(self):
         key = self.test_vars['keys'][2]
@@ -208,7 +208,7 @@ class TestHttpCapability(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetacla
         token_details = await self.ably.auth.request_token(token_params, **kwargs)
 
         assert token_details.token is not None, "Expected token"
-        assert expected_capability == token_details.capability, "Unexpected capability"
+        assert expected_capability == Capability(token_details.capability), "Unexpected capability"
 
     @dont_vary_protocol
     async def test_invalid_capabilities(self):

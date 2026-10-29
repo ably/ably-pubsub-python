@@ -8,7 +8,6 @@ import time
 import pytest
 
 from ably.pubsub.types.authoptions import AuthOptions
-from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
@@ -105,11 +104,7 @@ async def test_rsa16a_token_from_request_token():
 
 
 # UTS: rest/unit/RSA16b/token-string-in-options-0
-@deviation
 async def test_rsa16b_token_string_in_options():
-    # DEVIATION: RSA16b requires that only `token` is populated. `TokenDetails.__init__`
-    # fabricates `expires` from a default one-hour TTL, defaults `issued` to 0 and turns
-    # a missing capability into an empty `Capability`.
     mock_http = MockHttpClient(
         on_connection_attempt=lambda conn: conn.respond_with_success(),
         on_request=respond_with_channel_details,
@@ -127,10 +122,7 @@ async def test_rsa16b_token_string_in_options():
 
 
 # UTS: rest/unit/RSA16b/token-string-from-callback-1
-@deviation
 async def test_rsa16b_token_string_from_callback():
-    # DEVIATION: as above. `Auth.request_token` wraps a token string in a bare
-    # `TokenDetails`, which fabricates `expires` and defaults `issued` to 0.
     async def auth_callback(params):
         return 'just-a-token-string'
 
@@ -428,13 +420,5 @@ async def test_rsa16a_reflects_capability():
 
     assert client.auth.token_details is not None
 
-    # DEVIATION: the spec asserts the stringified JSON
-    # '{"channel1":["publish","subscribe"],"channel2":["subscribe"]}'.
-    # `TokenDetails.capability` is a parsed `Capability` throughout ably-python, an
-    # established SDK-wide choice, so the same capability is asserted in that form.
-    capability = client.auth.token_details.capability
-    assert isinstance(capability, Capability)
-    assert capability.to_dict() == {
-        'channel1': ['publish', 'subscribe'],
-        'channel2': ['subscribe'],
-    }
+    assert client.auth.token_details.capability == (
+        '{"channel1":["publish","subscribe"],"channel2":["subscribe"]}')

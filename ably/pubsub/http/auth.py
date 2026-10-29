@@ -41,12 +41,10 @@ class Auth:
         self.__auth_options = options
         self.__clock = select_clock(options)
 
-        if not self.ably._is_realtime:
-            self.__client_id = options.client_id
-            if not self.__client_id and options.token_details:
-                self.__client_id = options.token_details.client_id
-        else:
-            self.__client_id = None
+        # RSA7b1, RTC17: a configured clientId holds from the start, on realtime clients too
+        self.__client_id = options.client_id
+        if not self.__client_id and options.token_details:
+            self.__client_id = options.token_details.client_id
         self.__client_id_validated: bool = False
 
         self.__basic_credentials: str | None = None
@@ -54,7 +52,12 @@ class Auth:
         self.__token_details: TokenDetails | None = None
         self.__time_offset: int | None = None
 
-        must_use_token_auth = options.use_token_auth is True
+        # RSA4: token auth unless use_token_auth says otherwise, or nothing but a key is given
+        if options.use_token_auth is None:
+            must_use_token_auth = bool(options.auth_callback or options.auth_url
+                                       or options.auth_token or options.token_details)
+        else:
+            must_use_token_auth = options.use_token_auth
         must_not_use_token_auth = options.use_token_auth is False
         can_use_basic_auth = options.key_secret is not None
         if not must_use_token_auth and can_use_basic_auth:
@@ -74,6 +77,12 @@ class Auth:
 
         if options.token_details:
             self.__token_details = options.token_details
+            # RSA15a, RSA15c: the token's clientId is known before any request, so check it now
+            token_client_id = options.token_details.client_id
+            if options.client_id is not None and token_client_id not in (None, '*', options.client_id):
+                raise IncompatibleClientIdException(
+                    f"clientId '{options.client_id}' in the client options does not match the "
+                    f"token's clientId '{token_client_id}'", 400, 40102)
         elif options.auth_token:
             self.__token_details = TokenDetails(token=options.auth_token)
         else:
@@ -117,21 +126,26 @@ class Auth:
 
     async def _ensure_valid_auth_credentials(self, token_params=None, auth_options=None, force=False):
         self.__auth_mechanism = Auth.Method.TOKEN
+        explicit_client_id = None
         if token_params is None:
             token_params = dict(self.auth_options.default_token_params)
         else:
+            token_params = dict(token_params)
+            explicit_client_id = token_params.get('client_id')
             self.auth_options.default_token_params = dict(token_params)
             self.auth_options.default_token_params.pop('timestamp', None)
 
         if auth_options is not None:
             self.auth_options.replace(auth_options)
         auth_options = dict(self.auth_options.auth_options)
-        if self.client_id is not None:
+        # RSA10h: Auth#clientId is only the default for an explicit clientId (RSA10b, RSA10j),
+        # and takes precedence over one from default_token_params (RSA7a4)
+        if self.client_id is not None and explicit_client_id is None:
             token_params['client_id'] = self.client_id
 
         token_details = self.__token_details
         if not force and not self.token_details_has_expired():
-            log.debug("using cached token; expires = %d",
+            log.debug("using cached token; expires = %s",
                       token_details.expires)
             return token_details
 
@@ -174,9 +188,10 @@ class Auth:
                             auth_url: str | None = None, auth_method: str | None = None,
                             auth_headers: dict | None = None, auth_params: dict | None = None,
                             query_time=None):
-        token_params = token_params or {}
-        token_params = dict(self.auth_options.default_token_params,
-                            **token_params)
+        # RSA8e: given params replace the defaults rather than merging with them
+        if token_params is None:
+            token_params = self.auth_options.default_token_params
+        token_params = dict(token_params)
         key_name = key_name or self.auth_options.key_name
         key_secret = key_secret or self.auth_options.key_secret
 
@@ -250,7 +265,9 @@ class Auth:
 
     async def create_token_request(self, token_params: dict | str | None = None, key_name: str | None = None,
                                    key_secret: str | None = None, query_time=None):
-        token_params = token_params or {}
+        # RSA5c, RSA6c, RSA9h: the defaults apply when no params are given, and given params replace them
+        if token_params is None:
+            token_params = dict(self.auth_options.default_token_params)
         token_request = {}
 
         key_name = key_name or self.auth_options.key_name
@@ -354,9 +371,14 @@ class Auth:
         log.debug("Auth._configure_client_id(): new client_id = %s", new_client_id)
         original_client_id = self.client_id or self.auth_options.client_id
 
+        # RSA12a, RSA15a: a token that names no clientId, such as a bare token string or a JWT
+        # the library does not parse, leaves a configured clientId as it is
+        if new_client_id is None and self.auth_options.client_id is not None:
+            return
+
         # If new client ID from Ably is a wildcard, but preconfigured clientId is set,
-        # then keep the existing clientId
-        if original_client_id != '*' and new_client_id == '*':
+        # then keep the existing clientId. With none set, the wildcard is the clientId (RSA7b4)
+        if original_client_id is not None and original_client_id != '*' and new_client_id == '*':
             self.__client_id_validated = True
             self.__client_id = original_client_id
             return
@@ -382,11 +404,12 @@ class Auth:
 
     async def _get_auth_headers(self):
         if self.__auth_mechanism == Auth.Method.BASIC:
-            # RSA7e2
-            if self.client_id:
+            # RSA7e2: the configured clientId, not a wildcard the server reported
+            client_id = self.auth_options.client_id
+            if client_id:
                 return {
                     'Authorization': f'Basic {self.basic_credentials}',
-                    'X-Ably-ClientId': base64.b64encode(self.client_id.encode('utf-8'))
+                    'X-Ably-ClientId': base64.b64encode(client_id.encode('utf-8'))
                 }
             return {
                 'Authorization': f'Basic {self.basic_credentials}',
@@ -404,10 +427,28 @@ class Auth:
     def _random_nonce(self):
         return uuid.uuid4().hex[:16]
 
+    @staticmethod
+    def _auth_url_token_params(token_params):
+        """Returns the token params under their wire names and in their wire forms (RSA8c1a)"""
+        params = {}
+        for name, value in token_params.items():
+            if value is None:
+                continue
+            if name == 'client_id':
+                name = 'clientId'
+            elif name == 'ttl' and isinstance(value, timedelta):
+                value = int(value.total_seconds() * 1000)
+            elif name == 'capability' and not isinstance(value, str):
+                value = str(Capability(value))
+            params[name] = value
+        return params
+
     async def token_request_from_auth_url(self, method: str, url: str, token_params,
                                           headers, auth_params):
         # Extract URL parameters using utility function
         clean_url, url_params = extract_url_params(url)
+
+        token_params = self._auth_url_token_params(token_params)
 
         body = None
         params = None

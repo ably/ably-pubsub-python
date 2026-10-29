@@ -11,10 +11,6 @@ answered early would show an empty set rather than a late one.
 The specification is json only — it has no `## Protocol Variants` section — so these two
 take the JSON default `sandbox_realtime_client` applies rather than the
 `use_binary_protocol` fixture.
-
-`enter_client` on a connection authenticated by key alone is refused 40012, a root cause
-recorded in [deviations.md](../../../deviations.md), so the client entering members on
-behalf of others is built with `client_id='*'`.
 """
 
 from ably.pubsub.realtime.connection import ConnectionState
@@ -61,7 +57,7 @@ async def test_rtp2_sync_multiple_members(realtime_sandbox):
     api_key = realtime_sandbox.key_str
     channel_name = 'presence-sync-multi-' + random_id()
 
-    client_a = sandbox_realtime_client(api_key, auto_connect=False, client_id='*')
+    client_a = sandbox_realtime_client(api_key, auto_connect=False)
     client_b = sandbox_realtime_client(api_key, auto_connect=False)
 
     client_a.connect()

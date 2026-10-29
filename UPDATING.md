@@ -222,6 +222,189 @@ except AblyException as e:
         ...
 ```
 
+### A key no longer overrides `auth_callback`, `auth_url` or a token
+
+A client given a `key` together with an `auth_callback`, `auth_url`, `token` or `token_details`
+now uses token auth, and keeps the key only as a means of renewing the token. 3.x used basic
+auth with the key whenever one was present, never called the `auth_callback` or `auth_url`,
+and discarded a `token` or `token_details` given alongside the key. So a client configured this
+way now makes requests to your auth server, or presents the token you gave it, where 3.x did
+neither.
+
+To keep using basic auth with the key, pass `use_token_auth=False`:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', auth_callback=callback)
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', auth_callback=callback, use_token_auth=False)
+```
+
+Or drop the `auth_callback`, `auth_url` or token, which 3.x never used.
+
+### Token params reach an `auth_url` under their wire names
+
+A client with an `auth_url` now sends the token params to it under the names and in the forms
+the other Ably SDKs use, in the query string for `GET` and in the form body for `POST`:
+
+- the client ID as `clientId`, where 3.x sent `client_id`
+- a `capability` given as a dict or `Capability` as JSON, where 3.x sent its Python repr
+- a `ttl` given as a `timedelta` as an integer count of milliseconds, where 3.x sent `1:00:00`
+
+Unset params are left out rather than sent empty. This changes what your auth server receives.
+An auth server written for 3.x clients that reads `client_id` must read `clientId` instead, as it
+already does for clients built with the other SDKs. There is no transition period in which both
+are sent, so update the auth server before, or together with, the clients. The token params
+passed to `create_token_request`, `request_token` and `authorize` keep their snake_case names.
+
+Example 3.x auth server code:
+```python
+client_id = request.args.get('client_id')
+```
+
+Example 4.0.0 auth server code:
+```python
+client_id = request.args.get('clientId')
+```
+
+### A realtime client knows its configured `client_id` before it connects
+
+A realtime client built with a `client_id` now reports it from `auth.client_id` as soon as it is
+created, as an HTTP client always has. 3.x held `auth.client_id` at `None` until the connection
+reached `CONNECTED`. A realtime client built with a `token_details` that carries a client ID
+likewise reports that ID straight away.
+
+Because the client ID is known when the first token is requested, a realtime client now passes
+it to its `auth_callback` as `client_id` in the token params, and to its `auth_url` as
+`clientId`, which 3.x did not do. An auth server or callback that issues tokens from those params
+now issues them for that client ID. Check that it does not reject or override a client ID it was
+not expecting.
+
+Code that read `auth.client_id` before connecting to tell whether the client was connected
+should check `connection.state` instead.
+
+### `authorize()` keeps an explicit `client_id`
+
+A `client_id` passed in the token params to `auth.authorize()` now reaches the token request, the
+`auth_callback` or the `auth_url` as given. The client's own client ID is only filled in when the
+params name none. 3.x replaced an explicit `client_id` with the client's own whenever the client
+had one, and wrote it into the dict the caller passed. The caller's dict is no longer modified.
+
+So a client configured with one client ID that authorizes for another now receives a token for
+the one it asked for, and then fails with an `IncompatibleClientIdException` (code 40102), as the
+client ID of a client cannot change once configured. 3.x silently issued a token for the
+configured client ID instead. Drop the explicit `client_id`, or pass the configured one:
+
+Example 3.x code:
+```python
+await rest.auth.authorize({'client_id': 'someone-else', 'ttl': 3600000})
+```
+
+Example 4.0.0 code:
+```python
+await pubsub_http_client.auth.authorize({'ttl': 3600000})
+```
+
+### A `token_details` whose client ID conflicts with `client_id` is rejected
+
+Creating a client with both a `client_id` and a `token_details` whose own client ID is a different
+one, and is not the wildcard `*`, now raises an `IncompatibleClientIdException` (code 40102) from
+the factory. 3.x built the client: an HTTP client then sent requests under a token for the other
+client ID, and a realtime client failed only once it connected. Make the two agree, or leave
+`client_id` out and let the client take the token's.
+
+Example 3.x code:
+```python
+rest = AblyRest(token_details=token_details_for_bob, client_id='alice')
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(token_details=token_details_for_bob)
+```
+
+A bare `token` string carries no client ID the client can read, so it cannot be checked when the
+client is created. A realtime client still checks it against the client ID the server reports
+when the connection opens, and fails the connection with 40102 if they conflict.
+
+### `TokenDetails.capability` is a JSON string
+
+`TokenDetails.capability` now holds the capability as the JSON string the Ably service returned,
+exactly as it was sent, or `None` where none is known. 3.x parsed it into a `Capability`. Wrap
+the string in `Capability` where you indexed or compared it:
+
+Example 3.x code:
+```python
+token_details = await rest.auth.request_token()
+operations = token_details.capability['my-channel']
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import Capability
+
+token_details = await pubsub_http_client.auth.request_token()
+operations = Capability(token_details.capability)['my-channel']
+```
+
+`Capability` is unchanged as the way to build a `capability` token param, and its
+`add_operation_to_resource` method now works where 3.x raised `AttributeError`. A `TokenDetails`
+you construct yourself with a dict or `Capability` stores it as canonical JSON, and
+`TokenDetails.to_dict()` now gives the capability as that string rather than as a dict. So an
+auth server that returns `to_dict()` to its clients from an `auth_url` now sends the capability
+as a JSON string, the form the Ably service itself returns, rather than as a JSON object.
+
+### A `TokenDetails` known only by its token string no longer invents its details
+
+A `TokenDetails` built from a token string alone, whether you construct it yourself, pass a
+`token`, or have an `auth_callback` or `auth_url` return a bare token string or JWT, now has
+`expires`, `issued` and `capability` set to `None`. 3.x invented an expiry an hour after the
+`TokenDetails` was created, an `issued` of `0` and an empty capability. Code that read those
+values must handle `None`; the client itself does, and leaves it to the Ably service to report
+when such a token has expired.
+
+Example 3.x code:
+```python
+seconds_left = (rest.auth.token_details.expires - now_ms) / 1000
+```
+
+Example 4.0.0 code:
+```python
+expires = pubsub_http_client.auth.token_details.expires
+seconds_left = None if expires is None else (expires - now_ms) / 1000
+```
+
+### `default_token_params` apply to `create_token_request()`, and given params replace them
+
+`auth.create_token_request()` called without token params now applies the client's
+`default_token_params`, as `request_token()` and `authorize()` already did. 3.x ignored them. So
+an auth server whose client is configured with `default_token_params` and which signs token
+requests with `create_token_request()` now issues tokens with those defaults, typically a shorter
+`ttl` or a narrower `capability` than before. Check that the defaults are what you want your
+clients' tokens to carry, or remove them.
+
+Token params passed to `create_token_request()` or `request_token()` now replace the defaults
+entirely, as they already did for `authorize()` and as every other Ably SDK does. 3.x merged them
+over the defaults key by key in `request_token()`. Take care where a default `capability` or
+`ttl` restricted the tokens: a `request_token()` call that names other params no longer carries
+them, so its token gets the key's full capability and the service's default `ttl`. Pass every
+param you want, including the defaults you still want:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', default_token_params={'capability': capability})
+await rest.auth.request_token({'ttl': 600000})  # carried the default capability
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', default_token_params={'capability': capability})
+await pubsub_http_client.auth.request_token({'ttl': 600000, 'capability': capability})
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:
