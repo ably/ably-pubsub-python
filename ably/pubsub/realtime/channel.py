@@ -17,14 +17,14 @@ from ably.pubsub.types.channelmode import ChannelMode, decode_channel_mode, enco
 from ably.pubsub.types.channeloptions import ChannelOptions
 from ably.pubsub.types.channelstate import ChannelState, ChannelStateChange
 from ably.pubsub.types.flags import Flag, has_flag
-from ably.pubsub.types.message import Message, MessageAction, MessageVersion
+from ably.pubsub.types.message import Message, MessageAction, MessageVersion, validate_message_size
 from ably.pubsub.types.mixins import DecodingContext
 from ably.pubsub.types.operations import MessageOperation, PublishResult, UpdateDeleteResult
 from ably.pubsub.types.presence import PresenceMessage
 from ably.pubsub.util.clock import select_clock
 from ably.pubsub.util.eventemitter import EventEmitter
 from ably.pubsub.util.exceptions import AblyException, IncompatibleClientIdException
-from ably.pubsub.util.helper import Timer, is_callable_or_coroutine, validate_message_size
+from ably.pubsub.util.helper import Timer, is_callable_or_coroutine
 
 if TYPE_CHECKING:
     from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient
@@ -464,8 +464,7 @@ class RealtimeChannel(EventEmitter, Channel):
             encoded_messages.append(msg_dict)
 
         # RSL1i: Check message size limit
-        max_message_size = getattr(self.ably.options, 'max_message_size', 65536)  # 64KB default
-        validate_message_size(encoded_messages, self.ably.options.use_binary_protocol, max_message_size)
+        validate_message_size(messages, self.ably.options.max_message_size)
 
         # RTL6c: Check connection and channel state
         self._throw_if_unpublishable_state()
@@ -689,15 +688,13 @@ class RealtimeChannel(EventEmitter, Channel):
         """
         return await self._send_update(message, MessageAction.MESSAGE_APPEND, operation, params)
 
-    async def get_message(self, serial_or_message, timeout=None):
+    async def get_message(self, serial_or_message):
         """Retrieves a single message by its serial using the REST API.
 
         Parameters
         ----------
         serial_or_message : str or Message
             Either a string serial or a Message object with a serial field.
-        timeout : float, optional
-            Timeout for the request.
 
         Returns
         -------
@@ -710,7 +707,7 @@ class RealtimeChannel(EventEmitter, Channel):
             If the serial is missing or the message cannot be retrieved.
         """
         # Delegate to parent Channel (REST) implementation
-        return await Channel.get_message(self, serial_or_message, timeout=timeout)
+        return await Channel.get_message(self, serial_or_message)
 
     async def get_message_versions(self, serial_or_message, params=None):
         """Retrieves version history for a message using the REST API.

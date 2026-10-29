@@ -265,7 +265,8 @@ async def test_tg_pagination_relative_urls():
             ([{'id': 'item2'}], {}),
         ]),
     )
-    client = rest_client(mock_http, rest_host='rest.ably.io')
+    # NOTE: the spec sets restHost, which ably-python omits (TO3k2); endpoint names the same host
+    client = rest_client(mock_http, endpoint='rest.ably.io')
     channel = client.channels.get('test')
 
     page1 = await channel.history()

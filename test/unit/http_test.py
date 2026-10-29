@@ -51,6 +51,18 @@ async def test_http_sends_requests_through_an_injected_transport():
     await ably.close()
 
 
+async def test_http_bounds_every_phase_of_a_request():
+    transport = RecordingTransport(lambda request: httpx.Response(200, json=[1500000000000]))
+    ably = create_http_client(token="foo", http_open_timeout=2, http_request_timeout=7,
+                              _test_options=TestOptions(http_transport=transport))
+
+    await ably.time()
+
+    # TO3l3 bounds the connect, and TO3l4 the read, the write and the wait for a pooled connection
+    assert transport.requests[0].extensions['timeout'] == {'connect': 2, 'read': 7, 'write': 7, 'pool': 7}
+    await ably.close()
+
+
 async def test_http_surfaces_transport_connection_errors():
     def refuse(request):
         raise httpx.ConnectError("connection refused", request=request)
@@ -85,6 +97,24 @@ async def test_http_surfaces_transport_timeouts_as_50003():
     assert excinfo.value.status_code == 504
     assert isinstance(excinfo.value.cause, httpx.TimeoutException)
     await ably.close()
+
+
+async def test_http_tries_the_primary_and_up_to_max_retry_count_fallbacks():
+    def refuse(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    # TO3l5: http_max_retry_count counts the fallback hosts, after the primary
+    for retry_count, attempts in [(0, 1), (2, 3), (3, 4), (10, 6)]:
+        transport = RecordingTransport(refuse)
+        ably = create_http_client(token="foo", http_max_retry_count=retry_count,
+                                  _test_options=TestOptions(http_transport=transport))
+
+        with pytest.raises(AblyException):
+            await ably.time()
+
+        assert len(transport.requests) == attempts, retry_count
+        assert transport.requests[0].url.host == ably.options.get_host()
+        await ably.close()
 
 
 def test_http_uses_a_network_transport_without_test_options():

@@ -1,15 +1,10 @@
 import asyncio
 import inspect
-import json
 import random
 import string
 import time
 from typing import Callable, Dict, Tuple
 from urllib.parse import parse_qs, urlparse
-
-import msgpack
-
-from ably.pubsub.util.exceptions import AblyException
 
 
 def get_random_id():
@@ -75,30 +70,6 @@ class Timer:
     def cancel(self):
         self._task.cancel()
 
-
-def validate_message_size(encoded_messages: list, use_binary_protocol: bool, max_message_size: int) -> None:
-    """Validate that encoded messages don't exceed the maximum size limit.
-
-    Args:
-        encoded_messages: List of encoded message dictionaries
-        use_binary_protocol: Whether to use binary (msgpack) or JSON encoding
-        max_message_size: Maximum allowed size in bytes
-
-    Raises:
-        AblyException: If the encoded messages exceed the maximum size
-    """
-    if use_binary_protocol:
-        size = len(msgpack.packb(encoded_messages, use_bin_type=True))
-    else:
-        size = len(json.dumps(encoded_messages, separators=(',', ':')).encode('utf-8'))
-
-    if size > max_message_size:
-        raise AblyException(
-            f"Maximum size of messages that can be published at once exceeded "
-            f"(was {size} bytes; limit is {max_message_size} bytes)",
-            400,
-            40009,
-        )
 
 def to_text(value):
     if value is None:

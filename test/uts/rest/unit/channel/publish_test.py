@@ -11,7 +11,7 @@ import pytest
 from ably.pubsub.types.message import Message
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
-from test.uts.helpers.deviations import deviation, spec_error
+from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 
@@ -173,7 +173,6 @@ async def test_rsl1h_publish_signature():
 
 
 # UTS: rest/unit/RSL1i/message-size-limit-0
-@deviation
 async def test_rsl1i_message_size_limit():
     channel_name = f'test-RSL1i-{random_id()}'
     captured_requests = []
@@ -203,7 +202,10 @@ async def test_rsl1i_message_size_limit():
         captured_requests.clear()
         request_count = 0
 
-        large_data = 'x' * size
+        # UTS SPEC ERROR: the spec publishes `"x" * size` as the data, but TM6a counts the
+        # name too, so its at-limit case is five bytes over. The data is shortened by the
+        # name's length so that the message is the size each case states. See deviations.md.
+        large_data = 'x' * (size - len('event'))
 
         if expect_success:
             await channel.publish(name='event', data=large_data)

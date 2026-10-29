@@ -44,6 +44,7 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     Accepts every option :func:`ably.pubsub.server.create_http_client` does — see there
     for credentials, token authentication, connection and HTTP behaviour — and behaves
     identically, without the event loop. The realtime-only options have no effect here.
+    It logs to the `ably.pubsub` logger, as that function describes.
 
     Returns
     -------
@@ -53,9 +54,8 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     Raises
     ------
     AblyException
-        With code 40106, if no means of authenticating is given, if `key` is combined
-        with `key_name` or `key_secret`, or if `endpoint` is combined with
-        `environment`, `rest_host` or `realtime_host`. It is also a ValueError.
+        With code 40106, if no means of authenticating is given, or if `key` is
+        combined with `key_name` or `key_secret`. It is also a ValueError.
     """
     with factory_construction():
         return _DefaultPubSubHttpClientSync(**kwargs)

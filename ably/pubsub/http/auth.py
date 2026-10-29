@@ -55,7 +55,7 @@ class Auth:
         # RSA4: token auth unless use_token_auth says otherwise, or nothing but a key is given
         if options.use_token_auth is None:
             must_use_token_auth = bool(options.auth_callback or options.auth_url
-                                       or options.auth_token or options.token_details)
+                                       or options.token or options.token_details)
         else:
             must_use_token_auth = options.use_token_auth
         must_not_use_token_auth = options.use_token_auth is False
@@ -83,8 +83,8 @@ class Auth:
                 raise IncompatibleClientIdException(
                     f"clientId '{options.client_id}' in the client options does not match the "
                     f"token's clientId '{token_client_id}'", 400, 40102)
-        elif options.auth_token:
-            self.__token_details = TokenDetails(token=options.auth_token)
+        elif options.token:
+            self.__token_details = TokenDetails(token=options.token)
         else:
             self.__token_details = None
 
@@ -94,7 +94,7 @@ class Auth:
             log.debug("using token auth with auth_url")
         elif options.key_secret:
             log.debug("using token auth with client-side signing")
-        elif options.auth_token:
+        elif options.token:
             log.debug("using token auth with supplied token only")
         elif options.token_details:
             log.debug("using token auth with supplied token_details")

@@ -196,11 +196,9 @@ async def auth_callback(token_params):
 The factories raised a bare `ValueError` in 3.x when given no means of authenticating, a
 `key` together with `key_name` or `key_secret`, a `token_details` that is not a
 `TokenDetails`, or `use_token_auth=False` without a key. In 4.0.0 each raises an
-`AblyException` with code 40106 and status 401. Combining `endpoint` with `environment`,
-`rest_host` or `realtime_host` still raises an `AblyException` with code 40106 and status
-400. `push.admin.publish` raised `TypeError` for a `recipient` or `data` that is not a dict
-and `ValueError` for an empty one, and now raises an `AblyException` with code 40000 and
-status 400 for all four.
+`AblyException` with code 40106 and status 401. `push.admin.publish` raised `TypeError`
+for a `recipient` or `data` that is not a dict and `ValueError` for an empty one, and now
+raises an `AblyException` with code 40000 and status 400 for all four.
 
 These exceptions are also a `ValueError`, so `except ValueError` still catches them, but
 `except TypeError` no longer catches the `push.admin.publish` ones:
@@ -403,6 +401,156 @@ Example 4.0.0 code:
 ```python
 pubsub_http_client = create_http_client(key='xxx', default_token_params={'capability': capability})
 await pubsub_http_client.auth.request_token({'ttl': 600000, 'capability': capability})
+```
+
+### The HTTP options read back their defaults
+
+`http_open_timeout`, `http_request_timeout`, `http_max_retry_count` and
+`http_max_retry_duration` on `client.options` used to read `None` unless you set them, while
+the client applied defaults of its own. They now read back the values in effect: 4, 10, 3 and
+15 by default. The timeouts and the retry duration are still in seconds. Code that tested an
+option for `None`, to tell whether it had been set, will no longer find it so.
+
+### Requests no longer take a `timeout` argument
+
+`time()`, `stats()`, a REST channel's `publish()`, `publish_message()`, `publish_messages()`
+and `publish_name_data()`, `get_message()` on REST and realtime channels, and
+`push.admin.publish()` accepted a `timeout` keyword argument that was never applied: every
+request used the client's `http_open_timeout` and `http_request_timeout` whatever was passed.
+The argument is gone, and passing it raises `TypeError`. `stats()` also loses its unused
+`paginated` argument. Set the timeouts on the client instead:
+
+Example 3.x code:
+```python
+await rest.time(timeout=5)
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', http_request_timeout=5)
+await pubsub_http_client.time()
+```
+
+### `http_request_timeout` bounds writes and connection-pool waits
+
+In 3.x, `http_open_timeout` bounded connecting and `http_request_timeout` bounded each read
+of a response, while writing a request body and waiting for a free pooled connection had no
+timeout at all. `http_request_timeout` now bounds those too, so a request stuck writing to,
+or waiting for, a wedged connection raises `httpx.TimeoutException` and is retried against a
+fallback host instead of hanging. If you publish large bodies over a slow link, raise
+`http_request_timeout` to fit:
+
+```python
+pubsub_http_client = create_http_client(key='xxx', http_request_timeout=30)
+```
+
+### `http_max_retry_count` counts fallback hosts only
+
+In 3.x, `http_max_retry_count` capped the total number of hosts a request was tried
+against, the primary endpoint included, so the default of 3 meant the primary and two
+fallbacks. It now counts fallback hosts only, as in the Ably specification and the other
+Ably SDKs: a request goes to the primary endpoint and then to at most
+`http_max_retry_count` fallback hosts. The default of 3 therefore tries one more host than
+before, and `http_max_retry_count=0`, which used to fail every request, now tries the
+primary endpoint alone. To keep the 3.x number of attempts, subtract one:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', http_max_retry_count=3)
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', http_max_retry_count=2)
+```
+
+### The `log_level` option is removed
+
+`log_level` was stored on the client options and never read, so it changed nothing. It is
+gone, and passing it raises `TypeError`. The library logs through Python's standard
+`logging` module, to the `ably.pubsub` logger and the loggers beneath it, so configure that
+logger instead to set the level or to choose where records go:
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', log_level=logging.DEBUG)
+```
+
+Example 4.0.0 code:
+```python
+import logging
+
+logger = logging.getLogger('ably.pubsub')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
+
+pubsub_http_client = create_http_client(key='xxx')
+```
+
+### Deprecated and duplicate options are removed
+
+These options were deprecated in 3.x, or duplicated another option, and are gone in 4.0.0.
+Passing any of them raises `TypeError`:
+
+- `environment`: pass the same value as `endpoint`, so `environment='sandbox'` becomes
+  `endpoint='sandbox'`.
+- `rest_host` and `realtime_host`: pass the host as `endpoint`, which one host now serves
+  for both REST and realtime.
+- `auth_token`: pass the token as `token`, the name the factories document. The token is now
+  read back as `client.options.token` rather than `client.options.auth_token`.
+- `connection_state_ttl`: this was never accepted as an option, and the
+  `client.options.connection_state_ttl` property, which nothing read, is removed. The value
+  the server sends is on `connection.connection_details.connection_state_ttl`.
+
+Example 3.x code:
+```python
+rest = AblyRest(key='xxx', environment='sandbox')
+realtime = AblyRealtime(key='xxx', realtime_host='custom.ably.example.com')
+rest = AblyRest(auth_token='xxx')
+```
+
+Example 4.0.0 code:
+```python
+pubsub_http_client = create_http_client(key='xxx', endpoint='sandbox')
+pubsub_realtime_client = create_realtime_client(key='xxx', endpoint='custom.ably.example.com')
+pubsub_http_client = create_http_client(token='xxx')
+```
+
+### REST publishes are checked against `max_message_size`
+
+`max_message_size` is now a client option, defaulting to 65536 bytes (64 KiB). A publish
+whose messages exceed it between them raises an `AblyException` with code 40009 and is not
+sent. In 3.x the realtime client checked a fixed 64 KiB limit and REST publishes were not
+checked at all, so an oversized REST publish now fails before it reaches Ably rather than
+being rejected by the server.
+
+Both clients now measure a message the way the Ably specification does: the length of its
+name, client ID and string data, the byte length of binary data, and the length of the JSON
+of object data and of extras. 3.x measured the realtime publish as the whole encoded
+message, so some realtime publishes that 3.x refused are now sent. Raise the limit only if
+your Ably account allows larger messages:
+
+```python
+pubsub_http_client = create_http_client(key='xxx', max_message_size=131072)
+```
+
+### The `recover` option is removed
+
+The realtime client accepted a `recover` option, documented as resuming an earlier
+connection from its recovery key, but connection recovery is not implemented: the option was
+stored and never sent, so a client given one always started a fresh connection. It is gone,
+and passing it raises `TypeError`. Remove it, and rely on the client's own resumption of a
+dropped connection, which is implemented. Connection recovery may return in a minor release,
+along with the `recover` option.
+
+Example 3.x code:
+```python
+realtime = AblyRealtime(key='xxx', recover=recovery_key)
+```
+
+Example 4.0.0 code:
+```python
+pubsub_realtime_client = create_realtime_client(key='xxx')
 ```
 
 ## Version 2.x to 3.0.0

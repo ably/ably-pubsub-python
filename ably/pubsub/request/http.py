@@ -126,13 +126,6 @@ class Response:
 
 
 class Http:
-    CONNECTION_RETRY_DEFAULTS = {
-        'http_open_timeout': 4,
-        'http_request_timeout': 10,
-        'http_max_retry_count': 3,
-        'http_max_retry_duration': 15,
-    }
-
     def __init__(self, ably, options):
         options = options or {}
         self.__ably = ably
@@ -179,7 +172,7 @@ class Http:
 
     @reauth_if_expired
     async def make_request(self, method, path, version=None, headers=None, body=None,
-                           skip_auth=False, timeout=None, raise_on_error=True):
+                           skip_auth=False, raise_on_error=True):
 
         if body is not None and type(body) not in (bytes, str):
             body = self.dump_body(body)
@@ -202,7 +195,8 @@ class Http:
         if headers:
             all_headers.update(headers)
 
-        timeout = (self.http_open_timeout, self.http_request_timeout)
+        # TO3l3 bounds opening the connection, and TO3l4 each read, write and wait for a pooled connection
+        timeout = httpx.Timeout(self.http_request_timeout, connect=self.http_open_timeout)
         http_max_retry_duration = self.http_max_retry_duration
         requested_at = self.__clock.now_ms()
 
@@ -267,29 +261,29 @@ class Http:
         """
         return await self.__client.request(method=method, url=url, headers=headers, params=params, data=body)
 
-    async def delete(self, url, headers=None, skip_auth=False, timeout=None):
+    async def delete(self, url, headers=None, skip_auth=False):
         result = await self.make_request('DELETE', url, headers=headers,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
-    async def get(self, url, headers=None, skip_auth=False, timeout=None):
+    async def get(self, url, headers=None, skip_auth=False):
         result = await self.make_request('GET', url, headers=headers,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
-    async def patch(self, url, headers=None, body=None, skip_auth=False, timeout=None):
+    async def patch(self, url, headers=None, body=None, skip_auth=False):
         result = await self.make_request('PATCH', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
-    async def post(self, url, headers=None, body=None, skip_auth=False, timeout=None):
+    async def post(self, url, headers=None, body=None, skip_auth=False):
         result = await self.make_request('POST', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
-    async def put(self, url, headers=None, body=None, skip_auth=False, timeout=None):
+    async def put(self, url, headers=None, body=None, skip_auth=False):
         result = await self.make_request('PUT', url, headers=headers, body=body,
-                                         skip_auth=skip_auth, timeout=timeout)
+                                         skip_auth=skip_auth)
         return result
 
     @property
@@ -318,24 +312,16 @@ class Http:
 
     @property
     def http_open_timeout(self):
-        if self.options.http_open_timeout is not None:
-            return self.options.http_open_timeout
-        return self.CONNECTION_RETRY_DEFAULTS['http_open_timeout']
+        return self.options.http_open_timeout
 
     @property
     def http_request_timeout(self):
-        if self.options.http_request_timeout is not None:
-            return self.options.http_request_timeout
-        return self.CONNECTION_RETRY_DEFAULTS['http_request_timeout']
+        return self.options.http_request_timeout
 
     @property
     def http_max_retry_count(self):
-        if self.options.http_max_retry_count is not None:
-            return self.options.http_max_retry_count
-        return self.CONNECTION_RETRY_DEFAULTS['http_max_retry_count']
+        return self.options.http_max_retry_count
 
     @property
     def http_max_retry_duration(self):
-        if self.options.http_max_retry_duration is not None:
-            return self.options.http_max_retry_duration
-        return self.CONNECTION_RETRY_DEFAULTS['http_max_retry_duration']
+        return self.options.http_max_retry_duration

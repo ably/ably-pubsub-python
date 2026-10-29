@@ -60,6 +60,11 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     of `key`, `token` or `token_details` to authenticate, or configure token auth through
     `auth_callback` or `auth_url`.
 
+    The client logs through the standard :mod:`logging` module, to the `ably.pubsub` logger
+    and the loggers beneath it, and adds no handler of its own beyond a `NullHandler`.
+    Configure that logger to choose the level and where records go, for example
+    ``logging.getLogger('ably.pubsub').setLevel(logging.DEBUG)``.
+
     Parameters
     ----------
     **kwargs: client options
@@ -110,8 +115,7 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
             cannot be changed once the client has authenticated.
         endpoint: str
             Either a routing policy name or a fully qualified domain name to connect to.
-            Defaults to `main`. Incompatible with `environment`, `rest_host` and
-            `realtime_host`.
+            Defaults to `main`.
         tls: bool
             Whether the client should use TLS. Defaults to True.
         port: int
@@ -136,7 +140,8 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
             How long (in seconds) the client keeps retrying a request across hosts before
             giving up. The default is 15 seconds.
         http_max_retry_count: int
-            The most hosts the client will try for a single request.
+            The most fallback hosts the client will try for a single request, after the
+            primary endpoint. The default is 3; 0 tries the primary endpoint only.
 
         **Protocol**
 
@@ -148,15 +153,10 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         add_request_ids: bool
             Add a `request_id` query parameter to every request, which makes a request
             traceable in Ably's logs. Defaults to False.
-        log_level: int
-            Verbosity of the library's own logging. Defaults to 0.
-
-        **Deprecated**
-
-        rest_host: str
-            Deprecated: this option will be removed in a future version. Use `endpoint`.
-        environment: str
-            Deprecated: this option will be removed in a future version. Use `endpoint`.
+        max_message_size: int
+            The largest total size of the messages one publish may carry, counting each
+            message's name, data, client ID and extras. A larger publish raises an
+            AblyException with code 40009 and is not sent. The default is 65536 (64 KiB).
 
     Returns
     -------
@@ -166,9 +166,8 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
     Raises
     ------
     AblyException
-        With code 40106, if no means of authenticating is given, if `key` is combined
-        with `key_name` or `key_secret`, or if `endpoint` is combined with
-        `environment`, `rest_host` or `realtime_host`. It is also a ValueError.
+        With code 40106, if no means of authenticating is given, or if `key` is
+        combined with `key_name` or `key_secret`. It is also a ValueError.
     IncompatibleClientIdException
         If `client_id` conflicts with the client ID of `token_details`.
     """
@@ -182,6 +181,7 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
     Everything the HTTP client does, plus subscribing to channels and entering presence.
     Accepts every option :func:`create_http_client` does — see there for credentials,
     token authentication, connection and HTTP behaviour — and the following in addition.
+    It logs to the `ably.pubsub` logger, as :func:`create_http_client` describes.
 
     Parameters
     ----------
@@ -194,9 +194,6 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
         auto_connect: bool
             Connect as soon as the client is created. Set this to False to connect later
             with `connect()`. Defaults to True.
-        recover: str
-            A recovery key from a previous connection, used to resume that connection's
-            state and message continuity rather than starting fresh.
         queue_messages: bool
             Hold messages published while the connection is not yet established and send
             them once it is, rather than failing them. Defaults to True.
@@ -234,11 +231,6 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
             The decoder used to apply delta-encoded messages on channels configured with
             `params={"delta": "vcdiff"}`. Pass an :class:`AblyVCDiffDecoder`.
 
-        **Deprecated**
-
-        realtime_host: str
-            Deprecated: this option will be removed in a future version. Use `endpoint`.
-
     Returns
     -------
     PubSubRealtimeClient
@@ -247,9 +239,8 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
     Raises
     ------
     AblyException
-        With code 40106, if no means of authenticating is given, if `key` is combined
-        with `key_name` or `key_secret`, or if `endpoint` is combined with
-        `environment`, `rest_host` or `realtime_host`. It is also a ValueError.
+        With code 40106, if no means of authenticating is given, or if `key` is
+        combined with `key_name` or `key_secret`. It is also a ValueError.
     """
     with factory_construction():
         return _DefaultPubSubRealtimeClient(**kwargs)

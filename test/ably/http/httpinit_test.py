@@ -28,7 +28,7 @@ class TestHttpInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
     @dont_vary_protocol
     def test_with_token(self):
         ably = create_http_client(token="foo")
-        assert ably.options.auth_token == "foo", "Token not set at options"
+        assert ably.options.token == "foo", "Token not set at options"
 
     @dont_vary_protocol
     def test_with_token_details(self):
@@ -68,7 +68,7 @@ class TestHttpInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
 
     # RSC11
     @dont_vary_protocol
-    def test_rest_host_and_environment(self):
+    def test_endpoint(self):
         # endpoint host
         ably = create_http_client(token='foo', endpoint="some.other.host")
         assert "some.other.host" == ably.options.get_host(), "Unexpected host mismatch"
@@ -83,10 +83,10 @@ class TestHttpInit(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         host = ably.options.get_host()
         assert "sandbox.realtime.ably-nonprod.net" == host, f"Unexpected host mismatch {host}"
 
-        # both, as per #TO3k2
-        with pytest.raises(AblyException):
-            ably = create_http_client(token='foo', rest_host="some.other.host",
-                            endpoint="some.other.environment")
+        # The deprecated host options are omitted (TO3k1-3)
+        for option in ('environment', 'rest_host', 'realtime_host'):
+            with pytest.raises(TypeError):
+                create_http_client(token='foo', **{option: 'some.other.host'})
 
     # RSC15
     @dont_vary_protocol

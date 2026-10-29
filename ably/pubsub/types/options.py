@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 
 from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.authoptions import AuthOptions
-from ably.pubsub.util.exceptions import InvalidArgumentException
 
 log = logging.getLogger(__name__)
 
@@ -26,27 +25,18 @@ class VCDiffDecoder(ABC):
 
 
 class Options(AuthOptions):
-    def __init__(self, client_id=None, log_level=0, tls=True, rest_host=None, realtime_host=None, port=0,
-                 tls_port=0, use_binary_protocol=True, queue_messages=True, recover=False, endpoint=None,
-                 environment=None, http_open_timeout=None, http_request_timeout=None,
+    def __init__(self, client_id=None, tls=True, port=0,
+                 tls_port=0, use_binary_protocol=True, queue_messages=True, endpoint=None,
+                 http_open_timeout=None, http_request_timeout=None,
                  realtime_request_timeout=None, http_max_retry_count=None, http_max_retry_duration=None,
                  fallback_hosts=None, fallback_retry_timeout=None, disconnected_retry_timeout=None,
                  idempotent_rest_publishing=None, loop=None, auto_connect=True,
                  suspended_retry_timeout=None, connectivity_check_url=None,
                  channel_retry_timeout=Defaults.channel_retry_timeout, add_request_ids=False,
                  vcdiff_decoder: VCDiffDecoder = None, transport_params=None, echo_messages=True,
-                 _test_options=None, **kwargs):
+                 max_message_size=None, _test_options=None, **kwargs):
 
         super().__init__(**kwargs)
-
-        # REC1b1: endpoint is incompatible with deprecated options
-        if endpoint is not None:
-            if environment is not None or rest_host is not None or realtime_host is not None:
-                raise InvalidArgumentException(
-                    message='endpoint is incompatible with any of environment, rest_host or realtime_host',
-                    status_code=400,
-                    code=40106,
-                )
 
         # TODO check these defaults
         if fallback_retry_timeout is None:
@@ -55,61 +45,48 @@ class Options(AuthOptions):
         if realtime_request_timeout is None:
             realtime_request_timeout = Defaults.realtime_request_timeout
 
+        # RTC7: the HTTP defaults are resolved here too, so they read back from the options
+        if http_open_timeout is None:
+            http_open_timeout = Defaults.http_open_timeout
+
+        if http_request_timeout is None:
+            http_request_timeout = Defaults.http_request_timeout
+
+        if http_max_retry_count is None:
+            http_max_retry_count = Defaults.http_max_retry_count
+
+        if http_max_retry_duration is None:
+            http_max_retry_duration = Defaults.http_max_retry_duration
+
         if disconnected_retry_timeout is None:
             disconnected_retry_timeout = Defaults.disconnected_retry_timeout
 
         if connectivity_check_url is None:
             connectivity_check_url = Defaults.connectivity_check_url
 
-        connection_state_ttl = Defaults.connection_state_ttl
-
         if suspended_retry_timeout is None:
             suspended_retry_timeout = Defaults.suspended_retry_timeout
 
-        if environment is not None and rest_host is not None:
-            raise InvalidArgumentException(
-                message='specify rest_host or environment, not both',
-                status_code=400,
-                code=40106,
-            )
-
-        if environment is not None and realtime_host is not None:
-            raise InvalidArgumentException(
-                message='specify realtime_host or environment, not both',
-                status_code=400,
-                code=40106,
-            )
+        # TO3l8
+        if max_message_size is None:
+            max_message_size = Defaults.max_message_size
 
         if idempotent_rest_publishing is None:
             from ably.pubsub.version import api_version
             idempotent_rest_publishing = api_version >= '1.2'
 
-        if environment is not None and endpoint is None:
-            log.warning("environment client option is deprecated, please use endpoint instead")
-            endpoint = environment
-
-        # REC1d: restHost or realtimeHost option
-        # REC1d1: restHost takes precedence over realtimeHost
-        if rest_host is not None and endpoint is None:
-            log.warning("rest_host client option is deprecated, please use endpoint instead")
-            endpoint = rest_host
-        elif realtime_host is not None and endpoint is None:
-            # REC1d2: realtimeHost if restHost not specified
-            log.warning("realtime_host client option is deprecated, please use endpoint instead")
-            endpoint = realtime_host
-
+        # REC1a: the default routing policy. ably-python omits the deprecated environment,
+        # rest_host and realtime_host options (TO3k1-3), so REC1c and REC1d do not apply
         if endpoint is None:
             endpoint = Defaults.endpoint
 
         self.__client_id = client_id
-        self.__log_level = log_level
         self.__tls = tls
         self.__port = port
         self.__tls_port = tls_port
         self.__use_binary_protocol = use_binary_protocol
         self.__queue_messages = queue_messages
         self.__echo_messages = echo_messages
-        self.__recover = recover
         self.__endpoint = endpoint
         self.__http_open_timeout = http_open_timeout
         self.__http_request_timeout = http_request_timeout
@@ -125,12 +102,12 @@ class Options(AuthOptions):
         self.__idempotent_rest_publishing = idempotent_rest_publishing
         self.__loop = loop
         self.__auto_connect = auto_connect
-        self.__connection_state_ttl = connection_state_ttl
         self.__suspended_retry_timeout = suspended_retry_timeout
         self.__connectivity_check_url = connectivity_check_url
         self.__add_request_ids = add_request_ids
         self.__vcdiff_decoder = vcdiff_decoder
         self.__transport_params = transport_params or {}
+        self.__max_message_size = max_message_size
         self.__test_options = _test_options
         self.__hosts = self.__get_hosts()
 
@@ -141,14 +118,6 @@ class Options(AuthOptions):
     @client_id.setter
     def client_id(self, value):
         self.__client_id = value
-
-    @property
-    def log_level(self):
-        return self.__log_level
-
-    @log_level.setter
-    def log_level(self, value):
-        self.__log_level = value
 
     @property
     def tls(self):
@@ -194,14 +163,6 @@ class Options(AuthOptions):
     @property
     def echo_messages(self):
         return self.__echo_messages
-
-    @property
-    def recover(self):
-        return self.__recover
-
-    @recover.setter
-    def recover(self, value):
-        self.__recover = value
 
     @property
     def endpoint(self):
@@ -273,14 +234,6 @@ class Options(AuthOptions):
         return self.__auto_connect
 
     @property
-    def connection_state_ttl(self):
-        return self.__connection_state_ttl
-
-    @connection_state_ttl.setter
-    def connection_state_ttl(self, value):
-        self.__connection_state_ttl = value
-
-    @property
     def suspended_retry_timeout(self):
         return self.__suspended_retry_timeout
 
@@ -315,6 +268,10 @@ class Options(AuthOptions):
         return self.__transport_params
 
     @property
+    def max_message_size(self):
+        return self.__max_message_size
+
+    @property
     def _test_options(self):
         return self.__test_options
 
@@ -322,25 +279,19 @@ class Options(AuthOptions):
         """
         Return the list of hosts as they should be tried. First comes the main
         host. Then the fallback hosts in random order.
-        The returned list will have a length of up to http_max_retry_count.
+        The returned list will hold up to http_max_retry_count fallback hosts.
         """
         host = Defaults.get_hostname(self.endpoint)
         # REC2: Determine fallback hosts
         fallback_hosts = self.get_fallback_hosts()
-
-        http_max_retry_count = self.http_max_retry_count
-        if http_max_retry_count is None:
-            http_max_retry_count = Defaults.http_max_retry_count
 
         # Shuffle
         fallback_hosts = list(fallback_hosts)
         random.shuffle(fallback_hosts)
         self.__fallback_hosts = fallback_hosts
 
-        # First main host
-        hosts = [host] + fallback_hosts
-        hosts = hosts[:http_max_retry_count]
-        return hosts
+        # First main host, then TO3l5: http_max_retry_count counts the fallback hosts only
+        return [host] + fallback_hosts[:self.http_max_retry_count]
 
     def get_hosts(self):
         return self.__hosts

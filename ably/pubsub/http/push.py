@@ -1,5 +1,3 @@
-from typing import Optional
-
 from ably.pubsub.request.paginatedresult import PaginatedResult, format_params
 from ably.pubsub.types.channelsubscription import (
     PushChannelSubscription,
@@ -40,7 +38,7 @@ class PushAdmin:
     def channel_subscriptions(self):
         return self.__channel_subscriptions
 
-    async def publish(self, recipient: dict, data: dict, timeout: Optional[float] = None):
+    async def publish(self, recipient: dict, data: dict):
         """Publish a push notification to a single device.
 
         :Parameters:
@@ -61,7 +59,7 @@ class PushAdmin:
 
         body = data.copy()
         body.update({'recipient': recipient})
-        await self.ably.http.post('/push/publish', body=body, timeout=timeout)
+        await self.ably.http.post('/push/publish', body=body)
 
 
 class PushDeviceRegistrations:
