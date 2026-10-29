@@ -167,7 +167,7 @@ async def test_rsc15l_unreachable_endpoint_error(sandbox):
     # (the exact code/statusCode depends on the SDK's HTTP layer, but it must
     # be present and non-null so callers can programmatically handle it).
     # NOTE: the specification leaves the values open. This SDK reports 500 and
-    # 50000, the connection error having been wrapped by `catch_all`.
+    # 80000, the connection error having been wrapped per RSC19e.
     error = excinfo.value
     assert error is not None
     assert error.status_code is not None or error.code is not None

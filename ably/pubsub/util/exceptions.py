@@ -97,6 +97,9 @@ def catch_all(func):
             return await func(*args, **kwargs)
         except Exception as e:
             log.exception(e)
+            if isinstance(e, AblyException):
+                # Raised as it is, so that its own __cause__ is kept rather than replaced by itself
+                raise
             raise AblyException.from_exception(e) from e
 
     return wrapper
@@ -108,3 +111,11 @@ class AblyAuthException(AblyException):
 
 class IncompatibleClientIdException(AblyException):
     pass
+
+
+class InvalidArgumentException(AblyException, ValueError):
+    """Arguments the library rejects before making any request (RSC1b, RSH1a).
+
+    Also a ValueError, which is what 3.x raised for them, so `except ValueError` still
+    catches it.
+    """

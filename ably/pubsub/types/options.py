@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.authoptions import AuthOptions
-from ably.pubsub.util.exceptions import AblyException
+from ably.pubsub.util.exceptions import InvalidArgumentException
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class Options(AuthOptions):
         # REC1b1: endpoint is incompatible with deprecated options
         if endpoint is not None:
             if environment is not None or rest_host is not None or realtime_host is not None:
-                raise AblyException(
+                raise InvalidArgumentException(
                     message='endpoint is incompatible with any of environment, rest_host or realtime_host',
                     status_code=400,
                     code=40106,
@@ -67,14 +67,14 @@ class Options(AuthOptions):
             suspended_retry_timeout = Defaults.suspended_retry_timeout
 
         if environment is not None and rest_host is not None:
-            raise AblyException(
+            raise InvalidArgumentException(
                 message='specify rest_host or environment, not both',
                 status_code=400,
                 code=40106,
             )
 
         if environment is not None and realtime_host is not None:
-            raise AblyException(
+            raise InvalidArgumentException(
                 message='specify realtime_host or environment, not both',
                 status_code=400,
                 code=40106,

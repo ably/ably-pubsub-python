@@ -34,7 +34,7 @@ class TestHttpHttp(BaseAsyncTestCase):
         assert 'http_request_timeout' in ably.http.CONNECTION_RETRY_DEFAULTS
 
         with mock.patch('httpx.AsyncClient.send', side_effect=httpx.RequestError('')) as send_mock:
-            with pytest.raises(httpx.RequestError):
+            with pytest.raises(AblyException, match="network error"):
                 await ably.http.make_request('GET', '/', version=Defaults.protocol_version, skip_auth=True)
 
             assert send_mock.call_count == Defaults.http_max_retry_count
@@ -52,7 +52,7 @@ class TestHttpHttp(BaseAsyncTestCase):
             raise httpx.TimeoutException('timeout')
 
         with mock.patch('httpx.AsyncClient.send', side_effect=sleep_and_raise) as send_mock:
-            with pytest.raises(httpx.TimeoutException):
+            with pytest.raises(AblyException, match="timed out"):
                 await ably.http.make_request('GET', '/', skip_auth=True)
 
             assert send_mock.call_count == 1
@@ -67,7 +67,7 @@ class TestHttpHttp(BaseAsyncTestCase):
 
         with mock.patch('httpx.Request', wraps=httpx.Request) as request_mock:
             with mock.patch('httpx.AsyncClient.send', side_effect=httpx.RequestError('')) as send_mock:
-                with pytest.raises(httpx.RequestError):
+                with pytest.raises(AblyException, match="network error"):
                     await ably.http.make_request('GET', '/', skip_auth=True)
 
                 assert send_mock.call_count == Defaults.http_max_retry_count
@@ -93,7 +93,7 @@ class TestHttpHttp(BaseAsyncTestCase):
 
         mock_route = respx.get("https://example.org").mock(side_effect=httpx.RequestError(''))
 
-        with pytest.raises(httpx.RequestError):
+        with pytest.raises(AblyException, match="network error"):
             await ably.http.make_request('GET', '/', skip_auth=True)
 
         assert mock_route.call_count == 1

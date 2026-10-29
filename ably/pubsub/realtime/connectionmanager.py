@@ -343,7 +343,7 @@ class ConnectionManager(EventEmitter):
             f"ConnectionManager.fail_queued_messages(): discarding {len(self.queued_messages)} messages;" +
             f" reason = {err}"
         )
-        error = err or AblyException("Connection failed", 80000, 500)
+        error = err or AblyException("Connection failed", 500, 80000)
         while len(self.queued_messages) > 0:
             pending_msg = self.queued_messages.pop()
             log.exception(
@@ -487,11 +487,11 @@ class ConnectionManager(EventEmitter):
         elif exception.status_code == 403:
             msg = 'Client configured authentication provider returned 403; failing the connection'
             log.error(f'ConnectionManager.on_error_from_authorize(): {msg}')
-            self.notify_state(ConnectionState.FAILED, AblyException(msg, 403, 80019))
+            self.notify_state(ConnectionState.FAILED, AblyException(msg, 403, 80019, cause=exception))
         else:
             msg = 'Client configured authentication provider request failed'
             log.warning(f'ConnectionManager.on_error_from_authorize: {msg}')
-            self.notify_state(self.__fail_state, AblyException(msg, 401, 80019))
+            self.notify_state(self.__fail_state, AblyException(msg, 401, 80019, cause=exception))
 
     async def on_closed(self) -> None:
         if self.transport:
@@ -538,7 +538,7 @@ class ConnectionManager(EventEmitter):
             err: Error information from the server
         """
         if not err:
-            err = AblyException('Unable to send message; channel not responding', 50001, 500)
+            err = AblyException('Unable to send message; channel not responding', 500, 50001)
 
         log.error(f'ConnectionManager.on_nack(): serial={serial}, count={count}, err={err}')
         self.pending_message_queue.complete_messages(serial, count, None, err)

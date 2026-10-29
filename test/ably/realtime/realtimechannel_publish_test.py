@@ -186,7 +186,7 @@ class TestRealtimeChannelPublish(BaseAsyncTestCase):
         # Force FAILED state
         connection_manager.notify_state(
             ConnectionState.FAILED,
-            AblyException('Test failure', 80000, 500)
+            AblyException('Test failure', 500, 80000)
         )
 
         # Should raise exception

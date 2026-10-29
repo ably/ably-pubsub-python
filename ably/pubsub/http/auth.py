@@ -6,6 +6,8 @@ import uuid
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+import httpx
+
 from ably.pubsub.types.options import Options
 
 if TYPE_CHECKING:
@@ -16,7 +18,12 @@ from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.types.tokenrequest import TokenRequest
 from ably.pubsub.util.clock import select_clock
-from ably.pubsub.util.exceptions import AblyAuthException, AblyException, IncompatibleClientIdException
+from ably.pubsub.util.exceptions import (
+    AblyAuthException,
+    AblyException,
+    IncompatibleClientIdException,
+    InvalidArgumentException,
+)
 from ably.pubsub.util.helper import extract_url_params
 
 __all__ = ["Auth"]
@@ -60,7 +67,7 @@ class Auth:
             self.__basic_credentials = basic_key.decode('ascii')
             return
         elif must_not_use_token_auth and not can_use_basic_auth:
-            raise ValueError('If use_token_auth is False you must provide a key')
+            raise InvalidArgumentException('If use_token_auth is False you must provide a key', 401, 40106)
 
         # Using token auth
         self.__auth_mechanism = Auth.Method.TOKEN
@@ -83,8 +90,9 @@ class Auth:
         elif options.token_details:
             log.debug("using token auth with supplied token_details")
         else:
-            raise ValueError("Can't authenticate via token, must provide "
-                             "auth_callback, auth_url, key, token or a TokenDetail")
+            # RSC1b
+            raise InvalidArgumentException("Can't authenticate via token, must provide "
+                                           "auth_callback, auth_url, key, token or a TokenDetail", 401, 40106)
 
     async def get_auth_transport_param(self):
         auth_credentials = {}
@@ -151,7 +159,14 @@ class Auth:
         return expires < timestamp + token_details.TOKEN_EXPIRY_BUFFER
 
     async def authorize(self, token_params: dict | None = None, auth_options=None):
-        return await self.__authorize_when_necessary(token_params, auth_options, force=True)
+        try:
+            return await self.__authorize_when_necessary(token_params, auth_options, force=True)
+        except AblyException as e:
+            # RSA4d, RSA4d1: a 403 from the auth provider fails the connection, even
+            # while the token it holds is still valid
+            if self.ably._is_realtime and e.status_code == 403:
+                self.ably.connection.connection_manager.on_error_from_authorize(e)
+            raise
 
     async def request_token(self, token_params: dict | None = None,
                             # auth_options
@@ -184,6 +199,9 @@ class Auth:
             log.debug("using token auth with authCallback")
             try:
                 token_request = await auth_callback(token_params)
+            except AblyException:
+                # RSA4d, RSA4e: an error the callback gives as an AblyException is kept as it is
+                raise
             except Exception as e:
                 raise AblyException("auth_callback raised an exception", 401, 40170, cause=e) from e
         elif auth_url:
@@ -212,7 +230,7 @@ class Auth:
                 raise AblyAuthException(msg, 401, 40170, cause=e) from e
         elif isinstance(token_request, str):
             if len(token_request) == 0:
-                raise AblyAuthException("Token string is empty", 401, 4017)
+                raise AblyAuthException("Token string is empty", 401, 40170)
             return TokenDetails(token=token_request)
         elif token_request is None:
             raise AblyAuthException("Token string was None", 401, 40170)
@@ -410,8 +428,12 @@ class Auth:
         url = clean_url
 
         from ably.pubsub.request.http import Response
-        resp = await self.ably.http.request_external(
-            method=method, url=url, headers=headers, params=params, body=body)
+        try:
+            resp = await self.ably.http.request_external(
+                method=method, url=url, headers=headers, params=params, body=body)
+        except httpx.RequestError as e:
+            # RSA4e: a timeout or network error reaching the auth_url is a 40170
+            raise AblyAuthException("auth_url request failed", 401, 40170, cause=e) from e
         response = Response(resp)
 
         AblyException.raise_for_response(response)

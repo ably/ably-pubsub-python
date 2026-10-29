@@ -5,6 +5,7 @@ import respx
 from ably.pubsub.request.paginatedresult import HttpPaginatedResponse
 from ably.pubsub.server import create_http_client
 from ably.pubsub.transport.defaults import Defaults
+from ably.pubsub.util.exceptions import AblyException
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
 
@@ -102,8 +103,10 @@ class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
         assert ably.http.http_request_timeout == timeout
         # `http_open_timeout` keeps its four-second default, so the request carries a
         # connect budget as well as a read budget and either can be the one to expire
-        with pytest.raises(httpx.TimeoutException):
+        with pytest.raises(AblyException) as excinfo:
             await ably.request('GET', '/time', version=Defaults.protocol_version)
+        assert excinfo.value.code == 50003
+        assert isinstance(excinfo.value.cause, httpx.TimeoutException)
         await ably.close()
 
         default_endpoint = 'https://sandbox.realtime.ably-nonprod.net/time'
@@ -127,8 +130,10 @@ class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
                         port=self.test_vars["port"],
                         tls_port=self.test_vars["tls_port"],
                         tls=self.test_vars["tls"])
-        with pytest.raises(httpx.ConnectError):
+        with pytest.raises(AblyException) as excinfo:
             await ably.request('GET', '/time', version=Defaults.protocol_version)
+        assert excinfo.value.code == 80000
+        assert isinstance(excinfo.value.cause, httpx.ConnectError)
         await ably.close()
 
     # RSC15l3

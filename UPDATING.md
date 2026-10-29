@@ -124,6 +124,104 @@ await pubsub_realtime_client.channels.get('my-channel').detach()
 pubsub_realtime_client.channels.release('my-channel')
 ```
 
+### Some errors had their `code` and `status_code` the wrong way round
+
+Ten errors the library raised itself carried the Ably error code in `status_code` and the
+HTTP status in `code`. They now carry them the right way round:
+
+| Error | 3.x `status_code`, `code` | 4.0.0 `status_code`, `code` |
+|---|---|---|
+| Detaching a `FAILED` realtime channel | 90001, 400 | 400, 90001 |
+| A detach superseded by an attach | 90000, 409 | 409, 90000 |
+| A queued message failed with no reason given | 80000, 500 | 500, 80000 |
+| A NACK with no error | 50001, 500 | 500, 50001 |
+| A vcdiff delta with no decoder configured | 40019, 40019 | 400, 40019 |
+| A vcdiff delta that cannot be decoded | 40018, 40018 | 400, 40018 |
+| `ChannelOptions` given params or options that are not a dict | 40000, 400 | 400, 40000 |
+
+If you branch on `code` or `status_code` for any of these, compare against the 4.0.0 values.
+
+### Network errors and timeouts are raised as `AblyException`
+
+In 3.x a request that got no response, because the host could not be reached or did not
+answer in time, raised the `httpx` exception itself from most methods, such as `request`,
+`publish`, `history` and `auth.authorize`. In 4.0.0 every method raises an `AblyException`:
+code 50003 and status 504 for a timeout, and code 80000 and status 500 for any other
+network error. The `httpx` exception is its `cause`. A timeout or network error reaching
+an `auth_url` is an `AblyException` with code 40170 and status 401, as for any other
+`auth_url` failure.
+
+Example 3.x code:
+```python
+try:
+    await rest.channels.get('my-channel').publish('event', 'data')
+except httpx.TimeoutException:
+    ...
+```
+
+Example 4.0.0 code:
+```python
+try:
+    await pubsub_http_client.channels.get('my-channel').publish('event', 'data')
+except AblyException as e:
+    if e.code == 50003:
+        ...
+```
+
+### An `AblyException` raised by an `auth_callback` is no longer rewritten
+
+In 3.x any exception an `auth_callback` raised reached the caller as an `AblyException` with
+code 40170 and status 401, the original only in its `cause`. In 4.0.0 an `AblyException` the
+callback raises reaches the caller unchanged; any other exception is still wrapped as 40170.
+On a realtime client, a callback error with status 403 now fails the connection, with an
+80019 whose status is 403 and whose `cause` is the callback's error, whether it happens while
+connecting, on a reauth or in an explicit `authorize()` call. 3.x went `DISCONNECTED` and
+retried. Every 80019 the connection reports now carries the auth provider's error as its
+`cause`.
+
+If you check for 40170 after `request_token` or `authorize` to find a failure in your own
+callback, check the code your callback raised instead. Raise a status 403 only for a client
+that should stop connecting:
+
+Example 4.0.0 code:
+```python
+async def auth_callback(token_params):
+    if not await user_may_connect():
+        raise AblyException('Access revoked', 403, 40300)
+    return await fetch_token(token_params)
+```
+
+### Invalid arguments raise `AblyException`
+
+The factories raised a bare `ValueError` in 3.x when given no means of authenticating, a
+`key` together with `key_name` or `key_secret`, a `token_details` that is not a
+`TokenDetails`, or `use_token_auth=False` without a key. In 4.0.0 each raises an
+`AblyException` with code 40106 and status 401. Combining `endpoint` with `environment`,
+`rest_host` or `realtime_host` still raises an `AblyException` with code 40106 and status
+400. `push.admin.publish` raised `TypeError` for a `recipient` or `data` that is not a dict
+and `ValueError` for an empty one, and now raises an `AblyException` with code 40000 and
+status 400 for all four.
+
+These exceptions are also a `ValueError`, so `except ValueError` still catches them, but
+`except TypeError` no longer catches the `push.admin.publish` ones:
+
+Example 3.x code:
+```python
+try:
+    await rest.push.admin.publish(recipient, data)
+except TypeError:
+    ...
+```
+
+Example 4.0.0 code:
+```python
+try:
+    await pubsub_http_client.push.admin.publish(recipient, data)
+except AblyException as e:
+    if e.code == 40000:
+        ...
+```
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

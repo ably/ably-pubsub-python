@@ -1,5 +1,6 @@
 import pytest
 
+from ably.pubsub.server import create_http_client
 from ably.pubsub.types.options import Options
 from ably.pubsub.util.exceptions import AblyException
 
@@ -197,3 +198,19 @@ def test_options_localhost_no_fallback_hosts():
     opts = Options(endpoint="localhost")
     # REC2c2: explicit hostname has empty fallback
     assert opts.get_fallback_hosts() == []
+
+
+# RSC1b: invalid arguments are a 40106, and still a ValueError as they were in 3.x
+@pytest.mark.parametrize('kwargs, status_code', [
+    ({}, 401),
+    ({'key': 'appId.keyId:keySecret', 'key_name': 'appId.keyId'}, 401),
+    ({'token_details': 'not-token-details'}, 401),
+    ({'token': 'a-token', 'use_token_auth': False}, 401),
+    ({'key': 'appId.keyId:keySecret', 'endpoint': 'foo', 'environment': 'foo'}, 400),
+])
+def test_invalid_client_arguments_raise_40106(kwargs, status_code):
+    with pytest.raises(AblyException) as exinfo:
+        create_http_client(**kwargs)
+    assert exinfo.value.code == 40106
+    assert exinfo.value.status_code == status_code
+    assert isinstance(exinfo.value, ValueError)

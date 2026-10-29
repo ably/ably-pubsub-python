@@ -11,6 +11,7 @@ import httpx
 import msgpack
 import pytest
 
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
@@ -426,14 +427,11 @@ async def test_rsc19e_network_error_propagated():
 
     client = rest_client(mock_http, key=SPEC_KEY, fallback_hosts=[])
 
-    # DEVIATION: the spec expects an error carrying code 80000, or a message naming the
-    # network/connection failure. request() is not wrapped by @catch_all (unlike time()
-    # and stats()), so the transport exception reaches the caller unwrapped. Its message
-    # does name the connection failure, which is what RSC19e asks be indicated.
-    with pytest.raises(httpx.ConnectError) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         await client.request('GET', '/test', version='3')
 
-    assert 'Connection refused' in str(excinfo.value)
+    assert excinfo.value.code == 80000
+    assert isinstance(excinfo.value.cause, httpx.ConnectError)
 
 
 # UTS: rest/unit/RSC19e/timeout-error-handling-1
@@ -448,13 +446,11 @@ async def test_rsc19e_timeout_error_handling():
 
     client = rest_client(mock_http, key=SPEC_KEY, http_request_timeout=1, fallback_hosts=[])
 
-    # DEVIATION: the spec expects an error carrying code 50003, or a message naming the
-    # timeout. request() is not wrapped by @catch_all, so the transport exception reaches
-    # the caller unwrapped; its message does name the timeout.
-    with pytest.raises(httpx.ReadTimeout) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         await client.request('GET', '/test', version='3')
 
-    assert 'timed out' in str(excinfo.value)
+    assert excinfo.value.code == 50003
+    assert isinstance(excinfo.value.cause, httpx.TimeoutException)
 
 
 # UTS: rest/unit/RSC19e/http-error-no-fallback-2

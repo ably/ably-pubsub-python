@@ -75,7 +75,7 @@ class AblyVCDiffDecoder(VCDiffDecoder):
             return result
         except Exception as e:
             log.error(f"VCDiff decode failed: {e}")
-            raise AblyException(f"VCDiff decode failure: {e}", 40018, 40018) from e
+            raise AblyException(f"VCDiff decode failure: {e}", 400, 40018) from e
 
 
 # Export for easy importing

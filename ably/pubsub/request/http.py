@@ -43,6 +43,17 @@ def reauth_if_expired(func):
     return wrapper
 
 
+def wrap_request_error(host: str, e: httpx.RequestError) -> AblyException:
+    """Wraps the error httpx raised for a request that got no response (RSC19e).
+
+    A timeout is 50003 and any other failure to complete the request is 80000, with
+    the httpx error kept as the cause.
+    """
+    if isinstance(e, httpx.TimeoutException):
+        return AblyException(f'Request to {host} timed out', 504, 50003, cause=e)
+    return AblyException(f'Request to {host} failed with a network error', 500, 80000, cause=e)
+
+
 class Request:
     def __init__(self, method='GET', url='/', version=None, headers=None, body=None,
                  skip_auth=False, raise_on_error=True):
@@ -219,6 +230,8 @@ class Http:
                 response = await self.__client.send(request)
             except Exception as e:
                 if should_stop_retrying():
+                    if isinstance(e, httpx.RequestError):
+                        raise wrap_request_error(host, e) from e
                     raise e
             else:
                 # RSC15l4

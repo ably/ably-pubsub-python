@@ -29,7 +29,7 @@ class ChannelOptions:
         self.__modes = modes
         # Validate params
         if self.__params and not isinstance(self.__params, dict):
-            raise AblyException("params must be a dictionary", 40000, 400)
+            raise AblyException("params must be a dictionary", 400, 40000)
 
     @property
     def cipher(self) -> CipherParams | None:
@@ -77,7 +77,7 @@ class ChannelOptions:
     def from_dict(cls, options_dict: dict[str, Any]) -> ChannelOptions:
         """Create ChannelOptions from dictionary"""
         if not isinstance(options_dict, dict):
-            raise AblyException("options must be a dictionary", 40000, 400)
+            raise AblyException("options must be a dictionary", 400, 40000)
 
         return cls(
             cipher=options_dict.get('cipher'),

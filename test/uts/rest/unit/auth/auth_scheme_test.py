@@ -189,13 +189,13 @@ async def test_rsc1b_no_auth_method_error():
         on_request=capture_and_respond(captured_requests),
     )
 
-    # DEVIATION: the spec expects an error with code 40106 from the first
-    # request. ably-python rejects the options in the constructor instead, with
-    # a plain ValueError that carries no Ably error code.
-    with pytest.raises(ValueError) as excinfo:
+    # The spec expects the error from the first request. RSC1b gives it to
+    # the constructor, and ably-python raises it there, so no client exists to
+    # make a request with.
+    with pytest.raises(AblyException) as excinfo:
         rest_client(mock_http, key=None)
 
-    assert 'key is missing' in str(excinfo.value)
+    assert excinfo.value.code == 40106
 
     assert len(captured_requests) == 0
 

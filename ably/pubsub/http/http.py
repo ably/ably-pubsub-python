@@ -22,7 +22,7 @@ from ably.pubsub.types.options import Options
 from ably.pubsub.types.stats import stats_response_processor
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.util.construction import reject_direct_construction
-from ably.pubsub.util.exceptions import AblyException, catch_all
+from ably.pubsub.util.exceptions import AblyException, InvalidArgumentException, catch_all
 
 log = logging.getLogger(__name__)
 
@@ -67,20 +67,22 @@ class DefaultPubSubHttpClient(PubSubHttpClient):
         reject_direct_construction(type(self), 'ably.pubsub.server.create_http_client')
 
         if key is not None and ('key_name' in kwargs or 'key_secret' in kwargs):
-            raise ValueError("key and key_name or key_secret are mutually exclusive. "
-                             "Provider either a key or key_name & key_secret")
+            raise InvalidArgumentException("key and key_name or key_secret are mutually exclusive. "
+                                           "Provider either a key or key_name & key_secret", 401, 40106)
         if key is not None:
             options = Options(key=key, **kwargs)
         elif token is not None:
             options = Options(auth_token=token, **kwargs)
         elif token_details is not None:
             if not isinstance(token_details, TokenDetails):
-                raise ValueError("token_details must be an instance of TokenDetails")
+                raise InvalidArgumentException("token_details must be an instance of TokenDetails", 401, 40106)
             options = Options(token_details=token_details, **kwargs)
         elif not ('auth_callback' in kwargs or 'auth_url' in kwargs or
                   # and don't have both key_name and key_secret
                   ('key_name' in kwargs and 'key_secret' in kwargs)):
-            raise ValueError("key is missing. Either an API key, token, or token auth method must be provided")
+            # RSC1b
+            raise InvalidArgumentException(
+                "key is missing. Either an API key, token, or token auth method must be provided", 401, 40106)
         else:
             options = Options(**kwargs)
 

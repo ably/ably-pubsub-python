@@ -120,16 +120,13 @@ async def test_rsh1a_rejects_empty_recipient():
     )
     client = rest_client(mock_http)
 
-    # DEVIATION: the spec asserts error.code == 40000. PushAdmin.publish validates
-    # locally and raises a plain ValueError, which carries no Ably error code.
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         await client.push.admin.publish(
             recipient={},
             data={'notification': {'title': 'Test'}},
         )
 
-    assert not isinstance(excinfo.value, AblyException)
-    assert 'recipient' in str(excinfo.value)
+    assert excinfo.value.code == 40000
 
     assert len(captured_requests) == 0
 
@@ -143,16 +140,13 @@ async def test_rsh1a_rejects_empty_data():
     )
     client = rest_client(mock_http)
 
-    # DEVIATION: the spec asserts error.code == 40000. PushAdmin.publish validates
-    # locally and raises a plain ValueError, which carries no Ably error code.
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         await client.push.admin.publish(
             recipient={'clientId': 'user-123'},
             data={},
         )
 
-    assert not isinstance(excinfo.value, AblyException)
-    assert 'data' in str(excinfo.value)
+    assert excinfo.value.code == 40000
 
     assert len(captured_requests) == 0
 
@@ -166,16 +160,13 @@ async def test_rsh1a_rejects_null_recipient():
     )
     client = rest_client(mock_http)
 
-    # DEVIATION: the spec asserts error.code == 40000. PushAdmin.publish rejects a
-    # non-dict recipient with a plain TypeError, which carries no Ably error code.
-    with pytest.raises(TypeError) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         await client.push.admin.publish(
             recipient=None,
             data={'notification': {'title': 'Test'}},
         )
 
-    assert not isinstance(excinfo.value, AblyException)
-    assert 'recipient' in str(excinfo.value)
+    assert excinfo.value.code == 40000
 
     assert len(captured_requests) == 0
 
