@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from ably.pubsub.realtime.connection import ConnectionState
 from ably.pubsub.realtime.presencemap import PresenceMap
 from ably.pubsub.types.channelstate import ChannelState, ChannelStateChange
 from ably.pubsub.types.presence import PresenceAction, PresenceMessage
+from ably.pubsub.util.clock import select_clock
 from ably.pubsub.util.eventemitter import EventEmitter
 from ably.pubsub.util.exceptions import AblyException
 
@@ -69,6 +69,7 @@ class RealtimePresence(EventEmitter):
         super().__init__()
         self.channel = channel
         self.sync_complete = False
+        self._clock = select_clock(channel.ably.options)
 
         # RTP2: Main presence map keyed by memberKey (connectionId:clientId)
         self.members = PresenceMap(
@@ -583,7 +584,7 @@ class RealtimePresence(EventEmitter):
                     connection_id=member.connection_id,
                     data=member.data,
                     encoding=member.encoding,
-                    timestamp=datetime.now(timezone.utc)
+                    timestamp=self._clock.now_ms()
                 )
                 broadcast_messages.append(synthesized_leave)
 
@@ -717,7 +718,7 @@ class RealtimePresence(EventEmitter):
                 connection_id=member.connection_id,
                 data=member.data,
                 encoding=member.encoding,
-                timestamp=datetime.now(timezone.utc)
+                timestamp=self._clock.now_ms()
             )
             self._subscriptions._emit('leave', synthesized_leave)
 

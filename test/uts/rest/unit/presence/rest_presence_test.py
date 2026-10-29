@@ -6,7 +6,7 @@ RSP4b1, RSP4b2, RSP4b3, RSP5
 
 import base64
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import msgpack
 import pytest
@@ -126,9 +126,7 @@ async def test_rsp3b_get_returns_presence_messages():
     assert message.client_id == 'user123'
     assert message.connection_id == 'conn456'
     assert message.data == 'status data'
-    # NOTE: the spec asserts the raw millisecond value. PresenceMessage.timestamp is a
-    # datetime, which is the "Date/Time object where appropriate to the language" form.
-    assert message.timestamp == datetime.utcfromtimestamp(1234567890000 / 1000)
+    assert message.timestamp == 1234567890000
 
 
 # UTS: rest/unit/RSP3c/get-empty-members-0
@@ -319,8 +317,7 @@ async def test_rsp4b1_history_datetime_objects():
     captured_requests = []
     mock_http = capturing_mock(captured_requests, [])
     client = rest_client(mock_http)
-    # ably-python treats a naive datetime as UTC when converting to epoch milliseconds
-    start_datetime = datetime(2021, 1, 1, 0, 0, 0)
+    start_datetime = datetime(2021, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
     await client.channels.get(channel_name).presence.history(start=start_datetime)
 

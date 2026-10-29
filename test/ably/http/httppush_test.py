@@ -226,14 +226,12 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         # Remove
         get_response = await get(device.id)
         assert get_response.id == device.id  # Exists
-        remove_device_response = await self.remove_device(device.id)
-        assert remove_device_response.status_code == 204
+        assert await self.remove_device(device.id) is None
         with pytest.raises(AblyException):  # Doesn't exist
             await get(device.id)
 
         # Remove again, it doesn't fail
-        remove_device_response = await self.remove_device(device.id)
-        assert remove_device_response.status_code == 204
+        assert await self.remove_device(device.id) is None
 
     # RSH1b5
     async def test_admin_device_registrations_remove_where(self):
@@ -243,8 +241,7 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         device = self.get_device()
         foo_device = await get(device.id)
         assert foo_device.id == device.id  # Exists
-        remove_foo_device_response = await self.remove_device_where(deviceId=device.id)
-        assert remove_foo_device_response.status_code == 204
+        assert await self.remove_device_where(deviceId=device.id) is None
         with pytest.raises(AblyException):  # Doesn't exist
             await get(device.id)
 
@@ -252,8 +249,7 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         device = self.get_device()
         boo_device = await get(device.id)
         assert boo_device.id == device.id  # Exists
-        remove_boo_device_response = await self.remove_device_where(clientId=device.client_id)
-        assert remove_boo_device_response.status_code == 204
+        assert await self.remove_device_where(clientId=device.client_id) is None
         # Doesn't exist (Deletion is async: wait up to a few seconds before giving up)
         with pytest.raises(AblyException):
             for _ in range(5):
@@ -261,8 +257,7 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
                 await get(device.id)
 
         # Remove with no matching params
-        remove_boo_device_response = await self.remove_device_where(clientId=device.client_id)
-        assert remove_boo_device_response.status_code == 204
+        assert await self.remove_device_where(clientId=device.client_id) is None
 
     # # RSH1c1
     async def test_admin_channel_subscriptions_list(self):
@@ -351,8 +346,7 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         subscription = await save(PushChannelSubscription(channel, device_id=device.id))
         list_response = await list_(channel=channel)
         assert device.id in (x.device_id for x in list_response.items)
-        remove_response = await remove(subscription)
-        assert remove_response.status_code == 204
+        assert await remove(subscription) is None
         list_response = await list_(channel=channel)
         assert device.id not in (x.device_id for x in list_response.items)
 
@@ -361,14 +355,12 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         subscription = await save(PushChannelSubscription(channel, client_id=client_id))
         list_response = await list_(channel=channel)
         assert client_id in (x.client_id for x in list_response.items)
-        remove_response = await remove(subscription)
-        assert remove_response.status_code == 204
+        assert await remove(subscription) is None
         list_response = await list_(channel=channel)
         assert client_id not in (x.client_id for x in list_response.items)
 
         # Remove again, it doesn't fail
-        remove_response = await remove(subscription)
-        assert remove_response.status_code == 204
+        assert await remove(subscription) is None
 
     # RSH1c5
     async def test_admin_channel_subscriptions_remove_where(self):
@@ -383,8 +375,7 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         await save(PushChannelSubscription(channel, device_id=device.id))
         list_response = await list_(channel=channel)
         assert device.id in (x.device_id for x in list_response.items)
-        remove_response = await remove(channel=channel, device_id=device.id)
-        assert remove_response.status_code == 204
+        assert await remove(channel=channel, device_id=device.id) is None
         list_response = await list_(channel=channel)
         assert device.id not in (x.device_id for x in list_response.items)
 
@@ -393,11 +384,9 @@ class TestPush(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass):
         await save(PushChannelSubscription(channel, client_id=client_id))
         list_response = await list_(channel=channel)
         assert client_id in (x.client_id for x in list_response.items)
-        remove_response = await remove(channel=channel, client_id=client_id)
-        assert remove_response.status_code == 204
+        assert await remove(channel=channel, client_id=client_id) is None
         list_response = await list_(channel=channel)
         assert client_id not in (x.client_id for x in list_response.items)
 
         # Remove again, it doesn't fail
-        remove_response = await remove(channel=channel, client_id=client_id)
-        assert remove_response.status_code == 204
+        assert await remove(channel=channel, client_id=client_id) is None

@@ -115,7 +115,7 @@ class PushDeviceRegistrations:
         - `device_id`: the id of the device
         """
         path = f'/push/deviceRegistrations/{device_id}'
-        return await self.ably.http.delete(path)
+        await self.ably.http.delete(path)
 
     async def remove_where(self, **params):
         """Deletes the registered devices identified by the given parameters.
@@ -124,7 +124,7 @@ class PushDeviceRegistrations:
         - `**params`: the parameters that identify the devices to remove
         """
         path = '/push/deviceRegistrations' + format_params(params)
-        return await self.ably.http.delete(path)
+        await self.ably.http.delete(path)
 
 
 class PushChannelSubscriptions:
@@ -180,7 +180,7 @@ class PushChannelSubscriptions:
         """
         subscription = PushChannelSubscription.factory(subscription)
         params = subscription.as_dict()
-        return await self.remove_where(**params)
+        await self.remove_where(**params)
 
     async def remove_where(self, **params):
         """Deletes the subscriptions identified by the given parameters.
@@ -189,4 +189,4 @@ class PushChannelSubscriptions:
         - `**params`: the parameters that identify the subscriptions to remove
         """
         path = '/push/channelSubscriptions' + format_params(**params)
-        return await self.ably.http.delete(path)
+        await self.ably.http.delete(path)

@@ -3,6 +3,8 @@ from ably.pubsub.util import case
 
 class PushChannelSubscription:
 
+    _fields = ['channel', 'device_id', 'client_id', 'app_id']
+
     def __init__(self, channel, device_id=None, client_id=None, app_id=None):
         if not device_id and not client_id:
             raise ValueError('missing expected device or client id')
@@ -32,10 +34,8 @@ class PushChannelSubscription:
         return self.__app_id
 
     def as_dict(self):
-        keys = ['channel', 'device_id', 'client_id', 'app_id']
-
         obj = {}
-        for key in keys:
+        for key in self._fields:
             value = getattr(self, key)
             if value is not None:
                 key = case.snake_to_camel(key)
@@ -46,7 +46,8 @@ class PushChannelSubscription:
     @classmethod
     def from_dict(cls, obj):
         obj = {case.camel_to_snake(key): value for key, value in obj.items()}
-        return cls(**obj)
+        # Fields this version does not model are ignored, so the server can add them
+        return cls(**{key: value for key, value in obj.items() if key in cls._fields})
 
     @classmethod
     def from_array(cls, array):

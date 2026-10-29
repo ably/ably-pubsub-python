@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 import httpx
 import pytest
 import respx
@@ -69,7 +71,8 @@ class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
         assert result.success is True        # HP5
         assert result.error_code is None     # HP6
         assert result.error_message is None  # HP7
-        assert isinstance(result.headers, list)   # HP7
+        assert isinstance(result.headers, Mapping)   # HP8
+        assert result.headers['Content-Type'] == result.headers['content-type']
 
     @dont_vary_protocol
     async def test_not_found(self):
@@ -85,14 +88,18 @@ class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
         assert isinstance(result, HttpPaginatedResponse)  # RSC19d
         assert result.status_code == 400  # HP4
         assert not result.success
-        assert result.error_code
+        assert isinstance(result.error_code, int)  # HP6
         assert result.error_message
 
+    @dont_vary_protocol
+    @respx.mock
     async def test_headers(self):
         key = 'X-Test'
         value = 'lorem ipsum'
-        result = await self.ably.request('GET', '/time', headers={key: value}, version=Defaults.protocol_version)
-        assert result.response.request.headers[key] == value
+        route = respx.get('https://sandbox.realtime.ably-nonprod.net/time')
+        route.return_value = httpx.Response(200, headers={'Content-Type': 'application/json'}, text='[123]')
+        await self.ably.request('GET', '/time', headers={key: value}, version=Defaults.protocol_version)
+        assert route.calls.last.request.headers[key] == value
 
     # RSC19e
     @dont_vary_protocol
@@ -230,7 +237,11 @@ class TestHttpRequest(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass)
             assert result.items[0] == 123
         await ably.close()
 
+    @dont_vary_protocol
+    @respx.mock
     async def test_version(self):
         version = "150"  # chosen arbitrarily
-        result = await self.ably.request('GET', '/time', "150")
-        assert result.response.request.headers["X-Ably-Version"] == version
+        route = respx.get('https://sandbox.realtime.ably-nonprod.net/time')
+        route.return_value = httpx.Response(200, headers={'Content-Type': 'application/json'}, text='[123]')
+        await self.ably.request('GET', '/time', "150")
+        assert route.calls.last.request.headers["X-Ably-Version"] == version

@@ -8,6 +8,7 @@ import pytest
 
 from ably.pubsub.request.paginatedresult import PaginatedResult
 from ably.pubsub.server import AblyException, DeviceDetails, PushChannelSubscription
+from ably.pubsub.types.device import DevicePushDetails
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 
@@ -23,17 +24,13 @@ DEVICE_TOKEN = '740f4707bebcf74f9b7c25d48e3358945f6aa01da5ddb387462c7eaf61bb78ad
 
 def apns_device(device_id, client_id=None, device_token=DEVICE_TOKEN, platform='ios',
                 form_factor='phone'):
-    """The specifications' `DeviceDetails(... push: DevicePushDetails(recipient: ...))`.
-
-    There is no `DevicePushDetails` type in ably-python; `DeviceDetails.push` is
-    the plain dict the wire carries, so the recipient goes in directly.
-    """
+    """The specifications' `DeviceDetails(... push: DevicePushDetails(recipient: ...))`."""
     return DeviceDetails(
         id=device_id,
         client_id=client_id,
         platform=platform,
         form_factor=form_factor,
-        push={'recipient': {'transportType': 'apns', 'deviceToken': device_token}},
+        push=DevicePushDetails(recipient={'transportType': 'apns', 'deviceToken': device_token}),
     )
 
 
@@ -90,7 +87,7 @@ async def test_rsh1b3_save_and_get_device(sandbox):
         assert saved.id == device_id
         assert saved.platform == 'ios'
         assert saved.form_factor == 'phone'
-        assert saved.push['recipient']['transportType'] == 'apns'
+        assert saved.push.recipient['transportType'] == 'apns'
 
         retrieved = await registrations.get(device_id)
         assert isinstance(retrieved, DeviceDetails)
@@ -113,10 +110,10 @@ async def test_rsh1b3_update_device_registration(sandbox):
         updated = await registrations.save(apns_device(device_id, device_token=token_v2))
 
         assert updated.id == device_id
-        assert updated.push['recipient']['deviceToken'] == token_v2
+        assert updated.push.recipient['deviceToken'] == token_v2
 
         retrieved = await registrations.get(device_id)
-        assert retrieved.push['recipient']['deviceToken'] == token_v2
+        assert retrieved.push.recipient['deviceToken'] == token_v2
     finally:
         await remove_device_quietly(client, device_id)
 
@@ -144,7 +141,7 @@ async def test_rsh1b2_list_devices_filtered(sandbox):
         id=device_id,
         platform='android',
         form_factor='tablet',
-        push={'recipient': {'transportType': 'gcm', 'registrationToken': f'token-{random_id()}'}},
+        push=DevicePushDetails(recipient={'transportType': 'gcm', 'registrationToken': f'token-{random_id()}'}),
     ))
     await registrations.save(apns_device(decoy_id))
     try:
@@ -195,9 +192,7 @@ async def test_rsh1b4_remove_device(sandbox):
 
     await registrations.save(apns_device(device_id))
 
-    response = await registrations.remove(device_id)
-    # `remove` answers with the raw response rather than nothing.
-    assert response.status_code == 204
+    assert await registrations.remove(device_id) is None
 
     # Removal is asynchronous, so an immediate `get` can still find the registration.
     async def removed():
@@ -216,10 +211,8 @@ async def test_rsh1b4_remove_device(sandbox):
 async def test_rsh1b4_remove_nonexistent_device(sandbox):
     client = sandbox_rest_client(sandbox.key(0).key_str)
 
-    response = await client.push.admin.device_registrations.remove(
-        f'nonexistent-device-{random_id()}')
-
-    assert response.status_code == 204
+    assert await client.push.admin.device_registrations.remove(
+        f'nonexistent-device-{random_id()}') is None
 
 
 # UTS: rest/integration/RSH1b5/remove-where-clientid-0
@@ -238,8 +231,7 @@ async def test_rsh1b5_remove_where_clientid(sandbox):
     # A registration under a different clientId, which removeWhere must leave alone.
     await registrations.save(apns_device(survivor_id, client_id=survivor_client_id))
     try:
-        response = await registrations.remove_where(clientId=client_id)
-        assert response.status_code == 204
+        assert await registrations.remove_where(clientId=client_id) is None
 
         # Deletion is asynchronous on the server side.
         async def removed():
@@ -349,8 +341,7 @@ async def test_rsh1c4_remove_channel_subscription(sandbox):
     # The filter has to narrow for the assertion below to mean anything.
     assert len((await subscriptions.list(channel=channel_name, clientId=client_id)).items) == 1
 
-    response = await subscriptions.remove(subscription)
-    assert response.status_code == 204
+    assert await subscriptions.remove(subscription) is None
 
     async def removed():
         result = await subscriptions.list(channel=channel_name, clientId=client_id)
@@ -365,10 +356,8 @@ async def test_rsh1c4_remove_channel_subscription(sandbox):
 async def test_rsh1c4_remove_nonexistent_subscription(sandbox):
     client = sandbox_rest_client(sandbox.key(0).key_str)
 
-    response = await client.push.admin.channel_subscriptions.remove(PushChannelSubscription(
-        f'{PUSH_NAMESPACE}:nonexistent-{random_id()}', client_id='nonexistent-client'))
-
-    assert response.status_code == 204
+    assert await client.push.admin.channel_subscriptions.remove(PushChannelSubscription(
+        f'{PUSH_NAMESPACE}:nonexistent-{random_id()}', client_id='nonexistent-client')) is None
 
 
 # UTS: rest/integration/RSH1c5/remove-where-subscriptions-0
@@ -389,8 +378,7 @@ async def test_rsh1c5_remove_where_subscriptions(sandbox):
     survivor = PushChannelSubscription(survivor_channel, client_id=survivor_client_id)
     await subscriptions.save(survivor)
     try:
-        response = await subscriptions.remove_where(clientId=client_id)
-        assert response.status_code == 204
+        assert await subscriptions.remove_where(clientId=client_id) is None
 
         async def removed():
             result = await subscriptions.list(clientId=client_id)

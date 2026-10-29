@@ -33,8 +33,8 @@ parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
 specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1292 Test IDs
-(1301 tests, 1426 cases) pass, 153 (153 tests, 155 cases) are gated behind
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1295 Test IDs
+(1304 tests, 1429 cases) pass, 150 (150 tests, 152 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
@@ -45,20 +45,20 @@ the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
-within each. Of the gated Test IDs 69 are REST and 84 realtime, which is 70 REST cases
+within each. Of the gated Test IDs 66 are REST and 84 realtime, which is 67 REST cases
 and 85 realtime. None of the 339 objects Test IDs is gated or unrunnable.
 A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 142 gated Test IDs that record SDK non-compliance — 142 tests, 144 cases — reduce to
-**60 distinct root causes**, 20 on the REST side and 40 on the realtime side. Two further
-defects are recorded below with no test of their own, because the specification's test
-cannot discriminate (RTP18a) or has nothing to assert against (the timezone split on
-synthesized LEAVE timestamps), so the file carries **62 SDK root causes** in all. The remaining 11 gated Test IDs are
-specification faults, and reduce to 8. The objects tier records no SDK non-compliance;
-its specification faults are all corrected or worked around in tests that pass, and
-reduce to the seven candidate issues O.1–O.7, none of them filed.
+The 139 gated Test IDs that record SDK non-compliance — 139 tests, 141 cases — reduce to
+**59 distinct root causes**, 19 on the REST side and 40 on the realtime side. One further
+defect is recorded below with no test of its own, because the specification's test
+cannot discriminate (RTP18a), so the file carries **60 SDK root causes** in all. The
+remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
+records no SDK non-compliance; its specification faults are all corrected or worked
+around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
+them filed.
 
 Entries closed by a fix are removed rather than kept as history; `git log` holds that.
 
@@ -1053,7 +1053,6 @@ option is gone, after RTN16d has done its first phase against the sandbox throug
 | RTL25, RTL25a, RTL25b | `RealtimeChannel#whenState`. `Connection._when_state` exists (private, awaitable), so this is a gap on the channel rather than a house style; the tests are written against a `channel.when_state(state)` matching the shape the connection already has | 4 |
 | RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_level` and `log_handler` as client options. The library logs through the standard `logging` module under the `ably.pubsub` logger, whose level and handlers are the idiomatic way to do both; `log_level`, which was stored on `Options` and read by nothing, was removed in 4.0.0, so passing either raises `TypeError` | 4 |
 | RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` is `get(self, limit=None)` (`ably/types/presence.py:216`), while `Presence.history` does take its documented params. `presence.get(client_id=...)` raises `TypeError: get() got an unexpected keyword argument 'client_id'`. The absence also forces the RSP5 decoding adaptation below | 4 (5 cases) |
-| TP3a, TP3d, TP3g | Presence attributes defaulted from the encapsulating ProtocolMessage. There is no ProtocolMessage type; `ably/realtime/channel.py:751-761` passes the presence array through without context. Matters for synthesized-leave detection and `memberKey` | 3 |
 | TB4, RTL7h, RTP6e | `attachOnSubscribe`. `ChannelOptions.__init__` (`channeloptions.py:22-26`) takes only `cipher`, `params` and `modes`, and `subscribe()` on the channel, on presence and on annotations all end unconditionally with `await attach()`. This absence also forces the largest single adaptation in the suite, below | 3 |
 | RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
 | RTL7f | `echoMessages` in its client-filter form. The `echo_messages` option sends `echo=false` (RTC1a), which the server honours, but the client does not itself drop a message carrying its own `connectionId`, and that is the only form a mock-backed test can observe | 1 |
@@ -1677,26 +1676,6 @@ correcting the test does not read as a new discovery.
 
 **Status:** open bug, untested.
 
-#### A synthesized LEAVE's timestamp is timezone-aware; every other one is naive — no test
-
-**Spec points:** RTP19, RTP19a, against TP3g.
-
-`_synthesize_leaves` and `set_presence` build the LEAVE with `datetime.now(timezone.utc)`
-(`presence.py:586`, `:720`), while every wire-derived presence message gets a **naive**
-`datetime` from `_dt_from_ms_epoch`, which is built on `datetime.utcfromtimestamp(0)`
-(`types/presence.py:12-19`, `:182-184`). Comparing the two raises
-`TypeError: can't compare offset-naive and offset-aware datetimes`, verified directly.
-
-Nothing inside the library compares them, because synthesized leaves are emitted rather than
-stored, so this bites only application code — but any subscriber that sorts or compares the
-timestamps of the messages it receives will hit it. Related to the deprecation work in
-PR #656.
-
-**Tests affected:** none. `test_rtp19_synth_leave_null_id_timestamp` brackets the LEAVE with
-two aware `datetime.now(timezone.utc)` readings and passes.
-
-**Status:** open bug, untested.
-
 ### Auth
 
 #### A failed RTN22 reauth leaves no trace on the connection — 1 test
@@ -1892,7 +1871,6 @@ through an internal object to get at a value the specification makes public.
 | RTP19, and the `Interface Under Test` block of `presence_sync.md` | `endSync() -> List<PresenceMessage>`, the synthesized LEAVEs | `end_sync()` returns `(residual, absent)` of the *stored* members; the synthesis lives one level up in `RealtimePresence.set_presence` (`presence.py:575-587`). Tests reading only counts and clientIds concatenate the two lists exactly as `set_presence` does; tests reading the LEAVE itself drive a `RealtimePresence` and assert on what its subscribers receive | 4 in `presence_sync_test.py` |
 | TB2, RTS3b, RTS3c, RTS3c1, RTL16 | `channel.options` as a `ChannelOptions` | a dict keyed by wire names, because `RealtimeChannel` passes `ChannelOptions.to_dict()` to the REST `Channel` constructor (`channel.py:84`). Assertions read `channel.options['params']['rewind']`. On `ChannelOptions` itself the cipher attribute is spelled `cipher`, not `cipherParams`. `set_options_without_reattach` replaces the stored mapping wholesale rather than merging, which `test_rts3c_options_updated_existing` pins | 5 |
 | RTS2, RTS4c, RTS4d, RTS4e | `channels.exists(name)` and `channels.names` | `name in client.channels` (`Channels.__contains__`); the collection iterates over its channels rather than their names. Genuinely idiomatic spelling rather than an absence — recorded only because of the `__getattr__` hazard noted below | 6 |
-| RSH1b1, RSH1b2, RSH1b3, RSH1b4, RSH1b5, RSH1c3 | `DevicePushDetails`. The specification builds every device as `DeviceDetails(…, push: DevicePushDetails(recipient: {…}))`; ably-python has no such type | `DeviceDetails.__init__` takes `push` as a plain dict and stores it unchanged (`ably/types/device.py:10-40`), and `DeviceDetails.push` hands that dict back, so the tests read `{'recipient': {…}}` directly. The recipient's `transportType` is still validated against `DevicePushTransportType` in the constructor, which is the only part of `DevicePushDetails` carrying behaviour | the 7 in `push_admin_test.py` that register a device, through its `apns_device()` helper |
 
 **Status:** open bugs of the missing-API kind, not of the wrong-behaviour kind. Adding the
 accessors would leave every assertion above unchanged; only the spelling would move.
@@ -2200,7 +2178,6 @@ pseudocode is not mistaken for non-compliance.
 | RTP17b's synthesized-LEAVE filter | RTP17b's own implementation note allows the check to live "either inside the presence map's `remove()` method, or at the calling level". ably-python uses the calling level (`presence.py:557-558`). Compliant |
 | RTP19a's route | the specification models an ATTACHED without HAS_PRESENCE as `startSync()` then `endSync()`. `on_attached(has_presence=False)` calls `_synthesize_leaves(...)` then `clear()` (`presence.py:611-618`), which is the requirement itself rather than the model of it |
 | `hasNext` as a value | `push_admin.md` RSH1b2 writes `ASSERT result.hasNext == true`. In Python `has_next` is a bound method (`ably/http/paginatedresult.py:63`), truthy whatever the page holds, so the direct translation asserts nothing. `test_rsh1b2_list_devices_pagination` writes `result.has_next() is True`, confirmed to fail when inverted |
-| Push `remove` return values | the specification's remove steps assert nothing about a return value ("should not throw"). `PushDeviceRegistrations.remove` / `remove_where` and `PushChannelSubscriptions.remove` / `remove_where` return the `ably.http.http.Response` from the DELETE rather than `None` (`ably/rest/push.py:112-127`, `:176-192`), so the six derived removal tests assert `response.status_code == 204`, which is stronger than the specification asks and matches what `test/ably/rest/restpush_test.py` already asserts |
 | `rest/proxy/RSC15l/unreachable-endpoint-error-0` | the specification asserts only that the error carries a non-null `status_code` or `code`, leaving the values open, so the derived test asserts exactly that and is the weakest of the eight proxy tests. What this SDK produces against a refused connection is 500 / 80000, the RSC19e wrapping of the `httpx.ConnectError`, which it keeps as the `cause`, and that is recorded here rather than asserted, since pinning it would assert more than the specification does |
 | `RSL1k4`'s history read | the event log is per session, so any request the client under test makes through it is recorded — including the `history()` the test verifies deduplication with. The log is therefore read **before** the history call, and the POST count assertion made against that snapshot. The history read itself is a `wall_clock_poll_until` rather than one fetch, for the same reason every other integration verification is: a published message does not reach history at once |
 | RSP4b1's time bounds | the specification records `time_before = now_millis()` before generating the presence events and `time_after = now_millis()` after, then asserts a `history(start=, end=)` over that window returns them. Read from the runner's clock the window is only as good as the skew against the sandbox, which decides the timestamps actually stored, so a runner running a little fast would exclude the very events the test generated. Both bounds come from `await client.time()` instead — the same instant on the clock that stamps the events. `Presence.history` passes an `int` straight through as milliseconds (`ably/types/presence.py:232-241`), which is what `client.time()` returns, so no conversion is involved |
@@ -2216,8 +2193,6 @@ pseudocode is not mistaken for non-compliance.
 | RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
 | RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000 | Cosmetic; worth aligning cross-SDK |
 | RSH1a | Empty `recipient` or `data` rejected with code 40000, the error reaching the caller from the server | `PushAdmin.publish` validates its arguments itself and raises before touching the HTTP layer: an empty or non-dict `recipient` or `data` raises an `AblyException` with 400/40000, the code the server gives, which is also a `ValueError`. So no request is made and there is no server error; the integration tier's `test_rsh1a_push_publish_invalid_recipient` asserts the local error's code | Compliant: RSH1a asks for empty values to be "immediately rejected". The specification's test would need a recipient the SDK will send and the server will reject, an unknown `transportType` say, to exercise the server-side path it describes |
-| HP6 | `errorCode` is a number | The raw header string, `'40101'` | Open bug, trivial |
-| HP8 | `headers` is a map | A list of `(name, value)` pairs, so the lookup the spec describes is impossible without converting, and case-insensitivity is lost | Open bug; changing the return type is breaking |
 | RSC15a | Six hosts tried | Four: the primary and three fallbacks, because TO3l5's `httpMaxRetryCount`, default 3, caps the fallback hosts tried. The specification's six is the number of responses its setup queues, with a comment counting the primary and all five fallbacks, and no assertion reads it | Compliant; the setup's comment overlooks TO3l5 |
 | TI | `ErrorInfo` equality by attributes | No `__eq__`, so errors compare by identity. Python exceptions conventionally do, and the requirement appears nowhere in `features.md`. Adding `__eq__` without `__hash__` would make `AblyException` unhashable and break any caller that puts one in a set | Intentional |
 | RSA6b, RSA6d | The capability literal as passed | Canonicalised by `Capability.c14n`, which RSA9f requires | Compliant; rendering only |
@@ -2412,6 +2387,15 @@ method, or at the calling level". ably-python uses the calling level
 (`presencemap.py:140-142`), which is what RTP19 needs. The three RTP19 cases the
 specification distinguishes all come out right.
 
+### A presence message does take its missing fields from the ProtocolMessage
+
+TP3a, TP3d and TP3g were gated as unimplemented, on the reading that the realtime channel
+hands the `presence` array to `from_encoded_array` with no context. It does not:
+`RealtimeChannel._on_message` first calls `Message.update_inner_message_fields`, which
+fills each presence entry's missing `id`, `connectionId` and `timestamp` from the
+ProtocolMessage, and `test/unit/message_test.py` covers it. The derived tests' decoding
+helper skipped that call; it now makes it, and the three tests pass.
+
 ### RTL18 delta recovery matches the specification exactly
 
 Verified end to end: the recovery ATTACH carries the `channelSerial` of the last batch that
@@ -2599,7 +2583,7 @@ is missing accessors over correct behaviour. Within a tier the order is blast ra
 |---|---|---|
 | [#706](https://github.com/ably/ably-python/issues/706) | the fabricated `"None:0"` message id | 3.3 |
 | [#658](https://github.com/ably/ably-python/issues/658) | presence messages sent on reconnection before reattach | adjacent to 3.13, which is the other half of RTP17 automatic re-entry |
-| [#656](https://github.com/ably/ably-python/issues/656) | `utcfromtimestamp` deprecation | adjacent to 2.4 |
+| [#656](https://github.com/ably/ably-python/issues/656) | `utcfromtimestamp` deprecation | none: `PresenceMessage.timestamp` is now milliseconds since the epoch, the synthesized LEAVE's included, and no `utcfromtimestamp` remains |
 | [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712) | REST request timeout, token-request nonce reuse, single-host retry, `dispose()` teardown | adjacent to I.3, which is a second defect on the line #709 is about and is not covered by it; otherwise none, these having been filed from the REST derivation |
 
 Every reproduction below is prefixed by:
@@ -2704,14 +2688,6 @@ len(client.channels)            # 0
 hasattr(client.channels, 'foo') # True
 len(client.channels)            # 1
 ```
-
-**2.4 Synthesized LEAVE timestamps are timezone-aware; every other one is naive.** RTP19,
-RTP19a, TP3g. `presence.py:586` and `:720` use `datetime.now(timezone.utc)`, while every
-wire-derived `PresenceMessage.timestamp` comes from `_dt_from_ms_epoch`, built on
-`datetime.utcfromtimestamp(0)` (`types/presence.py:12-19`). Comparing them raises
-`TypeError: can't compare offset-naive and offset-aware datetimes`. Nothing inside the
-library compares them, so it bites only application code — but any subscriber that sorts the
-timestamps of the messages it receives will hit it. Related to #656. No gated test.
 
 **2.5 `Channels._on_channel_message` subscripts before it checks.** `channel.py:1038-1045`
 does `channel = self.__all[channel_name]` and only then `if not channel:`, so a message for
@@ -3541,8 +3517,8 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 155 failures, 1574 passes and 27 skips with the variable
-set, and 182 skips and 1574 passes without it, the 1574 being 1426 derived cases and 148
+it. As of this writing that is 152 failures, 1577 passes and 27 skips with the variable
+set, and 179 skips and 1577 passes without it, the 1577 being 1429 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's

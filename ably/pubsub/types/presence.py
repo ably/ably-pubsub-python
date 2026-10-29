@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib import parse
 
 from ably.pubsub.request.paginatedresult import PaginatedResult
@@ -7,16 +7,20 @@ from ably.pubsub.types.typedbuffer import TypedBuffer
 from ably.pubsub.util.crypto import CipherData
 from ably.pubsub.util.encoding import encode_data
 
-
-def _ms_since_epoch(dt):
-    epoch = datetime.utcfromtimestamp(0)
-    delta = dt - epoch
-    return int(delta.total_seconds() * 1000)
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
-def _dt_from_ms_epoch(ms):
-    epoch = datetime.utcfromtimestamp(0)
-    return epoch + timedelta(milliseconds=ms)
+def _ms_since_epoch(t):
+    """A history bound as milliseconds since the epoch, as channel history accepts one.
+
+    An int is already milliseconds. A datetime may be aware or naive, and a naive one is
+    read as UTC.
+    """
+    if isinstance(t, int):
+        return t
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=timezone.utc)
+    return (t - _EPOCH) // timedelta(milliseconds=1)
 
 
 class PresenceAction:
@@ -164,7 +168,7 @@ class PresenceMessage(EncodeDataMixin):
         if self.extras:
             result['extras'] = self.extras
         if self.timestamp:
-            result['timestamp'] = _ms_since_epoch(self.timestamp)
+            result['timestamp'] = self.timestamp
 
         return result
 
@@ -179,9 +183,6 @@ class PresenceMessage(EncodeDataMixin):
         timestamp = obj.get('timestamp')
         # member_key = obj.get('memberKey', None)
         extras = obj.get('extras', None)
-
-        if timestamp is not None:
-            timestamp = _dt_from_ms_epoch(timestamp)
 
         decoded_data = PresenceMessage.decode(data, encoding, cipher)
 
@@ -237,15 +238,9 @@ class Presence:
         if direction:
             qs['direction'] = direction
         if start:
-            if isinstance(start, int):
-                qs['start'] = start
-            else:
-                qs['start'] = _ms_since_epoch(start)
+            qs['start'] = _ms_since_epoch(start)
         if end:
-            if isinstance(end, int):
-                qs['end'] = end
-            else:
-                qs['end'] = _ms_since_epoch(end)
+            qs['end'] = _ms_since_epoch(end)
 
         if 'start' in qs and 'end' in qs and qs['start'] > qs['end']:
             raise ValueError("'end' parameter has to be greater than or equal to 'start'")

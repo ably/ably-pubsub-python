@@ -3,23 +3,20 @@
 Spec points: TP1, TP2, TP3, TP3a, TP3b, TP3c, TP3d, TP3e, TP3f, TP3g, TP3h, TP3i, TP4, TP5
 """
 
-from datetime import datetime, timedelta
-
+from ably.pubsub.types.message import Message
 from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 from test.uts.helpers.deviations import deviation, spec_error
-
-
-def datetime_from_ms(ms):
-    """The datetime ably-python decodes a wire timestamp into."""
-    return datetime.utcfromtimestamp(0) + timedelta(milliseconds=ms)
 
 
 def decode_protocol_message_presence(protocol_message):
     """The `presence` array of a ProtocolMessage, decoded the way the client decodes one.
 
-    ably-python has no ProtocolMessage type; `RealtimeChannel._on_message` hands the raw
-    `presence` array of an incoming PRESENCE or SYNC message to `from_encoded_array`.
+    ably-python has no ProtocolMessage type; `RealtimeChannel._on_message` fills each
+    entry's missing `id`, `connectionId` and `timestamp` from the raw ProtocolMessage
+    through `Message.update_inner_message_fields`, then hands the `presence` array of an
+    incoming PRESENCE or SYNC message to `from_encoded_array`.
     """
+    Message.update_inner_message_fields(protocol_message)
     return PresenceMessage.from_encoded_array(protocol_message['presence'])
 
 
@@ -84,7 +81,6 @@ def test_tp3h_member_key_combines_ids():
 
 
 # UTS: rest/unit/TP3d/connectionid-from-protocol-message-0
-@deviation
 def test_tp3d_connectionid_from_protocol_message():
     protocol_msg = {
         'action': 14,  # PRESENCE
@@ -101,7 +97,6 @@ def test_tp3d_connectionid_from_protocol_message():
 
 
 # UTS: rest/unit/TP3a/id-from-protocol-message-1
-@deviation
 def test_tp3a_id_from_protocol_message():
     protocol_msg = {
         'action': 14,  # PRESENCE
@@ -120,7 +115,6 @@ def test_tp3a_id_from_protocol_message():
 
 
 # UTS: rest/unit/TP3g/timestamp-from-protocol-message-0
-@deviation
 def test_tp3g_timestamp_from_protocol_message():
     protocol_msg = {
         'action': 14,  # PRESENCE
@@ -158,8 +152,7 @@ def test_tp3_presence_from_json():
     assert msg.client_id == 'user-1'
     assert msg.connection_id == 'conn-1'
     assert msg.data == 'hello'
-    # NOTE: features.md types TP3g as `Time`, so a datetime is the idiomatic rendering.
-    assert msg.timestamp == datetime_from_ms(1234567890000)
+    assert msg.timestamp == 1234567890000
     assert msg.extras['headers']['x-key'] == 'x-value'
 
 

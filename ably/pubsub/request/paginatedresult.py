@@ -1,5 +1,6 @@
 import calendar
 import logging
+from collections.abc import Mapping
 from urllib.parse import urlencode
 
 from ably.pubsub.request.http import Request
@@ -42,6 +43,31 @@ def format_params(params=None, direction=None, start=None, end=None, limit=None,
     return '?' + urlencode(params) if params else ''
 
 
+class ResponseHeaders(Mapping):
+    """The headers of a response, read-only and looked up by name case-insensitively (HP8).
+
+    Names iterate lower-cased, and a header sent more than once reads as its values joined
+    with ', '.
+    """
+
+    def __init__(self, headers):
+        self.__headers = {name.lower(): value for name, value in headers.items()}
+
+    def __getitem__(self, name):
+        if not isinstance(name, str):
+            raise KeyError(name)
+        return self.__headers[name.lower()]
+
+    def __iter__(self):
+        return iter(self.__headers)
+
+    def __len__(self):
+        return len(self.__headers)
+
+    def __repr__(self):
+        return f'{type(self).__name__}({self.__headers!r})'
+
+
 class PaginatedResult:
     def __init__(self, http, items, content_type, rel_first, rel_next,
                  response_processor, response):
@@ -51,7 +77,6 @@ class PaginatedResult:
         self.__rel_first = rel_first
         self.__rel_next = rel_next
         self.__response_processor = response_processor
-        self.response = response
 
     @property
     def items(self):
@@ -113,9 +138,16 @@ class PaginatedResult:
 
 
 class HttpPaginatedResponse(PaginatedResult):
+    def __init__(self, http, items, content_type, rel_first, rel_next,
+                 response_processor, response):
+        super().__init__(http, items, content_type, rel_first, rel_next,
+                         response_processor, response)
+        self.__status_code = response.status_code
+        self.__headers = ResponseHeaders(response.headers)
+
     @property
     def status_code(self):
-        return self.response.status_code
+        return self.__status_code
 
     @property
     def success(self):
@@ -124,12 +156,13 @@ class HttpPaginatedResponse(PaginatedResult):
 
     @property
     def error_code(self):
-        return self.response.headers.get('X-Ably-Errorcode')
+        error_code = self.__headers.get('X-Ably-Errorcode')
+        return int(error_code) if error_code is not None else None
 
     @property
     def error_message(self):
-        return self.response.headers.get('X-Ably-Errormessage')
+        return self.__headers.get('X-Ably-Errormessage')
 
     @property
     def headers(self):
-        return list(self.response.headers.items())
+        return self.__headers

@@ -553,6 +553,129 @@ Example 4.0.0 code:
 pubsub_realtime_client = create_realtime_client(key='xxx')
 ```
 
+### `PresenceMessage.timestamp` is milliseconds since the epoch
+
+**This change is silent: comparing a timestamp with `==` against a `datetime` now returns
+`False` rather than raising.** `PresenceMessage.timestamp` is an `int` of milliseconds since
+the unix epoch, as `Message.timestamp` already is. 3.x returned a naive UTC `datetime` for a
+presence message received from Ably, and an aware one for a LEAVE the library synthesized.
+An ordering comparison such as `<` against a `datetime` raises `TypeError`. Convert the
+timestamp where you need a `datetime`:
+
+Example 3.x code:
+```python
+received_at = member.timestamp
+```
+
+Example 4.0.0 code:
+```python
+from datetime import datetime, timezone
+
+received_at = datetime.fromtimestamp(member.timestamp / 1000, tz=timezone.utc)
+```
+
+### `Stats.interval_time` is timezone-aware
+
+`Stats.interval_time` is now an aware `datetime` in UTC, where 3.x returned a naive one. An
+ordering comparison such as `<` against a naive `datetime` now raises `TypeError`, and `==`
+against one quietly returns `False`. Compare it with aware datetimes:
+
+Example 3.x code:
+```python
+if stat.interval_time >= datetime(2024, 1, 1):
+    ...
+```
+
+Example 4.0.0 code:
+```python
+if stat.interval_time >= datetime(2024, 1, 1, tzinfo=timezone.utc):
+    ...
+```
+
+### `HttpPaginatedResponse.error_code` is an `int`
+
+**This change is silent: comparing `error_code` with a string, as in `== '40101'`, now
+returns `False` rather than raising.** The `error_code` of the response that `request()`
+returns is now the `int` parsed from the `X-Ably-Errorcode` header, where 3.x returned the
+header's string. It is still `None` when the header is absent. Compare it with an `int`:
+
+Example 3.x code:
+```python
+if response.error_code == '40101':
+    ...
+```
+
+Example 4.0.0 code:
+```python
+if response.error_code == 40101:
+    ...
+```
+
+### `HttpPaginatedResponse.headers` is a read-only mapping
+
+The `headers` of the response that `request()` returns is now a read-only mapping from header
+name to value, looked up case-insensitively, where 3.x returned a list of `(name, value)`
+pairs. As before, names are lower-cased and a header sent more than once has its values
+joined with `', '`. Iterating over the mapping itself now yields only the names, so look a
+header up by name, or iterate over `.items()`:
+
+Example 3.x code:
+```python
+for name, value in response.headers:
+    ...
+```
+
+Example 4.0.0 code:
+```python
+request_id = response.headers.get('X-Request-Id')
+
+for name, value in response.headers.items():
+    ...
+```
+
+### Push removals return nothing, and results no longer expose the HTTP response
+
+`remove` and `remove_where` on `push.admin.device_registrations` and
+`push.admin.channel_subscriptions` now return `None`, where 3.x returned the underlying HTTP
+response. A removal that fails raises an `AblyException`, so there is no status code to check:
+
+Example 3.x code:
+```python
+response = await rest.push.admin.device_registrations.remove(device_id)
+assert response.status_code == 204
+```
+
+Example 4.0.0 code:
+```python
+await pubsub_http_client.push.admin.device_registrations.remove(device_id)
+```
+
+For the same reason a `PaginatedResult` no longer has a `response` attribute. The
+`HttpPaginatedResponse` that `request()` returns keeps `status_code`, `success`,
+`error_code`, `error_message` and `headers`, so read those instead of `response`.
+
+### `DeviceDetails.push` is a `DevicePushDetails`
+
+`DeviceDetails.push` is now a `DevicePushDetails`, with `recipient`, `state` and
+`error_reason` attributes, where 3.x returned the dict the server sent. `error_reason` is an
+`AblyException`. Indexing it, as in `device.push['recipient']`, now raises `TypeError`.
+Read the attributes instead. A device can still be built or saved with `push` given as a
+dict:
+
+Example 3.x code:
+```python
+token = device.push['recipient']['deviceToken']
+```
+
+Example 4.0.0 code:
+```python
+token = device.push.recipient['deviceToken']
+```
+
+`DeviceDetails` and `PushChannelSubscription` now also ignore fields they do not know when
+decoding a dict, where 3.x raised `TypeError` on any field the server added. A misspelled key
+in a dict you pass to `save()` is therefore ignored rather than rejected.
+
 ## Version 2.x to 3.0.0
 
 The 3.0.0 version of ably-python introduces several breaking changes to improve the realtime experience and align the API with the Ably specification. These include:

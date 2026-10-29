@@ -10,9 +10,8 @@ while a test reading the LEAVE itself drives a `RealtimePresence` with the same
 messages. See test/uts/deviations.md.
 """
 
-from datetime import datetime, timezone
-
 from ably.pubsub.types.presence import PresenceAction
+from test.uts.helpers.clock import FakeClock
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.presence import presence_map, presence_message, subscribed_presence
 
@@ -84,19 +83,22 @@ def test_rtp19_stale_members_leave_after_sync():
 
 # UTS: realtime/unit/RTP19/synth-leave-null-id-timestamp-1
 def test_rtp19_synth_leave_null_id_timestamp():
-    presence, events = subscribed_presence()
+    # A fake clock holds still between the two readings, so the bounds pin the value the
+    # LEAVE must take.
+    clock = FakeClock()
+    presence, events = subscribed_presence(clock=clock)
 
     presence.set_presence([
         presence_message(PresenceAction.ENTER, 'bob', 'c2', 'c2:0:0', 100, data='bob-data'),
     ], is_sync=False)
 
-    before_time = datetime.now(timezone.utc)
+    before_time = clock.now_ms()
 
     events.clear()
     # A sync carrying no members for bob
     presence.set_presence([], is_sync=True)
 
-    after_time = datetime.now(timezone.utc)
+    after_time = clock.now_ms()
 
     leave_events = leaves(events)
     assert len(leave_events) == 1
