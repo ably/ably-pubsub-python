@@ -4,12 +4,21 @@ import tokenize as std_tokenize
 
 import tokenize_rt
 
+# Classes whose generated flavour takes a `Sync` suffix: the clients, the handles the HTTP
+# surface hands out, and the result wrappers whose methods it awaits. Data types, enums and
+# exceptions keep their names. A class here also changes the name its private attributes
+# are mangled under, so a `_<Class>__attr` written outside the class needs its own entry in
+# _TOKEN_REPLACE below.
 rename_classes = [
     "DefaultPubSubHttpClient",
     "Push",
     "PushAdmin",
+    "PushDeviceRegistrations",
+    "PushChannelSubscriptions",
     "Channel",
     "Channels",
+    "Presence",
+    "HttpAnnotations",
     "Auth",
     "Http",
     "PaginatedResult",

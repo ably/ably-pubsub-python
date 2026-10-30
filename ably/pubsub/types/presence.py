@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from enum import IntEnum
 from urllib import parse
 
 from ably.pubsub.request.paginatedresult import PaginatedResult
@@ -23,7 +24,8 @@ def _ms_since_epoch(t):
     return (t - _EPOCH) // timedelta(milliseconds=1)
 
 
-class PresenceAction:
+class PresenceAction(IntEnum):
+    """Presence action types (TP2), numbered as on the wire"""
     ABSENT = 0
     PRESENT = 1
     ENTER = 2
@@ -155,7 +157,7 @@ class PresenceMessage(EncodeDataMixin):
         """
 
         result = {
-            'action': self.action,
+            'action': int(self.action) if self.action is not None else None,
             **encode_data(self.data, self._encoding_array, binary),
         }
 
@@ -185,6 +187,14 @@ class PresenceMessage(EncodeDataMixin):
         extras = obj.get('extras', None)
 
         decoded_data = PresenceMessage.decode(data, encoding, cipher)
+
+        if action is not None:
+            try:
+                action = PresenceAction(action)
+            except ValueError:
+                # An action this version does not know is kept as the server sent it, so
+                # the presence map ignores it rather than mistaking it for another action.
+                pass
 
         return PresenceMessage(
             id=id,

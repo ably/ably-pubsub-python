@@ -703,9 +703,8 @@ test that needs the connection to suspend before the channel does must set
 
 **21. `presence.subscribe()` and `annotations.subscribe()` are coroutines that
 attach.** They must be awaited, and they cannot run before `connect()`. `unsubscribe()`
-is not a coroutine. Presence event names are the lowercase action names from
-`PresenceAction._action_name`, which is monkey-patched onto `PresenceAction` at the
-bottom of `presence.py` and exists only once that module is imported.
+is not a coroutine. Presence event names are the lowercase names of the `PresenceAction`
+members, an `IntEnum`, as `_action_name` in `realtime/presence.py` gives them.
 
 **22. `RecordedUrl` cannot survive a URL httpx rejects.** `httpx.URL` caps at 64 KiB
 and raises inside `PendingConnection.__init__` **before** the attempt is recorded, so

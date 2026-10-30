@@ -47,7 +47,10 @@ from ably.pubsub.server.sync import create_http_client
 Where 3.x left you reaching into submodules such as `ably.types.message` or
 `ably.http.paginatedresult`, import from `ably.pubsub.server` instead. It is
 the whole public API, and `ably.pubsub.server.sync` is its synchronous
-counterpart. The packages beneath them are internal and free to move.
+counterpart. The packages beneath them are internal and free to move. The
+types a client returns, hands to a listener or accepts are exported there,
+including those 3.x left in submodules only, such as `ConnectionState` and
+`PresenceMessage`, as the section on exports below lists.
 
 For example, the encryption helpers move from `ably.util.crypto`:
 
@@ -921,6 +924,130 @@ to token requests and to the params sent to an `auth_url`. A `ttl` given as a nu
 milliseconds is sent as before.
 
 No change is needed.
+
+### `PresenceAction` is an `IntEnum`
+
+`PresenceAction` is now an `IntEnum`, as `MessageAction` and `AnnotationAction` are, and the
+`action` of a `PresenceMessage` received from Ably is one of its members, where 3.x gave a
+bare `int` from a plain class of constants. A member is still an `int`: it compares equal to
+its wire value, so `member.action == 2` and `member.action == PresenceAction.ENTER` both still
+hold, it hashes like that value, and it is still sent to Ably as the number. Two things do
+change. `type(member.action) is int` no longer holds, and `repr()` of an action is now
+`<PresenceAction.ENTER: 2>` rather than `2`; before Python 3.11, `str()` and `%s` give
+`PresenceAction.ENTER` too, though an f-string still gives `2`. Use `int()` where you need the
+plain number, and `.name` for the name. An action this version does not know is left as the
+`int` Ably sent.
+
+Example 3.x code:
+```python
+if type(member.action) is int:
+    log.info('presence action %s', member.action)
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import PresenceAction
+
+if isinstance(member.action, PresenceAction):
+    log.info('presence action %s', member.action.name)
+```
+
+### Every handle of the synchronous client ends in `Sync`
+
+The synchronous client's presence, annotations and push admin objects are now instances of
+`PresenceSync`, `HttpAnnotationsSync`, `PushDeviceRegistrationsSync` and
+`PushChannelSubscriptionsSync`, as its auth, channels, channel and push objects already were of
+`AuthSync`, `ChannelsSync`, `ChannelSync`, `PushSync` and `PushAdminSync`. In 3.x these four
+were named `Presence`, `RestAnnotations`, `PushDeviceRegistrations` and
+`PushChannelSubscriptions`, the same names as the asynchronous classes, so a traceback, a
+`repr()` or `type(x).__name__` could not say which flavour an object came from. Data types,
+enums, exceptions and the `PubSubHttpClient` prototype keep their names in both flavours.
+
+Only code that names these classes, in an annotation or an `isinstance` check, needs a change:
+
+Example 3.x code:
+```python
+from ably.sync.types.presence import Presence
+
+def members(presence: Presence) -> list: ...
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server.sync import PresenceSync
+
+def members(presence: PresenceSync) -> list: ...
+```
+
+### Every public type is exported from `ably.pubsub.server`
+
+`ably.pubsub.server` now exports the types a client returns, hands to a listener or accepts,
+so no import needs to reach into the packages beneath it. 3.x exported only some of them from
+`ably`, and left the rest, such as `ConnectionState` and `PresenceMessage`, in submodules. These
+names are new:
+
+| | Names |
+|---|---|
+| States | `ChannelState`, `ChannelStateChange`, `ConnectionState`, `ConnectionEvent`, `ConnectionStateChange` |
+| Presence and stats | `PresenceMessage`, `PresenceAction`, `Stats` |
+| Auth and channel status | `TokenRequest`, `ChannelDetails`, `ChannelStatus`, `ChannelOccupancy`, `ChannelMetrics` |
+| Objects a client hands out | `Channel`, `Presence`, `HttpAnnotations`, `RealtimeChannel`, `RealtimePresence`, `RealtimeAnnotations`, `PushAdmin`, `PushDeviceRegistrations`, `PushChannelSubscriptions` |
+| Errors and push | `InvalidArgumentException`, `DevicePushDetails` |
+
+`Channel`, `Presence` and `HttpAnnotations` are the HTTP client's channel and its presence
+and annotations, and `RealtimeChannel` is a subclass of `Channel`. Like the clients, the
+objects these classes describe come from a client: the classes are exported for annotations
+and `isinstance` checks, not to be constructed. A few types reached only through an attribute
+of another, such as `connection.connection_details`, `message.annotations` and
+`response.headers`, are not exported yet; read their attributes without naming the type.
+
+Example 3.x code:
+```python
+from ably.realtime.channel import RealtimeChannel
+from ably.types.connectionstate import ConnectionState, ConnectionStateChange
+from ably.types.presence import PresenceMessage
+
+def on_state(change: ConnectionStateChange) -> None:
+    if change.current == ConnectionState.FAILED:
+        ...
+
+async def members(channel: RealtimeChannel) -> list[PresenceMessage]:
+    return await channel.presence.get()
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server import ConnectionState, ConnectionStateChange, PresenceMessage, RealtimeChannel
+
+def on_state(change: ConnectionStateChange) -> None:
+    if change.current == ConnectionState.FAILED:
+        ...
+
+async def members(channel: RealtimeChannel) -> list[PresenceMessage]:
+    return await channel.presence.get()
+```
+
+`ably.pubsub.server.sync` exports the same names, apart from the realtime client's:
+`ChannelState`, `ChannelStateChange`, `ConnectionState`, `ConnectionEvent`,
+`ConnectionStateChange`, `RealtimeChannel`, `RealtimePresence` and `RealtimeAnnotations`, as
+well as `Connection`, `RealtimeChannels`, `PubSubRealtimeClient` and `create_realtime_client`,
+which it never had. The classes of the objects the synchronous client hands out end in
+`Sync`, so its new names are `ChannelSync`, `PresenceSync`, `HttpAnnotationsSync`,
+`PushAdminSync`, `PushDeviceRegistrationsSync` and `PushChannelSubscriptionsSync`, beside
+`PresenceMessage`, `PresenceAction`, `Stats`, `TokenRequest`, `ChannelDetails`,
+`ChannelStatus`, `ChannelOccupancy`, `ChannelMetrics`, `InvalidArgumentException` and
+`DevicePushDetails` under their plain names:
+
+Example 3.x code:
+```python
+from ably.sync.rest.channel import ChannelSync
+from ably.sync.types.presence import PresenceMessage
+```
+
+Example 4.0.0 code:
+```python
+from ably.pubsub.server.sync import ChannelSync, PresenceMessage
+```
 
 ## Version 2.x to 3.0.0
 

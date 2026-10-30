@@ -215,12 +215,12 @@ class RealtimePresence(EventEmitter):
             ConnectionState.DISCONNECTED
         ]:
             raise AblyException(
-                f'Unable to {PresenceAction._action_name(action).lower()} presence channel; '
+                f'Unable to {_action_name(action)} presence channel; '
                 f'connection state = {channel.ably.connection.state}',
                 400, 90001
             )
 
-        action_name = PresenceAction._action_name(action).lower()
+        action_name = _action_name(action)
 
         log.info(
             f'RealtimePresence.{action_name}(): '
@@ -590,7 +590,7 @@ class RealtimePresence(EventEmitter):
 
         # Broadcast messages to subscribers
         for presence in broadcast_messages:
-            action_name = PresenceAction._action_name(presence.action).lower()
+            action_name = _action_name(presence.action)
             self._subscriptions._emit(action_name, presence)
 
     def on_attached(self, has_presence: bool = False) -> None:
@@ -774,18 +774,9 @@ class RealtimePresence(EventEmitter):
                 item['future'].set_exception(exception)
 
 
-# Helper for PresenceAction to convert action to string
-def _action_name_impl(action: int) -> str:
-    """Convert presence action to string name."""
-    names = {
-        PresenceAction.ABSENT: 'absent',
-        PresenceAction.PRESENT: 'present',
-        PresenceAction.ENTER: 'enter',
-        PresenceAction.LEAVE: 'leave',
-        PresenceAction.UPDATE: 'update',
-    }
-    return names.get(action, f'unknown({action})')
-
-
-# Monkey-patch the helper onto PresenceAction
-PresenceAction._action_name = staticmethod(_action_name_impl)
+def _action_name(action) -> str:
+    """The lowercase name of a presence action, which is the event it is emitted as."""
+    try:
+        return PresenceAction(action).name.lower()
+    except ValueError:
+        return f'unknown({action})'
