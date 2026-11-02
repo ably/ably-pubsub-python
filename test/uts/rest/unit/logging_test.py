@@ -2,10 +2,11 @@
 
 Spec points: RSC2, RSC2b, RSC3, RSC4, TO3b, TO3c, TO3c2
 
-ably-python has no log_handler client option, and logs through the standard library
-`logging` module: a handler attached to the `ably` logger is the idiomatic rendering of
-the specification's `logHandler`. The `log_level` option exists but is never applied to
-any logger, so the tests that turn on verbosity or silence it depart from the spec.
+ably-python has neither a log_level nor a log_handler client option, and logs through the
+standard library `logging` module, under the `ably.pubsub` logger: setting that logger's
+level, or attaching a handler to it, is the idiomatic rendering of the specification's
+`logLevel` and `logHandler`. The tests that set either as a client option depart from the
+spec.
 """
 
 import logging
@@ -79,8 +80,8 @@ async def test_rsc2_default_log_level_warn():
 # UTS: rest/unit/TO3b/log-level-changeable-0
 @deviation
 async def test_to3b_log_level_changeable():
-    # DEVIATION: log_level is accepted and stored, but never applied to a logger, so raising
-    # it to verbose emits nothing. The SDK also has no "HTTP request" log event.
+    # DEVIATION: there is no log_level client option, so this raises TypeError on
+    # construction. The SDK also has no "HTTP request" log event.
     captured_logs = []
 
     mock_http = MockHttpClient(on_connection_attempt=connect_successfully, on_request=time_responder)
@@ -143,8 +144,9 @@ async def test_to3c2_context_contains_expected_keys():
 # UTS: rest/unit/RSC2b/log-level-none-suppresses-all-0
 @deviation
 async def test_rsc2b_log_level_none_suppresses_all():
-    # DEVIATION: log_level is never applied, so it silences nothing. The SDK's logger is
-    # turned up to debug first, so that suppression is observable at all.
+    # DEVIATION: there is no log_level client option, so this raises TypeError on
+    # construction. The SDK's logger is turned up to debug first, so that suppression
+    # would be observable at all.
     captured_logs = []
 
     mock_http = MockHttpClient(on_connection_attempt=connect_successfully, on_request=time_responder)

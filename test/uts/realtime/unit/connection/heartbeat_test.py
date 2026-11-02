@@ -11,7 +11,7 @@ in the CONNECTED message and is honoured.
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import (
     await_connection_state,
     poll_until,
@@ -29,7 +29,7 @@ from test.uts.helpers.mock_websocket import (
     message_protocol_message,
 )
 
-# The specification's `maxIdleInterval` and `realtimeRequestTimeout`
+# The specification's `maxIdleInterval` and `realtimeRequestTimeout`, in milliseconds
 MAX_IDLE_INTERVAL = 2000
 REQUEST_TIMEOUT = 1000
 
@@ -73,8 +73,8 @@ HEARTBEATS_BOUNCE_SKIP = (
 
 def liveness_client(mock_websocket, clock=None, **kwargs):
     """A client whose connection drops `IDLE_TIMEOUT` after the last message."""
-    kwargs.setdefault('realtime_request_timeout', REQUEST_TIMEOUT)
-    kwargs.setdefault('disconnected_retry_timeout', 500)
+    kwargs.setdefault('realtime_request_timeout_seconds', REQUEST_TIMEOUT / 1000)
+    kwargs.setdefault('disconnected_retry_timeout_seconds', 0.5)
     return realtime_client(mock_websocket, clock=clock, **kwargs)
 
 

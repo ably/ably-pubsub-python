@@ -5,8 +5,8 @@ Spec points: RSL2, RSL2a, RSL2b, RSL2b1, RSL2b2, RSL2b3
 
 import uuid
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.message import Message
+from ably.pubsub.request.paginatedresult import PaginatedResult
+from ably.pubsub.types.message import Message
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 
@@ -177,14 +177,11 @@ async def test_rsl2_request_url_format():
         (simple, f'/channels/{simple}/messages'),
         # DEVIATION RSL2: the spec asserts the colon is percent-encoded, as
         # encodeURIComponent would ("test-RSL2-with%3Acolon-..."). ably-python builds the
-        # path with `quote_plus(name, safe=':')`, so a colon travels literally. It is a
+        # path with `quote(name, safe=':')`, so a colon travels literally. It is a
         # legal path character, so the server still receives the same channel name.
         (with_colon, f'/channels/{with_colon}/messages'),
         (with_slash, f"/channels/{with_slash.replace('/', '%2F')}/messages"),
-        # DEVIATION RSL2: the spec asserts a space is percent-encoded as "%20".
-        # `quote_plus` renders it as "+", which in a URL *path* is a literal plus rather
-        # than a space, so the channel name arrives at the server altered.
-        (with_space, f"/channels/{with_space.replace(' ', '+')}/messages"),
+        (with_space, f"/channels/{with_space.replace(' ', '%20')}/messages"),
     ]
 
     for channel_name, expected_path in test_cases:

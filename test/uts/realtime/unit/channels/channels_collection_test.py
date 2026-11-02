@@ -4,23 +4,20 @@ Spec points: RTS1, RTS2, RTS3a, RTS4c, RTS4d, RTS4e
 
 The specification's `channels.exists(name)` and `channels.names` are spelled
 `name in channels` and iteration over the collection in ably-python, and
-`channels.release(name)` is synchronous. Reading an attribute the collection
-does not define creates a channel of that name (`Channels.__getattr__` in
-`ably/rest/channel.py`), so these tests never name one that is not there.
+`channels.release(name)` is synchronous.
 """
 
 import asyncio
 
 import pytest
 
-from ably.realtime.channel import Channels as RealtimeChannels
-from ably.realtime.channel import RealtimeChannel
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.channel import Channels as RealtimeChannels
+from ably.pubsub.realtime.channel import RealtimeChannel
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, realtime_client
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import (
     CONNECTED_MESSAGE,
     MockWebSocket,
@@ -187,12 +184,7 @@ async def test_rts4d_release_after_detach():
 
 
 # UTS: realtime/unit/RTS4e/release-attached-fails-0
-@deviation
 async def test_rts4e_release_attached_fails():
-    # DEVIATION: RTS4e has release raise 90011 for a channel that is not INITIALIZED,
-    # DETACHED or FAILED. RTS4b lets an SDK keep its pre-6.3.0 release until its next
-    # major version, provided it logs a deprecation warning, so `Channels.release`
-    # (`ably/realtime/channel.py`) warns and removes the channel.
     channel_name = 'test-RTS4e-attached'
     client, messages_from_client = await connected_client(answer_detach=False)
     channel = client.channels.get(channel_name)

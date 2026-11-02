@@ -3,8 +3,8 @@
 Spec points: RTN24
 """
 
-from ably.realtime.connection import ConnectionState
-from ably.types.connectionstate import ConnectionEvent
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.connectionstate import ConnectionEvent
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import settle
 from test.uts.helpers.deviations import deviation

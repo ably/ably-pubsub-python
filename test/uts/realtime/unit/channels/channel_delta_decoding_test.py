@@ -22,10 +22,10 @@ against bytes where the specification writes a string literal. See
 import base64
 import uuid
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.types.options import VCDiffDecoder
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.options import VCDiffDecoder
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client
 from test.uts.helpers.clock import settle
 from test.uts.helpers.deviations import deviation

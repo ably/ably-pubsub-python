@@ -4,12 +4,11 @@ Unit tests for PresenceMap implementation.
 Tests RTP2 specification requirements for presence map operations.
 """
 
-from datetime import datetime
 
 import pytest
 
-from ably.realtime.presencemap import PresenceMap, _is_newer
-from ably.types.presence import PresenceAction, PresenceMessage
+from ably.pubsub.realtime.presencemap import PresenceMap, _is_newer
+from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 from test.ably.utils import BaseAsyncTestCase
 
 
@@ -117,7 +116,7 @@ class TestPresenceMessageHelpers(BaseAsyncTestCase):
             client_id='client1',
             action=PresenceAction.ENTER,
             data='test data',
-            timestamp=datetime(2024, 1, 1, 12, 0, 0)
+            timestamp=1704110400000
         )
         encoded = msg.to_encoded()
         assert encoded['action'] == PresenceAction.ENTER
@@ -125,7 +124,7 @@ class TestPresenceMessageHelpers(BaseAsyncTestCase):
         assert encoded['connectionId'] == 'connection123'
         assert encoded['clientId'] == 'client1'
         assert encoded['data'] == 'test data'
-        assert 'timestamp' in encoded
+        assert encoded['timestamp'] == 1704110400000
 
     def test_to_encoded_with_dict_data(self):
         """Test converting message with dict data (should be JSON serialized)."""
@@ -246,21 +245,21 @@ class TestNewnessComparison(BaseAsyncTestCase):
             connection_id='connection123',
             client_id='client1',
             action=PresenceAction.LEAVE,
-            timestamp=datetime(2024, 1, 1, 12, 0, 0)
+            timestamp=1704110400000
         )
         newer = PresenceMessage(
             id='connection123:5:0',
             connection_id='connection123',
             client_id='client1',
             action=PresenceAction.PRESENT,
-            timestamp=datetime(2024, 1, 1, 12, 0, 1)
+            timestamp=1704110401000
         )
         assert _is_newer(newer, older)
         assert not _is_newer(older, newer)
 
     def test_synthesized_equal_timestamp_incoming_wins(self):
         """Test RTP2b1a: equal timestamps, incoming is newer."""
-        timestamp = datetime(2024, 1, 1, 12, 0, 0)
+        timestamp = 1704110400000
         existing = PresenceMessage(
             id='different:0:0',
             connection_id='connection123',
@@ -285,14 +284,14 @@ class TestNewnessComparison(BaseAsyncTestCase):
             connection_id='connection123',
             client_id='client1',
             action=PresenceAction.PRESENT,
-            timestamp=datetime(2024, 1, 1, 12, 0, 0)
+            timestamp=1704110400000
         )
         newer = PresenceMessage(
             id='connection123:10:0',
             connection_id='connection123',
             client_id='client1',
             action=PresenceAction.PRESENT,
-            timestamp=datetime(2024, 1, 1, 11, 0, 0)  # Earlier timestamp doesn't matter
+            timestamp=1704106800000  # Earlier timestamp doesn't matter
         )
         assert _is_newer(newer, older)
         assert not _is_newer(older, newer)

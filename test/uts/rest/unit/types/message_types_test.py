@@ -5,7 +5,7 @@ Spec points: TM1, TM2, TM3, TM4, TM2a, TM2b, TM2c, TM2d, TM2e, TM2f, TM2g, TM2h,
 
 import pytest
 
-from ably.types.message import Message
+from ably.pubsub.types.message import Message
 
 # `fromEncoded` is spelled `from_encoded` here, and "no encoding" is rendered as the empty
 # string rather than null, since EncodeDataMixin joins an empty list of transforms.

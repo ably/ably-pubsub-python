@@ -27,7 +27,7 @@ The `times: 1` on the rule is load-bearing — the second connection has no clos
 waiting for it, so the reconnection settles instead of cycling.
 """
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client, wall_clock_poll_until
 from test.uts.helpers.mock_websocket import contains_in_order
 from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt

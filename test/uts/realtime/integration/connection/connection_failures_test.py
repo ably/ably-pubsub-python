@@ -18,7 +18,7 @@ A failed connect leaves a `Task exception was never retrieved` line behind it:
 1008. It is noise from teardown, not a failure of either test.
 """
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client
 
 # The wait the specification gives each connect attempt.

@@ -6,9 +6,9 @@ import time
 import msgpack
 import pytest
 
-from ably import AblyRest
-from ably.types.testoptions import TestOptions
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import create_http_client
+from ably.pubsub.types.testoptions import TestOptions
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.mock_http import MockHttpClient
 
 KEY = 'a.b:c'
@@ -20,7 +20,7 @@ JSON_CONTENT_TYPE = 'application/json'
 
 def rest_client(mock, **kwargs):
     """A REST client whose HTTP calls are served by `mock`."""
-    return AblyRest(key=KEY, _test_options=TestOptions(http_transport=mock.as_transport()), **kwargs)
+    return create_http_client(key=KEY, _test_options=TestOptions(http_transport=mock.as_transport()), **kwargs)
 
 
 async def raw_get(ably, path='/time'):
@@ -175,7 +175,8 @@ async def test_a_pending_connection_describes_a_non_tls_target():
 
     mock = MockHttpClient(on_connection_attempt=connect,
                           on_request=lambda request: request.respond_with(200, [SERVER_TIME]))
-    ably = AblyRest(token='foo', tls=False, _test_options=TestOptions(http_transport=mock.as_transport()))
+    ably = create_http_client(token='foo', tls=False,
+                              _test_options=TestOptions(http_transport=mock.as_transport()))
 
     await ably.time()
 
@@ -613,7 +614,7 @@ async def test_queue_response_for_url_matches_a_key_written_with_a_default_port(
 async def test_a_delayed_response_beyond_the_read_budget_times_out():
     mock = MockHttpClient()
     mock.queue_delayed_response(5000, 200, [1])
-    ably = rest_client(mock, http_request_timeout=0.05)
+    ably = rest_client(mock, http_request_timeout_seconds=0.05)
 
     started = time.monotonic()
     with pytest.raises(AblyException):
@@ -628,7 +629,7 @@ async def test_a_delayed_response_beyond_the_read_budget_times_out():
 async def test_a_delayed_response_within_the_read_budget_arrives():
     mock = MockHttpClient()
     mock.queue_delayed_response(20, 200, [7])
-    ably = rest_client(mock, http_request_timeout=5)
+    ably = rest_client(mock, http_request_timeout_seconds=5)
 
     assert await ably.time() == 7
 

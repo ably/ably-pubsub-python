@@ -5,7 +5,7 @@ Spec points: RSA4a, RSA4a1, RSA4a2
 
 import logging
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import ERROR_MESSAGE, MockWebSocket, connected_message

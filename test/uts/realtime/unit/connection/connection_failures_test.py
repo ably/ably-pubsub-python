@@ -5,8 +5,8 @@ Spec points: RTN14h, RTN15, RTN15a, RTN15b, RTN15c, RTN15d, RTN15e, RTN15h, RTN1
 
 import time
 
-from ably.realtime.connection import ConnectionState
-from ably.types.tokendetails import TokenDetails
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.tokendetails import TokenDetails
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.deviations import deviation
@@ -343,10 +343,10 @@ async def test_rtn14h_resume_after_ttl():
     clock = FakeClock()
     client = realtime_client(
         mock_ws, clock=clock, key='appId.keyId:keySecret',
-        disconnected_retry_timeout=1000, suspended_retry_timeout=2000,
+        disconnected_retry_timeout_seconds=1, suspended_retry_timeout_seconds=2,
         # A refused connection reaches no failure path of its own, so each attempt
         # ends on the transition timer; a short one keeps the retry cycle turning
-        realtime_request_timeout=1000,
+        realtime_request_timeout_seconds=1,
     )
 
     states = []
@@ -402,7 +402,7 @@ async def test_rtn15c5_token_error_during_resume():
     # A token error met while CONNECTING is retried on the retry timer rather than
     # immediately, so the retry interval is kept short
     client = realtime_client(mock_ws, mock_http=mock_http, key='appId.keyId:keySecret',
-                             disconnected_retry_timeout=100)
+                             disconnected_retry_timeout_seconds=0.1)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)

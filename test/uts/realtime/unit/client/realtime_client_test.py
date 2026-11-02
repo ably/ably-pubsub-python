@@ -8,13 +8,13 @@ import json
 
 import pytest
 
-from ably.realtime.channel import Channels, RealtimeChannel
-from ably.realtime.connection import Connection, ConnectionState
-from ably.rest.auth import Auth
-from ably.rest.push import Push, PushAdmin
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.util.exceptions import AblyException
-from ably.util.helper import get_random_id
+from ably.pubsub.http.auth import Auth
+from ably.pubsub.http.push import Push, PushAdmin
+from ably.pubsub.realtime.channel import Channels, RealtimeChannel
+from ably.pubsub.realtime.connection import Connection, ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.util.exceptions import AblyException
+from ably.pubsub.util.helper import get_random_id
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import settle
 from test.uts.helpers.deviations import deviation
@@ -71,14 +71,10 @@ async def test_rtc12_constructor_string_detection():
 async def test_rtc12_invalid_arguments_error():
     mock_ws = succeeding_mock()
 
-    # DEVIATION: the spec expects error code 40106 when no valid credentials are
-    # provided. ably-python rejects the options in the constructor instead, with a
-    # plain ValueError that carries no Ably error code. This mirrors the REST suite's
-    # `RSC1b/no-auth-method-error-0`.
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         realtime_client(mock_ws, key=None)
 
-    assert 'key is missing' in str(excinfo.value)
+    assert excinfo.value.code == 40106
 
     assert mock_ws.connection_attempts == []
 
@@ -143,17 +139,10 @@ async def test_rtc17_client_id_attribute():
 
     assert client.client_id == 'explicit-client-id'
 
-    # DEVIATION: the spec asserts `client.clientId == client.auth.clientId`.
-    # `AblyRealtime.client_id` reads the client options, while `Auth.client_id` is
-    # held at None for a realtime client until the server confirms one in a CONNECTED
-    # message, so the two disagree before the connection is established.
-    assert client.auth.client_id is None
+    assert client.client_id == client.auth.client_id
 
 
 # UTS: realtime/unit/RTC1a/echo-messages-option-0
-# DEVIATION: ably-python has no `echo_messages` option and sends no `echo` query
-# parameter. See deviations.md.
-@deviation
 async def test_rtc1a_echo_messages_option():
     # RTC1a_1: echoMessages defaults to true
     mock_ws = MockWebSocket()
@@ -206,8 +195,8 @@ async def test_rtc1b_auto_connect_option():
 
 
 # UTS: realtime/unit/RTC1c/recover-option-0
-# DEVIATION: the `recover` option is stored and never read, so no `recover` query
-# parameter is ever sent. See deviations.md.
+# DEVIATION: there is no `recover` client option, so this raises TypeError on
+# construction. See deviations.md.
 @deviation
 async def test_rtc1c_recover_option():
     recovery_key = encode_recovery_key('previous-connection-key', 5, {'channel1': 'serial1'})

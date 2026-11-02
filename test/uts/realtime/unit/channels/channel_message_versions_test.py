@@ -4,14 +4,14 @@ Spec points: RTL31
 
 The specification points at uts/rest/unit/channel/message_versions.md (RSL14) rather
 than listing steps of its own, so its single Test ID becomes one test driving an
-`AblyRealtime` over the HTTP mock and asserting the core observable of the derived
+`DefaultPubSubRealtimeClient` over the HTTP mock and asserting the core observable of the derived
 REST suite: the endpoint the call reaches and the paginated versions it returns.
 """
 
 import uuid
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.message import Message, MessageAction
+from ably.pubsub.request.paginatedresult import PaginatedResult
+from ably.pubsub.types.message import Message, MessageAction
 from test.uts.helpers.client import realtime_client
 from test.uts.helpers.mock_http import MockHttpClient
 

@@ -8,10 +8,10 @@ import asyncio
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,
@@ -46,7 +46,7 @@ def message_protocol_message(channel_name, messages, **fields):
 
 def message_filter(**criteria):
     """The specification's `MessageFilter` (MFI1), built from `criteria`."""
-    from ably.types.messagefilter import MessageFilter
+    from ably.pubsub.types.messagefilter import MessageFilter
 
     return MessageFilter(**criteria)
 
@@ -285,7 +285,7 @@ async def test_rtl7g_listener_registered_attach_fails():
 # UTS: realtime/unit/RTL7h/no-attach-on-subscribe-0
 @deviation
 async def test_rtl7h_no_attach_on_subscribe():
-    from ably.types.channeloptions import ChannelOptions
+    from ably.pubsub.types.channeloptions import ChannelOptions
 
     channel_name = 'test-RTL7h'
     attach_messages = []

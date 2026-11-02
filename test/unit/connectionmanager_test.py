@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import close_open_clients, realtime_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.mock_websocket import CONNECTED_MESSAGE, MockWebSocket
@@ -19,7 +19,7 @@ async def test_an_attempt_the_transition_timer_ends_is_cancelled():
     # The server never answers the handshake, so only the transition timer ends the attempt
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: None)
     clock = FakeClock()
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=1000)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=1)
 
     client.connect()
     await settle()
@@ -49,7 +49,7 @@ async def test_an_attempt_the_transition_timer_ends_does_not_connect_afterwards(
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     clock = FakeClock()
     client = realtime_client(mock_ws, clock=clock, auth_callback=auth_callback,
-                             realtime_request_timeout=1000)
+                             realtime_request_timeout_seconds=1)
 
     client.connect()
     await settle()

@@ -20,7 +20,7 @@ opens a websocket over the network, and ten is the figure the sibling `channel_h
 spells out for the same wait.
 """
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import random_id
 

@@ -11,7 +11,7 @@ is read as "returned True" and the emission assertions are made against a subscr
 test/uts/deviations.md.
 """
 
-from ably.types.presence import PresenceAction
+from ably.pubsub.types.presence import PresenceAction
 from test.uts.helpers.presence import presence_map, presence_message, subscribed_presence
 
 
