@@ -51,11 +51,11 @@ A further 148 pytest cases cover the harness itself and are not derived from a
 specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
 the objects builders and the synced-channel mock.
 
-The 130 gated Test IDs that record SDK non-compliance — 130 tests, 132 cases — reduce to
-**54 distinct root causes**, 17 on the REST side and 37 on the realtime side. One further
+The 128 gated Test IDs that record SDK non-compliance — 128 tests, 130 cases — reduce to
+**52 distinct root causes**, 15 on the REST side and 37 on the realtime side. One further
 defect is recorded below with no test of its own, because the specification's test
-cannot discriminate (RTP18a), so the file carries **55 SDK root causes** in all. The
-remaining 11 gated Test IDs are specification faults, and reduce to 8. The objects tier
+cannot discriminate (RTP18a), so the file carries **53 SDK root causes** in all. The
+remaining 13 gated Test IDs are specification faults, and reduce to 9. The objects tier
 records no SDK non-compliance; its specification faults are all corrected or worked
 around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
 them filed.
@@ -81,8 +81,8 @@ from the specification text, so that correcting the specification is all it take
 it pass, and it is marked `@spec_error` — a skip gated on `RUN_DEVIATIONS`, the same gate
 `@deviation` uses, with a reason naming the specification rather than the SDK. The suite
 stays green, a real regression still shows, and the failure is one environment variable
-away. Each but RSC7d's is filed upstream, in the issues named below. Eleven tests are gated
-this way:
+away. Each but RSC7d's and the two `RSA16` tests is filed upstream, in the issues named
+below. Thirteen tests are gated this way:
 
 | Test | Spec error |
 |---|---|
@@ -92,7 +92,9 @@ this way:
 | `test_rsa4a2_expired_token_no_renewal` | RSA4a2 - local expiry detection demanded |
 | `test_rsa4b1_preemptive_renewal` | RSA4b1 - local expiry detection demanded |
 | `test_rsa4b_renewal_msgpack_response` | RSA4b - renewal driven through the unauthenticated `/time` |
+| `test_rsa16c_updated_after_expiry_renewal` | RSA16c - local expiry detection demanded |
 | `test_rsa10i_authorize_preserves_key` | RSA10i - empty assertions, and a premise RSA8e contradicts |
+| `test_rsa16d_null_after_switch_to_basic` | RSA16d - `authorize()` asserted to switch a client to basic auth |
 | `test_rsp4_history_pagination` | RSP4 - wire action 4 asserted to be LEAVE |
 | `test_tp3_presence_to_json` | TP3 - an outgoing action asserted as the string `"enter"` |
 | `test_tp3_null_attributes_omitted` | TP3 - the same outgoing string assertion |
@@ -148,12 +150,13 @@ RSA4c3 contradiction, since that issue is what decides it.
 `#547` to `#550` are the `uts/rest/integration` faults and `#551` to `#554` the
 `uts/realtime/integration` ones. Each of them is of the second kind — a fixture, a setup
 step or a header label — so the derived test keeps the corrected fixture and passes, and
-none of them is among the eleven gated above.
+none of them is among the thirteen gated above.
 
 Not every entry has an issue of its own: the URL-safe base64 alphabet is recorded below
-and not filed, because ably-python's own encoding settles the tests either way. None of
-the `uts/objects` faults is filed yet; *Candidate issues* classifies them as O.1–O.7 for a
-maintainer to file. Line references in these entries are against
+and not filed, because ably-python's own encoding settles the tests either way. Nor are
+the faults marked **not yet filed** below, which were found after the last round of
+filing. None of the `uts/objects` faults is filed yet; *Candidate issues* classifies them
+as O.1–O.7 for a maintainer to file. Line references in these entries are against
 `ably/specification@d9a04ca`, and in the `uts/objects` entries against
 `ably/specification@747796f`.
 
@@ -174,9 +177,10 @@ the characters a key may hold. ably-python reports itself as `ably-pubsub-python
 which RSC7d1 allows and the pattern rejects. The test is gated with `@spec_error`. The
 fault is not filed upstream yet.
 
-### Spec points are mislabelled across four specs
+### Spec points are mislabelled across six specs
 
-The assertions are sound; the points they are filed under are not.
+The assertions are sound; the points they are filed under are not. The first four rows are
+filed as #525; the `client_id.md` and `token_request_params.md` rows are **not yet filed**.
 
 | Spec | Filed as | `features.md` says |
 |---|---|---|
@@ -184,6 +188,8 @@ The assertions are sound; the points they are filed under are not.
 | `token_types.md` | TD1 = token … TD5 = clientId | Every TD label is one short: TD1 is the type, TD2 = token … TD6 = clientId. TE2 and TE4 are swapped, "TE6 - nonce" names the point given to `fromJson`, and there is no TK6 at all |
 | `authorize.md` | RSA10e, RSA10g, RSA10h, RSA10i | RSA10e is features RSA10g, RSA10g is RSA10f, RSA10h is RSA10j, and RSA10i maps to nothing |
 | `idempotency.md` | RSL1k2 = id format, RSL1k3 = unique base | RSL1k1 is the id format, RSL1k2 client-supplied ids, RSL1k3 mixed batches. RSL1k4 and RSL1k5 are listed with no tests |
+| `client_id.md` | RSA12a = clientId passed to the authCallback, RSA12b = clientId sent to the authUrl | RSA12a is a null clientId marking an anonymous client, and RSA12b a null clientId before the first authentication. Both tests cover RSA7d, reaching the callback through RSA8d and the authUrl through RSA8c1a |
+| `token_request_params.md` | RSA5c, RSA6c = defaults from `defaultTokenParams` | RSA5 and RSA6 have no sub-points. Falling back to the configured defaults when no `TokenParams` are given is RSA9h |
 
 The cost is coverage: TI2, TI3 and TI5 *as specified* are untested by the suite.
 
@@ -227,6 +233,11 @@ expiry detection. RSA4b1 makes it optional *and* conditional on having persisted
 clock offset per RSA10k and judging expiry against Ably service time rather than the
 local clock. Neither setup establishes that precondition.
 
+`RSA16c/updated-after-expiry-renewal-2` in `token_details.md` has the same fault, and is
+**not yet filed**; it belongs with #529. It expects a client that authenticates through an
+authCallback to renew an expired token before using it, but such a client never obtains a
+clock offset. ably-js gates its local check on the offset in the same way.
+
 `RSA4b/renewal-msgpack-response-4` drives a renewal flow through `client.time()`.
 `/time` is unauthenticated — the same suite's `RSC16/no-auth-required-2` asserts it
 carries no `Authorization` header — so it cannot return a token error or trigger
@@ -239,6 +250,15 @@ null)", and RSA10j repeats it. No features point requires key preservation, and
 ably-js's own error text reads "A passed authOptions replaces the stored options
 rather than merging." `RSA10k`'s setup depends on the same premise and cannot reach
 `/time` without it. `RSA10i` also has an empty assertions block.
+
+### `RSA16d` asserts that `authorize()` can switch a client to basic auth
+
+`RSA16d/null-after-switch-to-basic-3` in `token_details.md` authorizes with a key and
+`useTokenAuth: false` and expects `tokenDetails` to become null. RSA10a says `authorize()`
+"ensures Token Auth is used for all future requests". RSA10e says a key in the
+`authOptions` "should be used to obtain a new token", and RSA10f has `authorize()` return
+that token's `TokenDetails`. ably-js rejects the setup with 40102, because the key differs
+from the stored one. **Not yet filed.**
 
 ### Fixtures that cannot hold their stated values
 
@@ -801,6 +821,11 @@ Filed as [#554](https://github.com/ably/specification/issues/554).
 | `stats.md` | Fixture nests counts under `all`, which `Stats.from_dict` never reads |
 | `rest_client.md` | `RSC17` has two byte-identical tests; header lists RSC7 and RSC7b with no tests |
 | `rest_client.md` | `RSC18` requires constructor-time failure; RSA1/RSC18 only say "any attempt to use" |
+| `client_id.md` | `RSA15a` requires the constructor to reject a mismatched clientId. The file's own RSA7 case-2 note says the timing "may vary by implementation", and RSA15c places the REST error after an auth request. **Not yet filed** |
+| `fallback.md` | `REC1b1` and `REC1c1` accept code 40000 for invalid options, where RSC1b requires 40106. The assertion also accepts a message containing "invalid" or "conflict". **Not yet filed** |
+| `request.md` | `RSC19b` asserts the configured auth wins over a caller's `Authorization` header, then notes that "this behavior may vary by implementation". **Not yet filed** |
+| `batch_publish.md` | `RSC22_Error1` and `RSC22_Error2` require empty `channels` or `messages` to be rejected with a validation error. The mock configures no error response, so the check falls to the SDK, and features.md never asks for one. **Not yet filed** |
+| `features.md` | HP8 calls `headers` "an Array of key value pairs"; the IDL types it `Dict<String, String>`, which is what the UTS asserts. **Not yet filed** |
 | `request.md` | `version` is written as an integer but lands in a header |
 | `fallback.md` | REC3a, REC3b and REC3 drive a Realtime client but sit in `rest/unit` |
 | `message_encoding.md`, `msgpack_interop.md`, `annotations.md` | Six sections carry no Test ID; ids were inferred by sibling convention |
@@ -1057,7 +1082,7 @@ option is gone, after RTN16d has done its first phase against the sandbox throug
 | RTL7f | `echoMessages` in its client-filter form. The `echo_messages` option sends `echo=false` (RTC1a), which the server honours, but the client does not itself drop a message carrying its own `connectionId`, and that is the only form a mock-backed test can observe | 1 |
 | RTP12, RTP12a, RTP12c | `RealtimePresence#history`. The realtime *channel* does delegate `history` to the REST implementation; only the presence object is missing it | 2 |
 | RTN23c1, RTN23c2 | PING/PONG. `ProtocolMessageAction` stops at `ANNOTATION` (21), so PING (22) and PONG (23) are not modelled and action 22 matches no branch of `on_protocol_message` (`websockettransport.py:37-59`, `:143-199`). The message is counted as activity and discarded | 2 |
-| TI4, TI1/TI5 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors | 2 |
+| TI1, TI4 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors. `test_ti_errorinfo_from_json` is adapted to the same gap: it asserts `href` is absent, and flips when `href` lands | 2 |
 | RTN23a | The `heartbeats` connect parameter. The full parameter set is `{key\|accessToken, v, format, resume?, …transport_params}`; `grep -r heartbeats ably/` finds nothing. RTN23a is the branch that binds ably-python, because it cannot observe ping frames | 1 |
 | RTL10b | `untilAttach` on `RealtimeChannel#history`. The realtime channel does not override `history`, so the call lands on `Channel.history`, which takes only `direction`, `limit`, `start` and `end`. No `fromSerial` is ever sent, and the attach serial the channel does record is private and read nowhere | 1 |
 | TB3 | `ChannelOptions.withCipherKey`. The nearest equivalent, `ably.util.crypto.get_default_params({'key': key})`, is not reachable from `ChannelOptions` | 1 |
@@ -1291,7 +1316,7 @@ missing reason should give an `AblyException`, not a `TypeError`.
 An ATTACHED arriving while the channel is DETACHING or DETACHED must be answered with a new
 DETACH, the channel remaining in or returning to DETACHING. `_on_message` handles ATTACHED
 only for the ATTACHED (RTL12) and ATTACHING cases; every other state falls through to
-`log.warn("ATTACHED received while not attaching")` and nothing is sent. While DETACHING
+`log.warning("ATTACHED received while not attaching")` and nothing is sent. While DETACHING
 that leaves the detach to time out, so `detach()` raises "Channel detach timed out" and the
 channel returns to ATTACHED.
 
@@ -1702,10 +1727,8 @@ final response is raised or returned.
 
 | Spec points | Behaviour |
 |---|---|
-| RSA7, RSA16c | A clientId learned from a token is treated as immutable, so `authorize()` to a token with a different clientId raises 40102. RSA15 scopes immutability to a clientId set in `ClientOptions`. `_configure_client_id` uses `self.client_id or self.auth_options.client_id`, conflating the two. Possibly deliberate — worth a maintainer's call |
-| RSA16c | No local expiry detection without a server time offset, which an authCallback client never obtains. See the RSA4b1 spec error above; here the specification asserts renewal *does* happen, so there is no green reading |
+| RSA7, RSA16c | A clientId learned from a token is treated as immutable, so `authorize()` to a token with a different clientId raises 40102. RSA15 scopes immutability to a clientId set in `ClientOptions`. `_configure_client_id` uses `self.client_id or self.auth_options.client_id`, conflating the two. The rule dates from a 2016 port of ably-ruby, and features.md gives no basis for it; still worth a maintainer's call |
 | RSA16d | A failed renewal leaves the invalidated token in place — `_ensure_valid_auth_credentials` assigns only on success |
-| RSA16d | `authorize()` cannot switch a client back to basic auth: `_ensure_valid_auth_credentials` sets `Method.TOKEN` unconditionally, and `AuthOptions.replace` drops `use_token_auth`, which is stored outside the options dict |
 
 ### Options
 
@@ -1717,8 +1740,8 @@ final response is raised or returned.
 
 | Spec points | Behaviour |
 |---|---|
-| RSC19b | Caller-supplied headers override the configured `Authorization`, because `Http.make_request` applies `headers` after `auth_headers`. RSC19b says requests "unconditionally" use the configured mechanism |
-| RSH1b1 | Device ids are interpolated raw into push paths (`ably/rest/push.py` lines 82, 106, 118), so an id containing `/` addresses a different resource and `:` is unescaped. `ably/rest/channel.py` does quote channel names, so the SDK is inconsistent with itself |
+| RSC19b | Caller-supplied headers override the configured `Authorization`, because `Http.make_request` applies `headers` after `auth_headers`. RSC19b says requests "unconditionally" use the configured mechanism. The override works only for the exact spelling `Authorization`: a lowercase `authorization` stays a separate key, so both headers go out. ably-js and ably-java also let a caller's header win, and the UTS itself notes the behaviour may vary (see the spec error above) |
+| RSH1b1 | Device ids are interpolated raw into push paths (`ably/rest/push.py` lines 82, 106, 118), so an id containing `/` addresses a different resource and `:` is unescaped. `urljoin` also resolves dot-segments, so `get('../channels/foo')` sends `GET /push/channels/foo`, and `?` or `#` in an id cuts the path short. `ably/rest/channel.py` does quote channel names, so the SDK is inconsistent with itself |
 
 ## Adapted Tests
 
@@ -1798,7 +1821,7 @@ transition timer. Measured, with `fallback_hosts=[]` and `realtime_request_timeo
 | `asyncio.TimeoutError` (`respond_with_timeout`) | still CONNECTING | at t=1000 | 50003 / 504 |
 | `socket.gaierror` (`respond_with_dns_error`) | already DISCONNECTED | at t=0 | 40000 / 400, naming the cause |
 
-Three consequences:
+Two consequences:
 
 - A refused connection and a connect timeout are indistinguishable from each other *and*
   from a server that accepts the socket and says nothing. All three surface as the
@@ -1808,11 +1831,6 @@ Three consequences:
   tried for refused and for timeout, against six attempts — primary plus all five
   fallbacks — for a DNS error. RTN17d's fallback behaviour therefore cannot happen in
   practice.
-- **Every refused attempt leaks a task and a future.** `try_a_host`'s future
-  (`connectionmanager.py:646`) is never settled, so each attempt leaves a
-  `connect_base()` task awaiting it for good, printing `Task was destroyed but it is
-  pending!` at interpreter shutdown. A long-lived client reconnecting against a refusing
-  host leaks one per attempt.
 
 **Tests affected:** `test_rtn14d_retry_recoverable_failure` is the adapted test that pins
 it — it asserts that the refusal moves nothing, that DISCONNECTED arrives only when the
@@ -1824,14 +1842,13 @@ the fallback loop, each noted at the site: `test_rtn17f_fallback_on_error`,
 `test_rtn17h_fallback_domains_from_rec2`, `test_rtn17i_prefer_primary_domain`,
 `test_rtn17j_connectivity_check_before_fallback`, `test_rtn17e_http_uses_same_fallback`,
 `test_rtn13b_ping_error_suspended`, `test_rtn16g3_recovery_key_null_inactive`,
-`test_rtc7_disconnected_retry_timeout`. `test_rtn17g_empty_fallback_set_error` and
-`test_rtl6c4_fails_conn_suspended` keep `respond_with_refused()` deliberately — the first
-because it asserts that *no* fallback follows, the second because swapping it would silence
-the ten `Task was destroyed` lines that are the leak showing.
+`test_rtc7_disconnected_retry_timeout`. `test_rtn17g_empty_fallback_set_error` keeps
+`respond_with_refused()` deliberately, because it asserts that *no* fallback follows, and
+`test_rtl6c4_fails_conn_suspended` keeps it as the specification has it.
 
 **Status:** open bug. Widening the `except` to `(WebSocketException, OSError,
 asyncio.TimeoutError)` — or, better, emitting `failed` from a guard no exception type can
-escape — fixes all three consequences.
+escape — fixes both consequences.
 
 ### The connectivity check bypasses every seam and blocks the event loop
 
@@ -2088,11 +2105,11 @@ pseudocode is not mistaken for non-compliance.
 | RSL2, RSL8, RSL11b, RSL15b | `:` is `%3A` | Left literal, from `safe=':'`. RFC 3986 allows `:` in a path segment and Ably uses it for namespaces, so the server receives the same value | Intentional |
 | RTC12 / RSC1, RSC1a, RSC1c | A string constructor argument is an API key when it contains `:` and a token when it does not | `AblyRest.__init__` treats its first positional argument as a key unconditionally and hands it to `AuthOptions.set_key`, which requires exactly two colon-separated parts, so a token string raises 40101/401 "key of not len 2 parameters". A token is supplied through the separate `token` or `token_details` arguments. The empty-string case is compliant | Intentional / SDK-wide: the constructor takes credentials as distinct named arguments and has no string-sniffing path to restore |
 | RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
-| RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000 | Cosmetic; worth aligning cross-SDK |
+| RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000, where the sibling checks in the same function use 40003 | Cosmetic; RSAN1a3 names no code |
 | RSH1a | Empty `recipient` or `data` rejected with code 40000, the error reaching the caller from the server | `PushAdmin.publish` validates its arguments itself and raises before touching the HTTP layer: an empty or non-dict `recipient` or `data` raises an `AblyException` with 400/40000, the code the server gives, which is also a `ValueError`. So no request is made and there is no server error; the integration tier's `test_rsh1a_push_publish_invalid_recipient` asserts the local error's code | Compliant: RSH1a asks for empty values to be "immediately rejected". The specification's test would need a recipient the SDK will send and the server will reject, an unknown `transportType` say, to exercise the server-side path it describes |
 | RSC15a | Six hosts tried | Four: the primary and three fallbacks, because TO3l5's `httpMaxRetryCount`, default 3, caps the fallback hosts tried. The specification's six is the number of responses its setup queues, with a comment counting the primary and all five fallbacks, and no assertion reads it | Compliant; the setup's comment overlooks TO3l5 |
 | TI | `ErrorInfo` equality by attributes | No `__eq__`, so errors compare by identity. Python exceptions conventionally do, and the requirement appears nowhere in `features.md`. Adding `__eq__` without `__hash__` would make `AblyException` unhashable and break any caller that puts one in a set | Intentional |
-| RSA6b, RSA6d | The capability literal as passed | Canonicalised by `Capability.c14n`, which RSA9f requires | Compliant; rendering only |
+| RSA6b, RSA6d | The capability literal as passed | Canonicalised by `Capability.c14n` and rendered by `json.dumps` with its default spaced separators. RSA9f permits canonicalising but does not require it; ably-js canonicalises too, and its compact JSON matches the literal | Compliant; rendering only |
 | RSA8d | `error.message` contains the callback's text | Wrapped as 40170 with the original in `cause`; `__str__` renders both | Rendering |
 | CHM2 | Missing metrics default to 0 | `ChannelMetrics.from_dict` uses a bare `obj.get(name)`, so any omitted metric parses as `None` | Open bug, broader than CHM2g/h |
 | CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
@@ -2225,9 +2242,9 @@ the mock cannot show it. Letting `RecordedUrl` fall back to a hand-parsed URL wh
 
 ### `fallbackHostsUseDefault` is not implemented — 3 tests
 
-Optional per TO3k7, and `REC1b1` and `REC2a1` scope their checks to libraries that
-support it, so these are skipped as not applicable rather than recorded as
-deviations.
+Optional per TO3k7, and `REC1b1`, `REC2a1` and `REC2b` scope their checks to libraries
+that support it, so these are skipped as not applicable rather than recorded as
+deviations. ably-python removed the option in 2.0, so passing it raises `TypeError`.
 
 ### `environment`, `restHost` and `realtimeHost` are omitted — 12 tests
 
@@ -2565,12 +2582,10 @@ vanish.** RTN14d, RTN17d, RTN17e. `websockettransport.py:117` catches only
 `(WebSocketException, socket.gaierror)`, so a `ConnectionRefusedError` (an `OSError`) and an
 `asyncio.TimeoutError` never reach `_emit('failed')`, the future `try_host` awaits is never
 settled, and the attempt is ended only by the transition timer with a generic 50003/504.
-Three consequences: refused, timed-out and silently-accepted connections are
-indistinguishable; **the fallback loop is unreachable** for refused and timeout (measured:
-one attempt and no fallback tried, against six for a DNS error); and each attempt leaks a
-`connect_base()` task and its future (`connectionmanager.py:646`), printing `Task was
-destroyed but it is pending!` at shutdown. Widening the `except`, or emitting `failed` from a
-guard no exception can escape, fixes all three.
+Two consequences: refused, timed-out and silently-accepted connections are
+indistinguishable; and **the fallback loop is unreachable** for refused and timeout (measured:
+one attempt and no fallback tried, against six for a DNS error). Widening the `except`, or
+emitting `failed` from a guard no exception can escape, fixes both.
 `test/uts/realtime/unit/connection/connection_failures_test.py -k rtn14d` (this one is
 adapted, so it **passes** today and fails when the defect is fixed — read it as the pin, not
 the proof)
