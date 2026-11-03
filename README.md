@@ -92,6 +92,9 @@ asyncio.run(main())
 For code without an event loop, `ably.pubsub.server.sync.create_http_client` creates a synchronous
 HTTP client. There is no synchronous realtime client.
 
+> [!IMPORTANT]
+> Server clients must authenticate with an API key. To use a token instead, see [Server clients and token authentication](https://ably.com/docs/auth/token#server-token-auth).
+
 The following endpoint issues token requests. Devices using a device SDK set `authUrl` to its URL,
 for example `https://your-server.example.com/ably-auth`:
 
