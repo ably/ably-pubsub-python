@@ -92,30 +92,38 @@ asyncio.run(main())
 For code without an event loop, `ably.pubsub.server.sync.create_http_client` creates a synchronous
 HTTP client. There is no synchronous realtime client.
 
-Your server also issues the tokens that devices authenticate with. Return a token request from
-the endpoint your devices use as their `authUrl`:
+The following endpoint issues token requests. Devices using a device SDK set `authUrl` to its URL,
+for example `https://your-server.example.com/ably-auth`:
 
 ```python
-import asyncio
-import json
 import os
+from contextlib import asynccontextmanager
 
 from ably.pubsub.server import create_http_client
+from fastapi import FastAPI
+
+ably_api_key = os.environ['ABLY_API_KEY']
+client = create_http_client(key=ably_api_key)
 
 
-async def create_token_request_json(client_id):
-    ably_api_key = os.environ['ABLY_API_KEY']
-    async with create_http_client(key=ably_api_key) as client:
-        # Authenticate the caller first. Grant only the operations this user needs.
-        token_request = await client.auth.create_token_request({
-            'client_id': client_id,
-            'capability': {'test-channel': ['publish', 'subscribe', 'history']},
-        })
-    # Return this JSON with the content type application/json.
-    return json.dumps(token_request.to_dict())
+@asynccontextmanager
+async def lifespan(app):
+    async with client:  # closes the client when the app shuts down
+        yield
 
 
-print(asyncio.run(create_token_request_json('me')))
+app = FastAPI(lifespan=lifespan)
+
+
+@app.get('/ably-auth')
+async def ably_auth():
+    # Authenticate the caller first. Grant only the operations this user needs.
+    user_id = 'me'  # the signed-in user's ID, from your session
+    token_request = await client.auth.create_token_request({
+        'client_id': user_id,
+        'capability': {'test-channel': ['publish', 'subscribe', 'history']},
+    })
+    return token_request.to_dict()
 ```
 
 See [token authentication](https://ably.com/docs/auth/token) for how devices use it.
