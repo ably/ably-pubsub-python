@@ -1,171 +1,251 @@
-![Ably Pub/Sub Python Header](images/pythonSDK-github.png)
-[![PyPI version](https://badge.fury.io/py/ably-pubsub-server.svg)](https://pypi.org/project/ably-pubsub-server/)
-[![License](https://img.shields.io/github/license/ably/ably-pubsub-python)](https://github.com/ably/ably-pubsub-python/blob/main/LICENSE)
+![Ably Pub/Sub Python Header](https://raw.githubusercontent.com/ably/ably-pubsub-python/main/images/pythonSDK-github.png)
 
+[![PyPI: ably-pubsub-server](https://img.shields.io/pypi/v/ably-pubsub-server?label=ably-pubsub-server)](https://pypi.org/project/ably-pubsub-server/)
+[![License](https://badgen.net/github/license/ably/ably-pubsub-python)](https://github.com/ably/ably-pubsub-python/blob/main/LICENSE)
 
 # Ably Pub/Sub Python SDK
 
-Build any realtime experience using Ably’s Pub/Sub Python SDK.
+The Python SDK for [Ably Pub/Sub](https://ably.com/docs/basics): publish and subscribe to channels,
+and use message history, presence and LiveObjects, from servers.
 
-Ably Pub/Sub provides flexible APIs that deliver features such as pub-sub messaging, message history, presence, and push notifications. Utilizing Ably’s realtime messaging platform, applications benefit from its highly performant, reliable, and scalable infrastructure.
+## Overview
 
-Find out more:
+This SDK provides the server package only, for trusted backends authenticating with an API key.
+There is no device package; for end-user devices, use a device SDK such as
+[JavaScript](https://github.com/ably/ably-pubsub-js), [Swift/Objective-C](https://github.com/ably/ably-pubsub-cocoa),
+[Java/Android](https://github.com/ably/ably-pubsub-java), [.NET](https://github.com/ably/ably-pubsub-dotnet)
+or [Flutter](https://github.com/ably/ably-pubsub-flutter).
 
-* [Ably Pub/Sub docs.](https://ably.com/docs/basics)
-* [Ably Pub/Sub examples.](https://ably.com/examples?product=pubsub)
+| Package | Use it for | Entry point |
+|---------|-----------|-------------|
+| `ably-pubsub-server` | Servers and other trusted backend environments | `create_realtime_client`, `create_http_client` |
 
----
+## Requirements
 
-## Getting started
-
-Everything you need to get started with Ably:
-
-* [Getting started with Pub/Sub using Python.](https://ably.com/docs/getting-started/python)
-* [SDK Setup for Python.](https://ably.com/docs/getting-started/setup?lang=python)
-
----
-
-## Supported platforms
-
-Ably aims to support a wide range of platforms. If you experience any compatibility issues, open an issue in the repository or contact [Ably support](https://ably.com/support).
-
-The following platforms are supported:
-
-| Platform | Support                  |
-|----------|--------------------------|
-| Python | Python 3.7+ through 3.14 |
-
-> [!NOTE]
-> This SDK works across all major operating platforms (Linux, macOS, Windows) as long as Python 3.7+ is available.
-
-> [!IMPORTANT]
-> SDK versions < 2.0.0 are [deprecated](https://ably.com/docs/platform/deprecate/protocol-v1).
-
----
+Python 3.8 or later (Linux, macOS and Windows).
 
 ## Installation
 
-To get started with your project, install the package:
-
-```sh
+```bash
 pip install ably-pubsub-server
 ```
 
-The package installs into `ably.pubsub`, and the whole public API is reached
-through `ably.pubsub.server`:
+For channel encryption or delta compression, install the `crypto` or `vcdiff` extra, for example
+`pip install "ably-pubsub-server[crypto]"`.
+
+## Quick start
+
+Use an API key on a server. The samples read it from the `ABLY_API_KEY` environment variable; set it
+to an API key from your [Ably dashboard](https://ably.com/accounts/any/apps/any/app_keys). The
+following code connects, subscribes to a channel, publishes a message to it and waits for the
+message to arrive.
 
 ```python
-from ably.pubsub.server import create_http_client, create_realtime_client
-```
+import asyncio
+import os
 
-Clients are built by these factories rather than by constructing a class, so
-that the package a client comes from names the side your application runs on.
-Annotate against the prototypes they return, `PubSubHttpClient` and
-`PubSubRealtimeClient`.
-
-The synchronous, HTTP-only flavour lives alongside it:
-
-```python
-from ably.pubsub.server.sync import create_http_client
-```
-
-Both `ably` and `ably.pubsub` are [namespace packages](https://peps.python.org/pep-0420/)
-shared with the other `ably-*` distributions, so neither exports anything
-itself — always import from `ably.pubsub.server`.
-
-> [!NOTE]
-Install [Python](https://www.python.org/downloads/) version 3.8 or greater.
-
-## Usage
-
-The following code connects to Ably's realtime messaging service, subscribes to a channel to receive messages, and publishes a test message to that same channel.
-
-```python
 from ably.pubsub.server import create_realtime_client
 
-# Initialize Ably Realtime client
-async with create_realtime_client(key='your-ably-api-key', client_id='me') as realtime_client:
-    # Wait for connection to be established
-    await realtime_client.connection.once_async('connected')
-    print('Connected to Ably')
-    
-    # Get a reference to the 'test-channel' channel
-    channel = realtime_client.channels.get('test-channel')
-    
-    # Subscribe to all messages published to this channel
-    def on_message(message):
-        print(f'Received message: {message.data}')
-    
-    await channel.subscribe(on_message)
-    
-    # Publish a test message to the channel
-    await channel.publish('test-event', 'hello world')
+
+async def main():
+    ably_api_key = os.environ['ABLY_API_KEY']
+    async with create_realtime_client(key=ably_api_key) as realtime:
+        channel = realtime.channels.get('test-channel')
+        received = asyncio.get_running_loop().create_future()
+
+        def on_message(message):
+            if not received.done():
+                received.set_result(message)
+
+        # subscribe() attaches the channel and returns once it is attached.
+        await channel.subscribe(on_message)
+        await channel.publish('test-event', 'hello world')
+
+        message = await received
+        print(f'Received: {message.data}')
+
+
+asyncio.run(main())
 ```
 
-### LiveObjects
+Create the realtime client inside a running event loop. Close every client with `async with` or
+`await client.close()`.
 
-LiveObjects keeps shared, mutable state on a channel: maps and counters that every client
-attached to it reads, updates and subscribes to. The channel needs the object modes, and
-`channel.object.get()` attaches it, waits for the objects to sync, and returns the root map.
-Values are read through a typed view of their path — `as_live_map()`, `as_live_counter()` or
-`as_primitive()` — and reads are synchronous; writes are awaited.
+To publish over HTTP without a realtime connection, create an HTTP client instead:
 
 ```python
-from ably.pubsub.server import ChannelMode, ChannelOptions, create_realtime_client
-from ably.pubsub.server.liveobjects import LiveCounter, LiveMap
+import asyncio
+import os
 
-async with create_realtime_client(key='your-ably-api-key') as realtime_client:
-    channel = realtime_client.channels.get(
-        'my-objects',
-        ChannelOptions(modes=[ChannelMode.OBJECT_SUBSCRIBE, ChannelMode.OBJECT_PUBLISH]),
-    )
+from ably.pubsub.server import create_http_client
 
-    # Attach, wait for the objects to sync, and get the root map
-    root = await channel.object.get()
 
-    # Create objects by setting them on the root
-    await root.set('visits', LiveCounter.create(0))
-    await root.set('profile', LiveMap.create({'name': 'Alice', 'theme': 'dark'}))
+async def main():
+    ably_api_key = os.environ['ABLY_API_KEY']
+    async with create_http_client(key=ably_api_key) as client:
+        await client.channels.get('test-channel').publish('test-event', 'hello world')
 
-    # Read through a typed view of the path
-    visits = root.get('visits').as_live_counter()
-    print(visits.value())                                     # 0.0
-    print(root.at('profile.name').as_primitive().value(str))  # Alice
 
-    # Subscribe to changes at a path
-    def on_change(event):
-        print(f'{event.object.path()} changed')
-
-    subscription = root.get('visits').subscribe(on_change)
-
-    # Mutate
-    await visits.increment(5)
-
-    # Batch several writes into a single message
-    async with root.get('profile').as_live_map().batch() as profile:
-        profile.set('name', 'Bob')
-        profile.remove('theme')
-
-    subscription.unsubscribe()
+asyncio.run(main())
 ```
 
-## Releases
+For code without an event loop, `ably.pubsub.server.sync.create_http_client` creates a synchronous
+HTTP client. There is no synchronous realtime client.
 
-The [CHANGELOG.md](https://github.com/ably/ably-pubsub-python/blob/main/CHANGELOG.md) contains details of the latest releases for this SDK. You can also view all Ably releases on [changelog.ably.com](https://changelog.ably.com).
+Your server also issues the tokens that devices authenticate with. Return a token request from
+the endpoint your devices use as their `authUrl`:
 
----
+```python
+import asyncio
+import json
+import os
 
-## Contribute
+from ably.pubsub.server import create_http_client
 
-Read the [CONTRIBUTING.md](./CONTRIBUTING.md) guidelines to contribute to Ably.
 
----
+async def create_token_request_json(client_id):
+    ably_api_key = os.environ['ABLY_API_KEY']
+    async with create_http_client(key=ably_api_key) as client:
+        # Authenticate the caller first. Grant only the operations this user needs.
+        token_request = await client.auth.create_token_request({
+            'client_id': client_id,
+            'capability': {'test-channel': ['publish', 'subscribe', 'history']},
+        })
+    # Return this JSON with the content type application/json.
+    return json.dumps(token_request.to_dict())
 
-## Support, feedback, and troubleshooting
 
-For help or technical support, visit Ably's [support page](https://ably.com/support) or [GitHub Issues](https://github.com/ably/ably-pubsub-python/issues) for community-reported bugs and discussions.
+print(asyncio.run(create_token_request_json('me')))
+```
 
-### Full Realtime support unavailable
+See [token authentication](https://ably.com/docs/auth/token) for how devices use it.
 
-This SDK currently supports only [Ably REST](https://ably.com/docs/rest) and basic realtime message subscriptions. To access full [Ably Realtime](https://ably.com/docs/realtime) features in Python, consider using the [MQTT adapter](https://ably.com/docs/mqtt).
+## Migrating from 3.x
 
+Version 4.0 renames the package and creates clients with factory functions.
+
+| | 3.x | 4.0 |
+|---|---|---|
+| Package | `ably` | `ably-pubsub-server` |
+| Import | `from ably import AblyRealtime, AblyRest` | `from ably.pubsub.server import create_realtime_client, create_http_client` |
+| Realtime client | `AblyRealtime('key')` | `create_realtime_client(key='key')` |
+| HTTP client | `AblyRest('key')` | `create_http_client(key='key')` |
+
+See [UPDATING.md](https://github.com/ably/ably-pubsub-python/blob/main/UPDATING.md#version-3x-to-400) for all other changes.
+
+## Common configuration
+
+Pass options to both factories as keyword arguments.
+
+### Endpoint
+
+`endpoint` selects the Ably host for HTTP requests and the realtime connection. It replaces the
+3.x `environment`, `rest_host` and `realtime_host` options.
+
+```python
+ably_api_key = os.environ['ABLY_API_KEY']
+realtime = create_realtime_client(key=ably_api_key, endpoint='nonprod:sandbox')
+```
+
+- Never put a port in `endpoint`: `localhost:8080` is not a hostname and does not resolve.
+- Set the port with `tls_port`, or with `port` when TLS is off.
+- With TLS off (`tls=False`), use token authentication.
+
+See [UPDATING.md](https://github.com/ably/ably-pubsub-python/blob/main/UPDATING.md#deprecated-and-duplicate-options-are-removed) for how the old
+options map to `endpoint`.
+
+### Logging
+
+The SDK logs through Python's standard [`logging`](https://docs.python.org/3/library/logging.html)
+module, to the `ably.pubsub` logger. Set the level and add a handler on that logger:
+
+```python
+import logging
+
+logger = logging.getLogger('ably.pubsub')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(logging.StreamHandler())
+```
+
+The 3.x `log_level` option is [removed](https://github.com/ably/ably-pubsub-python/blob/main/UPDATING.md#the-log_level-option-is-removed).
+
+### Delta compression
+
+To receive [delta-compressed](https://ably.com/docs/channels/options/deltas) messages:
+
+- Install the `vcdiff` extra.
+- Pass an `AblyVCDiffDecoder` to the realtime client as `vcdiff_decoder`.
+- Set the `delta` channel parameter to `vcdiff`.
+
+```python
+import os
+
+from ably.pubsub.server import AblyVCDiffDecoder, ChannelOptions, create_realtime_client
+
+ably_api_key = os.environ['ABLY_API_KEY']
+realtime = create_realtime_client(key=ably_api_key, vcdiff_decoder=AblyVCDiffDecoder())
+channel = realtime.channels.get('test-channel', ChannelOptions(params={'delta': 'vcdiff'}))
+```
+
+## Live Objects
+
+Use [LiveObjects](https://ably.com/docs/liveobjects) through `channel.object`. Get the channel with
+the `OBJECT_SUBSCRIBE` and `OBJECT_PUBLISH` modes. `channel.object.get()` waits for the objects to
+sync and returns the root map.
+
+```python
+import asyncio
+import os
+
+from ably.pubsub.server import ChannelMode, ChannelOptions, create_realtime_client
+from ably.pubsub.server.liveobjects import LiveCounter
+
+
+async def main():
+    ably_api_key = os.environ['ABLY_API_KEY']
+    async with create_realtime_client(key=ably_api_key) as realtime:
+        channel = realtime.channels.get(
+            'test-channel',
+            ChannelOptions(modes=[ChannelMode.OBJECT_SUBSCRIBE, ChannelMode.OBJECT_PUBLISH]),
+        )
+        root = await channel.object.get()
+
+        await root.set('visits', LiveCounter.create(0))
+        visits = root.get('visits').as_live_counter()
+        await visits.increment(5)
+        print(f'Visits: {visits.value()}')
+
+
+asyncio.run(main())
+```
+
+## Known limitations
+
+- Connection recovery (the 3.x `recover` option) is not supported.
+- Subscription filters and derived channels are not supported.
+- Realtime presence has no `history()`. Use `channel.presence.history()` on an HTTP client.
+- [Token revocation](https://ably.com/docs/auth/revocation) is not supported.
+- A Python client cannot be a [push notification](https://ably.com/docs/push) target. The push
+  admin API is supported.
+
+## Further reading
+
+- [Getting started with Pub/Sub using Python](https://ably.com/docs/getting-started/python)
+- [Ably Pub/Sub documentation](https://ably.com/docs/basics) and [examples](https://ably.com/examples?product=pubsub)
+- [Token authentication](https://ably.com/docs/auth/token)
+- [UPDATING.md](https://github.com/ably/ably-pubsub-python/blob/main/UPDATING.md): migrating from 3.x
+- [CHANGELOG.md](https://github.com/ably/ably-pubsub-python/blob/main/CHANGELOG.md): release notes; all Ably releases are listed on [changelog.ably.com](https://changelog.ably.com)
+
+## Contributing
+
+Read [CONTRIBUTING.md](https://github.com/ably/ably-pubsub-python/blob/main/CONTRIBUTING.md) before contributing; it also describes the release
+process.
+
+## Support, feedback and troubleshooting
+
+For help, visit Ably's [support page](https://ably.com/support). Report bugs and compatibility
+problems on [GitHub Issues](https://github.com/ably/ably-pubsub-python/issues).
+
+## License
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](https://github.com/ably/ably-pubsub-python/blob/main/LICENSE).
