@@ -10,8 +10,8 @@ implementation note permits; the test for it therefore drives a `RealtimePresenc
 test/uts/deviations.md.
 """
 
-from ably.realtime.presencemap import PresenceMap
-from ably.types.presence import PresenceAction
+from ably.pubsub.realtime.presencemap import PresenceMap
+from ably.pubsub.types.presence import PresenceAction
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.presence import presence_message, subscribed_presence
 

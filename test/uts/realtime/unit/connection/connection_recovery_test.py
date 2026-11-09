@@ -3,19 +3,18 @@
 Spec points: RTN16d, RTN16f, RTN16f1, RTN16g, RTN16g1, RTN16g2, RTN16g3, RTN16i,
 RTN16j, RTN16k, RTN16l
 
-RTN16 connection recovery is absent from ably-python: `recover` is a client
-option with a property and a setter but is read nowhere in the library, there is
-no `recover` connect parameter and no recovery key to create or decode. Every
-test here but the malformed-key one is therefore gated; see
-deviations.md.
+RTN16 connection recovery is absent from ably-python: there is no `recover`
+client option, no `recover` connect parameter and no recovery key to create or
+decode, so passing `recover` raises TypeError. Every test here is therefore
+gated; see deviations.md.
 """
 
 import asyncio
 import json
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from test.uts.helpers.client import await_channel_state, await_connection_state, realtime_client
 from test.uts.helpers.clock import FakeClock
 from test.uts.helpers.deviations import deviation
@@ -150,8 +149,8 @@ async def test_rtn16g3_recovery_key_null_inactive():
 
     suspended_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     client_suspended = realtime_client(
-        suspended_ws, clock=clock, disconnected_retry_timeout=500,
-        suspended_retry_timeout=CONNECTION_STATE_TTL * 2)
+        suspended_ws, clock=clock, disconnected_retry_timeout_seconds=0.5,
+        suspended_retry_timeout_seconds=CONNECTION_STATE_TTL * 2 / 1000)
 
     client_suspended.connect()
     await await_connection_state(client_suspended, ConnectionState.CONNECTED)
@@ -240,6 +239,9 @@ async def test_rtn16f_recover_initializes_msgserial():
 
 
 # UTS: realtime/unit/RTN16f1/malformed-recovery-key-0
+# DEVIATION: there is no `recover` client option, so this raises TypeError on
+# construction. See deviations.md.
+@deviation
 async def test_rtn16f1_malformed_recovery_key():
     attempts = []
 
@@ -259,8 +261,7 @@ async def test_rtn16f1_malformed_recovery_key():
     assert client.connection.connection_manager.connection_id == 'fresh-conn'
     assert client.connection.connection_details.connection_key == 'fresh-key'
 
-    # The malformed key reaches the connection parameters no more than a valid
-    # one would: `recover` is stored and never read
+    # RTN16f1: a malformed key is dropped, and the connection proceeds without it
     assert 'recover' not in attempts[0].url.query_params
     assert 'resume' not in attempts[0].url.query_params
     assert len(attempts) == 1

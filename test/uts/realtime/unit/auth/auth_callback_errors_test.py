@@ -8,10 +8,10 @@ import time
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client, rest_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.deviations import deviation
@@ -21,8 +21,8 @@ from test.uts.helpers.mock_websocket import MockWebSocket, connected_message
 AUTH_MESSAGE = {'action': int(ProtocolMessageAction.AUTH)}
 
 # A retry far enough out that a DISCONNECTED connection does not reconnect
-# behind the assertions.
-NO_RECONNECT = 60000
+# behind the assertions, in seconds.
+NO_RECONNECT = 60
 
 # The specification's 128KiB limit, exceeded by one character.
 OVERSIZED_TOKEN = 'x' * 131073
@@ -60,7 +60,7 @@ async def test_rsa4c2_callback_error_connecting_disconnected():
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
     client = realtime_client(mock_ws, auth_callback=auth_callback, use_binary_protocol=False,
-                             disconnected_retry_timeout=NO_RECONNECT)
+                             disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     state_changes = []
     client.connection.on(lambda change: state_changes.append(change))
@@ -73,10 +73,8 @@ async def test_rsa4c2_callback_error_connecting_disconnected():
     assert client.connection.error_reason is not None
     assert client.connection.error_reason.code == 80019
     assert client.connection.error_reason.status_code == 401
-    # RSA4c2 requires `cause` to carry the underlying 50000 error.
-    # `ConnectionManager.on_error_from_authorize` builds the 80019 without one,
-    # so the callback's own error is only in the log.
-    assert client.connection.error_reason.cause is None
+    assert client.connection.error_reason.cause is not None
+    assert client.connection.error_reason.cause.code == 50000
 
     disconnected_changes = [c for c in state_changes if c.current == ConnectionState.DISCONNECTED]
     assert len(disconnected_changes) >= 1
@@ -94,8 +92,8 @@ async def test_rsa4c2_callback_timeout_connecting_disconnected():
     clock = FakeClock()
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
     client = realtime_client(mock_ws, clock=clock, auth_callback=auth_callback,
-                             realtime_request_timeout=10000, use_binary_protocol=False,
-                             disconnected_retry_timeout=NO_RECONNECT)
+                             realtime_request_timeout_seconds=10, use_binary_protocol=False,
+                             disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     state_changes = []
     client.connection.on(lambda change: state_changes.append(change))
@@ -151,7 +149,6 @@ async def test_rsa4c3_callback_error_connected_stays():
 
 
 # UTS: realtime/unit/RSA4d/callback-403-connecting-failed-0
-@deviation
 async def test_rsa4d_callback_403_connecting_failed():
     connection_attempted = False
 
@@ -165,7 +162,7 @@ async def test_rsa4d_callback_403_connecting_failed():
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     client = realtime_client(mock_ws, auth_callback=auth_callback, use_binary_protocol=False,
-                             disconnected_retry_timeout=NO_RECONNECT)
+                             disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     state_changes = []
     client.connection.on(lambda change: state_changes.append(change))
@@ -194,7 +191,6 @@ async def test_rsa4d_callback_403_connecting_failed():
 
 
 # UTS: realtime/unit/RSA4d/callback-403-reauth-failed-1
-@deviation
 async def test_rsa4d_callback_403_reauth_failed():
     auth_callback_count = 0
 
@@ -207,7 +203,7 @@ async def test_rsa4d_callback_403_reauth_failed():
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
     client = realtime_client(mock_ws, auth_callback=auth_callback, use_binary_protocol=False,
-                             disconnected_retry_timeout=NO_RECONNECT)
+                             disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)
@@ -231,7 +227,7 @@ async def test_rsa4f_callback_invalid_type_format():
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
     client = realtime_client(mock_ws, auth_callback=auth_callback, use_binary_protocol=False,
-                             disconnected_retry_timeout=NO_RECONNECT)
+                             disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -254,7 +250,7 @@ async def test_rsa4f_callback_oversized_token_format():
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
     client = realtime_client(mock_ws, auth_callback=auth_callback, use_binary_protocol=False,
-                             disconnected_retry_timeout=NO_RECONNECT)
+                             disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)

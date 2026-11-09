@@ -3,8 +3,8 @@
 Spec points: RTN8, RTN8a, RTN8b, RTN8d, RTN9, RTN9a, RTN9b, RTN9d
 """
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from test.uts.helpers.client import await_connection_state, realtime_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.deviations import deviation
@@ -179,7 +179,7 @@ async def test_rtn8d_id_key_retained_in_suspended():
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     clock = FakeClock()
     client = realtime_client(
-        mock_ws, clock=clock, disconnected_retry_timeout=1000, suspended_retry_timeout=100)
+        mock_ws, clock=clock, disconnected_retry_timeout_seconds=1, suspended_retry_timeout_seconds=0.1)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)

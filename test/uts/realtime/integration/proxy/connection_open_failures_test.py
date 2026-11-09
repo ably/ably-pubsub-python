@@ -26,8 +26,8 @@ client's basic auth would be refused; RTN14b is the exception and authenticates 
 callback, because renewing a token is what it is about.
 """
 
-from ably import AblyRest
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.server import create_http_client
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import contains_in_order
@@ -39,9 +39,9 @@ FAILURE_TIMEOUT = 15
 RECOVERY_TIMEOUT = 30
 
 # The specification's `realtimeRequestTimeout: 3000` and
-# `disconnectedRetryTimeout: 2000`. Both are milliseconds in ably-python too.
-REALTIME_REQUEST_TIMEOUT_MS = 3000
-DISCONNECTED_RETRY_TIMEOUT_MS = 2000
+# `disconnectedRetryTimeout: 2000`, in the seconds ably-python's options take.
+REALTIME_REQUEST_TIMEOUT_SECONDS = 3
+DISCONNECTED_RETRY_TIMEOUT_SECONDS = 2
 
 
 def connection_id(client):
@@ -99,7 +99,7 @@ def token_auth_callback(api_key):
     again; the token arrives over a connection the proxy never sees.
     """
     async def auth_callback(params):
-        inner_rest = AblyRest(key=api_key, endpoint=SANDBOX_ENDPOINT)
+        inner_rest = create_http_client(key=api_key, endpoint=SANDBOX_ENDPOINT)
         try:
             return await inner_rest.auth.request_token()
         finally:
@@ -228,7 +228,7 @@ async def test_rtn14d_retry_after_refused(realtime_sandbox, proxy_session):
         tls=False,
         use_binary_protocol=False,
         auto_connect=False,
-        disconnected_retry_timeout=DISCONNECTED_RETRY_TIMEOUT_MS,
+        disconnected_retry_timeout_seconds=DISCONNECTED_RETRY_TIMEOUT_SECONDS,
     )
     state_changes = record_states(client)
 
@@ -320,7 +320,7 @@ async def test_rtn14c_connection_timeout(realtime_sandbox, proxy_session):
         tls=False,
         use_binary_protocol=False,
         auto_connect=False,
-        realtime_request_timeout=REALTIME_REQUEST_TIMEOUT_MS,
+        realtime_request_timeout_seconds=REALTIME_REQUEST_TIMEOUT_SECONDS,
     )
     state_changes = record_states(client)
 

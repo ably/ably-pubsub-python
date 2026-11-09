@@ -8,9 +8,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest_asyncio
 
-from ably import AblyRest
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.stats import Stats
+from ably.pubsub.request.paginatedresult import PaginatedResult
+from ably.pubsub.server import create_http_client
+from ably.pubsub.types.stats import Stats
 from test.uts.helpers.client import sandbox_rest_client
 from test.uts.helpers.sandbox import SANDBOX_ENDPOINT
 
@@ -48,8 +48,8 @@ async def app_with_stats(sandbox):
     """
     interval = (datetime.now(timezone.utc).replace(tzinfo=None) - STATS_INTERVAL_AGE).replace(
         second=0, microsecond=0)
-    client = AblyRest(key=sandbox.key(0).key_str, endpoint=SANDBOX_ENDPOINT,
-                      use_binary_protocol=False)
+    client = create_http_client(key=sandbox.key(0).key_str, endpoint=SANDBOX_ENDPOINT,
+                                use_binary_protocol=False)
     try:
         await client.http.post('/stats', body=[{
             'intervalId': Stats.to_interval_id(interval, 'minute'),

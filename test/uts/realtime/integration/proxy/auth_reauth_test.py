@@ -22,7 +22,7 @@ about what it asserts: that the SDK's auth machinery ran, that an AUTH frame car
 an `auth` attribute left the client, and that the connection was never disturbed.
 """
 
-from ably.realtime.connection import ConnectionState
+from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client, wall_clock_poll_until
 from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt
 

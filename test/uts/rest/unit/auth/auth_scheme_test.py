@@ -8,9 +8,9 @@ import time
 
 import pytest
 
-from ably import api_version
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import api_version
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient
@@ -189,13 +189,13 @@ async def test_rsc1b_no_auth_method_error():
         on_request=capture_and_respond(captured_requests),
     )
 
-    # DEVIATION: the spec expects an error with code 40106 from the first
-    # request. ably-python rejects the options in the constructor instead, with
-    # a plain ValueError that carries no Ably error code.
-    with pytest.raises(ValueError) as excinfo:
+    # The spec expects the error from the first request. RSC1b gives it to
+    # the constructor, and ably-python raises it there, so no client exists to
+    # make a request with.
+    with pytest.raises(AblyException) as excinfo:
         rest_client(mock_http, key=None)
 
-    assert 'key is missing' in str(excinfo.value)
+    assert excinfo.value.code == 40106
 
     assert len(captured_requests) == 0
 
@@ -241,14 +241,9 @@ async def test_rsa1_token_auth_takes_precedence():
 
     await client.request('GET', '/channels/test', version=api_version)
 
-    # DEVIATION: RSA4 selects token auth whenever use_token_auth is unspecified
-    # and any of auth_url, auth_callback, token or token_details is given, so
-    # the spec expects `bearer('callback-token')`. ably-python prefers basic auth
-    # whenever a key secret is present and use_token_auth is not True, and never
-    # calls the auth_callback.
+    # authCallback takes precedence, so Bearer auth is used
     request = captured_requests[0]
-    expected_basic = 'Basic ' + base64.b64encode(b'appId.keyId:keySecret').decode('ascii')
-    assert request.headers['Authorization'] == expected_basic
+    assert request.headers['Authorization'] == bearer('callback-token')
 
 
 # UTS: rest/unit/RSA2/basic-auth-header-format-0

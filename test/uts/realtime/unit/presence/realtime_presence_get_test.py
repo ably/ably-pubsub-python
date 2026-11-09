@@ -19,11 +19,11 @@ import uuid
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.types.flags import Flag
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.flags import Flag
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,
@@ -84,8 +84,8 @@ async def suspended_channel(channel_name):
         present_member('alice', 'c1', 'c1:0:0'),
     ]))
     client = await connected_client(
-        mock_ws, clock=clock, realtime_request_timeout=300,
-        disconnected_retry_timeout=1000, suspended_retry_timeout=600000)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.3,
+        disconnected_retry_timeout_seconds=1, suspended_retry_timeout_seconds=600)
     channel = client.channels.get(channel_name)
 
     await channel.attach()

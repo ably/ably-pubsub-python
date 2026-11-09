@@ -5,9 +5,9 @@ Spec points: TG1, TG2, TG3, TG4
 
 import pytest
 
-from ably.types.message import Message
-from ably.types.presence import PresenceMessage
-from ably.util.exceptions import AblyException
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.presence import PresenceMessage
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.mock_http import MockHttpClient
 
@@ -265,7 +265,8 @@ async def test_tg_pagination_relative_urls():
             ([{'id': 'item2'}], {}),
         ]),
     )
-    client = rest_client(mock_http, rest_host='rest.ably.io')
+    # NOTE: the spec sets restHost, which ably-python omits (TO3k2); endpoint names the same host
+    client = rest_client(mock_http, endpoint='rest.ably.io')
     channel = client.channels.get('test')
 
     page1 = await channel.history()

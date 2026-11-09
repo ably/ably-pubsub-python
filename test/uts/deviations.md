@@ -24,35 +24,41 @@ One Test ID can become more than one derived test: five Test IDs in `rest/unit` 
 `error_types_test.py`, `fallback_test.py`, `rest_client_test.py` (two) and
 `paginated_result_test.py` — assert several independent things under a single id, and
 the derivation writes a function for each rather than one function with an unrelated
-second half. That turns 1133 Test IDs into 1142 derived tests. Going the other way, one
+second half. That turns 1472 Test IDs into 1481 derived tests. Going the other way, one
 derived test can become more than one case: five of the twelve `rest/integration`
-specifications and five of the twenty `realtime/integration` ones carry a `## Protocol
-Variants` section and run every one of their tests twice, once per protocol, and nine
-`rest/unit` tests are parametrized over a table of fixtures the specification gives
-inline. That turns 1142 derived tests into 1235 pytest cases.
+specifications, five of the twenty `realtime/integration` ones and the three
+`objects/integration` ones outside `proxy` carry a `## Protocol Variants` section and run
+every one of their tests twice, once per protocol; nine `rest/unit` tests are
+parametrized over a table of fixtures the specification gives inline; and five
+`objects/unit` tests are parametrized, three over a table and two over the scenarios the
+specification loops through. That turns 1481 derived tests into 1608 pytest cases.
 
-Of **1133 Test IDs, derived as 1142 tests and run as 1235 pytest cases**: 908 Test IDs
-(917 tests, 1005 cases) pass, 210 (210 tests, 215 cases) are gated behind
-`RUN_DEVIATIONS`, and 15 (15 tests, 15 cases) cannot be run at all. The three groups are
-disjoint: two Test IDs, and one parametrized test, have a gated part and a passing part,
-and are counted with the gated. Every gated test has been confirmed to fail when
-enabled, so none of them passes under both behaviours. 494 of the Test IDs come from
-`uts/rest/unit` (503 tests, 536 cases), 482 from `uts/realtime/unit` (482, 482), 84
-from `uts/rest/integration` (84, 122) and 73 from `uts/realtime/integration` (73, 95); 8
-of the REST integration ids (8, 8) and 30 of the realtime ones (30, 30) come from the
-`proxy` package within each. Of the gated Test IDs 119 are REST and 91 realtime, which is
-123 REST cases and 92 realtime.
-A further 130 pytest cases under `helpers/` cover the mock infrastructure itself and are
-not derived from a specification.
+Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1304 Test IDs
+(1313 tests, 1438 cases) pass, 141 (141 tests, 143 cases) are gated behind
+`RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
+disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
+`TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
+while their passing parts count among the passing tests and cases. Every gated test has
+been confirmed to fail when enabled, so none of them passes under both behaviours. 494 of
+the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
+`uts/realtime/unit` (482, 482), 322 from `uts/objects/unit` (322, 344), 84 from
+`uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
+`uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
+realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
+within each. Of the gated Test IDs 63 are REST and 78 realtime, which is 64 REST cases
+and 79 realtime. None of the 339 objects Test IDs is gated or unrunnable.
+A further 148 pytest cases cover the harness itself and are not derived from a
+specification: 130 under `helpers/`, for the mocks, and 18 under `objects/helpers/`, for
+the objects builders and the synced-channel mock.
 
-The 198 gated Test IDs that record SDK non-compliance — 198 tests, 203 cases — reduce to
-**68 distinct root causes**, 24 on the REST side and 44 on the realtime side. Three further
-defects are recorded below with no test of their own, because the specification's test
-cannot discriminate (RTP18a), has nothing to assert against (the timezone split on
-synthesized LEAVE timestamps), or is worked around in the setup of every test that
-would otherwise trip over it (`enterClient` on an anonymous connection), so the file
-carries **71 SDK root causes** in all. The remaining 12 gated Test IDs are
-specification faults, and reduce to 8.
+The 128 gated Test IDs that record SDK non-compliance — 128 tests, 130 cases — reduce to
+**52 distinct root causes**, 15 on the REST side and 37 on the realtime side. One further
+defect is recorded below with no test of its own, because the specification's test
+cannot discriminate (RTP18a), so the file carries **53 SDK root causes** in all. The
+remaining 13 gated Test IDs are specification faults, and reduce to 9. The objects tier
+records no SDK non-compliance; its specification faults are all corrected or worked
+around in tests that pass, and reduce to the seven candidate issues O.1–O.7, none of
+them filed.
 
 Entries closed by a fix are removed rather than kept as history; `git log` holds that.
 
@@ -75,8 +81,8 @@ from the specification text, so that correcting the specification is all it take
 it pass, and it is marked `@spec_error` — a skip gated on `RUN_DEVIATIONS`, the same gate
 `@deviation` uses, with a reason naming the specification rather than the SDK. The suite
 stays green, a real regression still shows, and the failure is one environment variable
-away. Each is filed upstream, in the issues named below, except the two `RSA16` tests,
-which are not yet filed. Twelve tests are gated this way:
+away. Each but RSC7d's and the two `RSA16` tests is filed upstream, in the issues named
+below. Thirteen tests are gated this way:
 
 | Test | Spec error |
 |---|---|
@@ -92,6 +98,7 @@ which are not yet filed. Twelve tests are gated this way:
 | `test_rsp4_history_pagination` | RSP4 - wire action 4 asserted to be LEAVE |
 | `test_tp3_presence_to_json` | TP3 - an outgoing action asserted as the string `"enter"` |
 | `test_tp3_null_attributes_omitted` | TP3 - the same outgoing string assertion |
+| `test_rsc7d_ably_agent_header_format` | RSC7d - a library-name pattern that rejects hyphens |
 
 Where instead only a specification's *fixture*, *setup* or *label* is at fault, the
 assertion it carries still stands. Those tests keep the corrected fixture (or the
@@ -100,7 +107,8 @@ site. The entries below cover both kinds and say which applies. Almost every rea
 fault is of the second kind, which is why only one realtime test is gated as a spec
 error while fourteen `realtime/unit` entries appear below. The eight
 `realtime/integration` faults are of that kind without exception, so none of them is
-gated either.
+gated either, and so is every `uts/objects` fault: the objects entries close this
+section, and not one objects test is gated.
 
 The three sections that follow this one record SDK behaviour rather than specification
 faults.
@@ -132,6 +140,7 @@ Raised upstream:
 | [#552](https://github.com/ably/specification/issues/552) | `proxy/connection_resume.md`: a status code neither SDK returns, a proxy substitution that does not exist, and event-log fields the proxy does not emit |
 | [#553](https://github.com/ably/specification/issues/553) | A heartbeat-starvation test that closes the socket thirteen seconds inside the idle window |
 | [#554](https://github.com/ably/specification/issues/554) | Two sections provoking one server response, leaving the revoked-key point uncovered |
+| [#559](https://github.com/ably/specification/issues/559) | Batch publish and token revocation fixtures in the response format the server sends below protocol version 3 |
 
 `#527` also carries a comment on the realtime wire-format assertions, `#532` one on the
 same housekeeping categories in `realtime/unit`, and
@@ -141,13 +150,15 @@ RSA4c3 contradiction, since that issue is what decides it.
 `#547` to `#550` are the `uts/rest/integration` faults and `#551` to `#554` the
 `uts/realtime/integration` ones. Each of them is of the second kind — a fixture, a setup
 step or a header label — so the derived test keeps the corrected fixture and passes, and
-none of them is among the ten gated above.
+none of them is among the thirteen gated above.
 
 Not every entry has an issue of its own: the URL-safe base64 alphabet is recorded below
 and not filed, because ably-python's own encoding settles the tests either way. Nor are
 the faults marked **not yet filed** below, which were found after the last round of
-filing. Line
-references in these entries are against `ably/specification@d9a04ca`.
+filing. None of the `uts/objects` faults is filed yet; *Candidate issues* classifies them
+as O.1–O.7 for a maintainer to file. Line references in these entries are against
+`ably/specification@d9a04ca`, and in the `uts/objects` entries against
+`ably/specification@747796f`.
 
 
 ### `/time` is stubbed as an object rather than an array
@@ -156,6 +167,15 @@ references in these entries are against `ably/specification@d9a04ca`.
 `token_renewal.md` and `authorize.md` stub `/time` as `{"time": N}`. The endpoint
 returns a one-element array, which is what `time.md` itself uses and what RSC16
 describes. Any SDK that indexes the array raises.
+
+### RSC7d's Agent pattern rejects a hyphenated library name
+
+`rest_client.md`'s `RSC7d/ably-agent-header-format-0` asserts that the `Ably-Agent`
+header matches `ably-[a-z]+/[0-9]+\.[0-9]+\.[0-9]+`. RSC7d1 asks only for a series of
+`key[/value]` entries that include the library's name and version, and puts no limit on
+the characters a key may hold. ably-python reports itself as `ably-pubsub-python/<version>`,
+which RSC7d1 allows and the pattern rejects. The test is gated with `@spec_error`. The
+fault is not filed upstream yet.
 
 ### Spec points are mislabelled across six specs
 
@@ -252,11 +272,11 @@ from the stored one. **Not yet filed.**
 - `RSL4/encoding-fixtures-ably-common-0` loads `encoding.json` from ably-common. No
   such file exists; RSL6a1 names `messages-encoding.json`, which has a different
   schema and runs in the decode direction.
-- `RSL1i/message-size-limit-0` publishes `'x' * 1024` under the name `"event"` and expects
-  it to succeed at a `maxMessageSize` of 1024. TM6a counts the name as well as the data,
-  so the message is 1029 bytes and a conforming SDK rejects it. The test is gated; when
-  its mark comes off, the fixture should size the data so that the whole message reaches
-  each size in the table. **Not yet filed.**
+- `RSL1i/message-size-limit-0` publishes `name: "event"` with `"x" * size` as the data
+  and expects the 1024-byte case to pass a 1024-byte limit, but TM6a counts the name as
+  well as the data, so that message is 1029 bytes. The derived test shortens the data by
+  the name's five bytes, so each message is the size its case states, and passes. Not
+  filed.
 
 ### Presence actions are written as strings
 
@@ -287,24 +307,36 @@ file, and the protocol, which fix LEAVE at 3 and UPDATE at 4. The closing note o
 
 `batch_presence.md` states that with `X-Ably-Version >= 3` the server returns a
 `BatchResult` envelope "for all batch responses" and calls the plain array legacy.
-`batch_publish.md`, written as Given/When/Then prose, describes every response as bare
-per-channel results: one result object for a single spec, an array of them otherwise.
-`features.md` RSC22b backs `batch_presence.md`. It has `batchPublish` return "an array of
-`BatchResult`s", and its "the response will still be an array" says only that a
-single-spec overload must extract one envelope from that array. ably-js's sandbox tests
-read the envelope, and so does the sandbox answer to `GET /presence?channels=…` measured
-under the restricted-key entry below. So `batch_publish.md` is the spec to correct; its
-flat results match the legacy format. **Not yet filed.** `revoke_tokens.md` has the same
-internal split: `RSA17c_1` and `TRS2_1` stub a bare array while asserting envelope fields.
+Every mock in `batch_publish.md` uses the plain array, and its RSC22_Headers1 pins
+`X-Ably-Version: 2`: `batch_publish.md` is written against the legacy protocol, and
+`batch_presence.md` is the one that matches the server ably-python talks to. Measured
+against the sandbox, `POST /messages` answers:
 
-The derived `batch_publish` tests keep the flat fixtures, gated with the feature. `RSC22c3`'s
-correction wraps the bare result in an array but not in an envelope, so it is half done.
+| `X-Ably-Version` | Every channel succeeds | Any channel fails |
+|---|---|---|
+| 5 | 201 with an array holding one `{successCount, failureCount, results}` envelope per spec | the same, 201 |
+| 2, or none | 201 with one flat array of `{channel, messageId}` across every spec | 400 with error 40020, and the flat array, failures included, as `batchResponse` |
 
-`batch_publish.md` RSC22_Headers1 also pins `X-Ably-Version: 2` and
-`Content-Type: application/json`; CSV2b templates the version, the sibling spec says
-">= 3", and the binary protocol default makes the content type msgpack.
+A spec sent as a bare object is answered like an array of one: an array holding a single
+envelope. That is the array RSC22b means when it says the response "will still be an array"
+and the single-spec overload "will have to extract the element" — an array of
+`BatchResult`s, one per spec, rather than of per-channel results. `GET /presence` follows the
+same split by version, answering a mixed batch with 200 and the envelope at version 5 and
+with 400/40020 and `batchResponse` at version 2. The legacy shape carries no `serials`
+either; `batch_publish.md`'s mocks add them to it.
 
-The revocation half of that split is settled by the server. `POST
+ably-python sends version 5, so every `batch_publish.md` mock is corrected to the envelope,
+through `batch_result()` in `rest/unit/batch_publish_test.py`, and the assertions stand as
+written: they read `result.results[...]`, the layout BAR2c gives the envelope. RSC22_Headers1's
+two pins are corrected beside them — CSV2b templates the version, which ably-python sends as
+5, and the binary protocol default (TO3f) makes the content type msgpack, as
+[#527](https://github.com/ably/specification/issues/527) records for the unit specs that
+read a body without pinning the protocol. The envelope disagreement is filed as
+[#559](https://github.com/ably/specification/issues/559), together with the two
+`revoke_tokens.md` mocks below.
+
+`revoke_tokens.md` has the same internal split: `RSA17c_1` and `TRS2_1` stub a bare array
+while asserting envelope fields. The revocation half is settled by the server too. `POST
 /keys/{keyName}/revokeTokens` with `X-Ably-Version: 5` answers 201 with the
 `{successCount, failureCount, results}` envelope `revoke_tokens.md`'s "Server Response
 Format" section describes, for a mixed success/failure batch as well as an all-success
@@ -670,11 +702,8 @@ immediately below it says "the key assertion is that the connection enters FAILE
 with error code 40102". Both cannot hold: a constructor has no token to compare a clientId
 against, so nothing is knowable until the server answers. Measured: construction does not
 raise — the client comes back INITIALIZED — and the connection reaches FAILED with
-40102/401 "invalid clientId for credentials" about fifteen seconds later. The derived test
-drops the throw and makes the specification's own named assertion. The fifteen seconds are
-not the server's: they are the spurious `disconnected_retry_timeout` recorded under
-`#### A JWT string with a matching clientId is rejected 40102` below, which is why the
-test waits twenty seconds rather than the default ten.
+40102/401 "invalid clientId for credentials" on its first attempt. The derived test drops
+the throw and makes the specification's own named assertion.
 
 Filed as [#551](https://github.com/ably/specification/issues/551).
 
@@ -807,11 +836,213 @@ Filed as [#554](https://github.com/ably/specification/issues/554).
 | `batch_presence.md` | The restricted-key setup's comment reads "only has access to \"batch-allowed\" channel" while the setup fixes `allowed_channel = "channel6"`; `batch-allowed` appears nowhere in the file. Filed with [#548](https://github.com/ably/specification/issues/548), whose fix replaces the same lines |
 | `batch_presence.md` | BGR2 says a channel with no members "returns a success result with an empty `presence` array", and the unit tier's mocks all send `'presence': []`. The server sends no `presence` key at all, so an implementation has to default the field for the assertion to hold. The derived test asserts the specification's `length == 0`, with the wire shape in a comment. Filed as [#550](https://github.com/ably/specification/issues/550) |
 
+### The objects unit specifications model three internal interfaces against `objects-features.md`
+
+**Spec points:** RTLC7, RTLM15, RTO3–RTO9, RTO17, RTLCV4g5, RTLMV4j5, PAOOP3. Not yet
+filed; candidate O.1.
+
+A conforming SDK passes these only by adapting, so each is also a shape adaptation under
+*Adapted Tests*, which defines the labels S-1, S-2 and S-4.
+
+- `internal_live_counter.md` and `internal_live_map.md` read
+  `update = obj.applyOperation(...)` and, of the same call elsewhere in the same files,
+  assert `result == true` or `false`. RTLC7g and RTLM15g make the return a boolean and
+  have the update *emitted* (RTLC7d1a, RTLM15d1a and their siblings), so the files
+  contradict themselves and `objects-features.md` settles it. (S-1)
+- `objects_pool.md`, and the three RTO5c10 cases of `parent_references.md`, put the sync
+  and apply state machine — `processAttached`, `processObjectSync`,
+  `processObjectMessage`, `applyObjectMessages`, `syncState` — on `ObjectsPool`, and build
+  `RealtimeObject(pool: pool)`. RTO3a makes the pool a `Dict<String, LiveObject>`, and
+  RTO7a, RTO7b and RTO17 give the sync state, the buffer and `appliedOnAckSerials` to
+  `RealtimeObject`. `uts/objects/PLAN.md` repeats the pool model. (S-2)
+- `value_types.md` reads the create an evaluated value type retains as
+  `operation.counterCreate` / `operation.mapCreate`, and `public_object_message.md` reads
+  it as `derivedFrom` on the `*CreateWithObjectId` payload. RTLCV4g5 and RTLMV4j5 say only
+  that it is retained alongside, locally, and is not sent — which the first reading would
+  put on the wire. The same file's PAOOP3b2 and PAOOP3c2 sources give
+  `mapCreateWithObjectId` the fields `objectId`, `semantics` and `entries`, and
+  `counterCreateWithObjectId` `objectId` and `count`, where MCRO2 and CCRO2 define only
+  `initialValue` and `nonce`. (S-4)
+
+**Tests affected:** the 42 tests in `internal_live_counter_test.py` (13) and
+`internal_live_map_test.py` (29) that read an update or a `false`; 30 in
+`objects_pool_test.py` and 3 in `parent_references_test.py`; 8 in `value_types_test.py`;
+and `test_paoop3_map_create_from_with_object_id` and
+`test_paoop3_counter_create_from_with_object_id`, which build the payload MCRO2 and CCRO2
+describe, with `initialValue` the JSON of the derived payload and the derived payload in
+`derived_from`. All pass.
+
+### Objects fixtures that put a value where the protocol does not
+
+**Spec points:** RTO2, RTO25a, RTO26a, RTLMV4d, RTLMV4f1, and `standard_test_pool.md`. Not yet
+filed; candidate O.2.
+
+| Spec | Fixture | Why it cannot hold | Derived as |
+|---|---|---|---|
+| `realtime_object.md` RTO2 `mode-enforcement-0`, RTO25a `access-requires-subscribe-mode-0`, RTO26a `write-requires-publish-mode-0` | An ATTACHED carrying `modes: ["OBJECT_SUBSCRIBE"]` | The modes a server grants travel as bits of the ATTACHED's `flags` (RTL4m, TR3), which is where a client decodes them; a `modes` field is read by nothing | `flags: HAS_OBJECTS \| OBJECT_SUBSCRIBE_FLAG`, through `objects_attached_message(..., flags=...)` |
+| `standard_test_pool.md`'s CONNECTED, and the hand-written ones in `internal_live_counter_api.md` and `internal_live_map_api.md` | `connectionId` inside `connectionDetails` | `connectionId` is a ProtocolMessage field, which is where a client reads it | `objects_connected_message()` puts it on the message |
+| `value_types.md` `RTLMV4d/map-set-all-types-table-0` | Each row compares the in-memory MapCreate's entry with a decoded value — the json rows expect `[1, "a", null]` and `{"k": "v"}` — except the bytes row, whose `"AQID"` is the JSON wire's base64 | In memory the entry holds bytes; base64 is what `initialValue` carries (RTLMV4f1). ably-js's derived test reads `initialValue` for that reason | `bytes([1, 2, 3])` on the retained MapCreate and `"AQID"` in the decoded `initialValue`, so both readings are pinned. The row should read `bytes([1, 2, 3])` |
+| `standard_test_pool.md`'s `provision_objects_via_rest` | "a JSON array of result objects (one per batch entry)" | Measured: one result object for the whole batch, whose `objectIds` lists every object created or updated. `X-Ably-Version` 5 and 6 both accept the v6 operation format | `provision_objects_via_rest` flattens either shape |
+
+### Objects mock-tier steps read state as though an injected frame were applied at once
+
+**Spec points:** RTO5c9, RTO10c1b1, RTO17, RTO18d, RTO19, RTO20, RTO20d4, RTO20e, RTO20e1,
+RTO23c1, RTO24b1, RTO24c1, RTINS16, RTINS16h, RTLO4b, RTPO19, and at the integration tier
+RTO5a2, RTO7, RTO8 and RTO17. Not yet filed; candidate O.3.
+
+`path_object.md`'s own compact tests say that an SDK may apply an inbound OBJECT message
+asynchronously, and wait for it; `standard_test_pool.md` defines a quiescence pattern for
+negative assertions. The steps below use neither, and are written as though
+`send_to_client` returned with the frame applied. A client that reads frames on a task of
+its own, as ably-python does, meets four shapes:
+
+| Shape | Where | What it costs |
+|---|---|---|
+| A read or a negative straight after `send_to_client` | `RTO20/echo-dedup-0`, `RTO5c9-RTO20/ack-serials-cleared-on-resync-0`, `RTO19/off-deregisters-0`, `RTO10c1b1/gc-root-never-removed-0`; and `RTINS16h/subscribe-no-side-effects-0`, straight after `subscribe` | Each reads the state from before the frame, so the negatives — no double apply, no callback, the root not removed, no side effect — pass whether or not the SDK is right |
+| An operation started before the ATTACHED that should hold it back has been processed | the three `RTO23c1` tests, the two `RTO20e1` tests, `RTO20e/waits-for-synced-0`, `RTO20d4/empty-synthetic-list-skips-sync-wait-0` | `get()` or the write still sees SYNCED and resolves at once, so a **conforming** SDK fails `IS NOT complete`. ably-js's derived tests insert `flushAsync()` at that point |
+| A seed sent on the line before the subscription it must not reach | `RTO24c1/depth-filtering-formula-0`, `RTO24b1/multi-path-dispatch-0` | A seed applied after the subscription is delivered to it, and `events.length == 2` reads 3, `events_alias.length == 1` reads 2 |
+| An exact count straight after `poll_until(count >= n)` | throughout `live_object_subscribe.md` and `path_object_subscribe.md`, `RTINS16/subscribe-receives-events-0`, and `RTO18d`, `RTO24c1` and `RTO17-RTO18` in `realtime_object.md` | The "exactly" half is a negative, read before a second, wrong event could arrive |
+
+`objects_faults.md` has the integration tier's version. `RTO5a2-RTO17/sync-interrupted-reconnect-0`
+and `RTO7-RTO8/mutations-buffered-during-resync-0` `AWAIT_STATE` DISCONNECTED, which RTN15a
+leaves at once — `writing-test-specs.md`'s *Verifying Transient States* says not to — and then
+CONNECTED, which the client may still hold from before the drop. `RTO17/server-detach-resync-0`
+awaits ATTACHED on a channel that has not yet processed the DETACHED injected onto it, so the
+wait returns at once and says nothing about the re-attach.
+
+The derived tests keep every assertion and add the barrier: a `poll_until` on the frame's
+effect before a read; for a negative, a positive control delivered behind the message under
+test and `assert_unchanged_after_quiescence` (echo-dedup's control is an increment of the
+nested counter, RTO10c1b1's an OBJECT_DELETE of the score counter, RTO19's a second SYNCED
+listener); `_restart_sync`, which polls until `_sync_state` is SYNCING before the operation
+starts; a poll on the seeded key before subscribing; and `await settle()` between a positive
+poll and an exact count. The integration tests wait on a state recorder registered before the
+fault, as the realtime tier does. The specifications want `process_pending_events()` after
+each injected frame they then read from, and their own quiescence pattern before each negative.
+
+### Objects tests that pass without the behaviour they are named for
+
+Not yet filed; candidate O.4, the same class as
+[#543](https://github.com/ably/specification/issues/543).
+
+Where the fix is an assertion the specification omits, the derived test carries every one of
+the specification's assertions and adds it, with a `# UTS SPEC ERROR:` comment or a comment
+citing the spec point at the site — the RSL2b3 precedent above. "A mutant passed" means
+measured: a throwaway reference implementation with that single fault passed every assertion
+the specification makes.
+
+| Test ID | Why it cannot fail | What the derived test adds |
+|---|---|---|
+| `RTLM8g/map-remove-clear-timeserial-floor-0` | The entry's own timeserial, `"04"`, is later than the MAP_REMOVE's `"03"`, so RTLM8a1 and RTLM9e reject it whether or not the RTLM8g floor exists. A mutant ignoring the floor passed | A MAP_REMOVE of a key with no entry at `"04"`: at or below the floor and newer than the site's serial, so only RTLM8g can reject it |
+| `RTLM9b/both-empty-reject-0` | Its own note: RTLO4a3 rejects the empty `ObjectMessage.serial` first, so RTLM9b is never reached | `InternalLiveMap.can_apply_map_operation('', '')` and `(None, None)` are False, checked directly |
+| `RTO10/gc-tombstoned-objects-0`, `RTO10c1b1/gc-root-never-removed-0` | `score` reads null from the moment the OBJECT_DELETE applies (RTLM14c, RTLM5d2h), so both pass with no GC sweep at all | That the counter has left `_objects_pool`; for RTO10c1b1, a control OBJECT_DELETE whose removal shows a sweep ran |
+| `RTO10b1/gc-grace-period-source-0` | As RTO10, and it advances 6000 ms, less than one GC interval — RTO10a's example is five minutes — so no sweep runs. Its stated claim, that it fails if `objectsGCGracePeriod` is ignored, cannot hold | `_gc_interval_ms = 1000` before `get()`, `_gc_grace_period_ms == 5000`, and the counter still in the pool at 4000 ms and gone at 6000 ms |
+| `RTPO6/at-escaped-dots-0` | `at("a\\.b.c").path() == "a\\.b.c"` holds for an `at` that splits on every dot too, since `path()` renders `['a\\', 'b', 'c']` back the same way | `_path == ['a.b', 'c']` |
+| `RTPO19/map-clear-triggers-child-events-0` | The MAP_CLEAR's `"99"` sorts before the pool's `"t:0"`, so RTLM24e1 removes nothing; and nothing subscribes at a child path, which is what the title is about | The clear at `remote_serial(0)`, and a subscription at `name` that must receive an event for `name` |
+| `RTO4b/attached-no-objects-synced-0` | Lists RTO4b2's "must not create a new root"; a mutant replacing the root passed | `pool['root'] is root` |
+| `RTO14/objectid-format-counter-0` | Lists RTO14b1's SHA-256 of `[initialValue]:[nonce]` and asserts only the alphabet; a mutant hashing the wrong input passed | The digest, computed in the test, and that the hash decodes |
+| `RTINS16g/subscription-follows-identity-0` | Nothing checks that the MAP_SET repointing `score` applied, so a rejected repoint passes | That `score` resolves to the new counter, that the event is the increment of 10, and that the counter reads 110 |
+| `RTO20e/waits-for-synced-0` | `inc_future IS NOT complete` is asserted before the publish could have been sent | Pending only once the OBJECT has left the client and its ACK has been processed |
+| `RTO23c/get-waits-for-synced-0` | Asserts only the eventual result, which a `get()` that does not wait also produces | `get()` still pending after the ATTACHED has been processed |
+| `RTO20c/missing-site-code-0`, `RTO20d1/null-serial-skipped-0` | "The value stays 100" also holds if nothing was published | Exactly one OBJECT was published |
+| `RTO20e1/fails-on-channel-detached-0`, `RTO20e1/fails-on-channel-failed-0` | RTO20e1's text gives the status code, and for FAILED the cause, and the assertions read neither | `status_code == 400`, and `cause.code == 90000` for FAILED |
+
+Six more are derived as written, there being no assertion to add that is not the
+specification's to choose:
+
+- `objects_pool.md`'s `RTO4-RTO5/attached-during-syncing-resets-0` gives the second sync a new
+  sequence id, so RTO5a2 discards the old objects whether or not the ATTACHED reset anything;
+  only removing RTO5a2a's clear made it fail. `objects-features.md` does not say that an
+  ATTACHED with HAS_OBJECTS resets a sync in flight either; see the features entry below.
+- `objects_faults.md`'s `RTO7-RTO8/mutations-buffered-during-resync-0` and
+  `RTO5-RTO7/publish-during-sync-echo-after-0` are titled for the buffering of RTO7 and RTO8
+  and never exercise it. Measured: in the first, client B resumes about 60 ms after the
+  proxy's disconnect and the server delivers A's write inside the resync data, with no OBJECT
+  after the resume; in the second, uts-proxy's `delay` holds every later frame behind the
+  delayed OBJECT_SYNC, so A's OBJECT reaches B once B is SYNCED and is applied directly.
+  Neither can fail on a missing RTO8a buffer.
+- `internal_live_counter_api.md`'s `RTLC11/counter-update-on-inc-0` cites RTLC11b1, the
+  update's `amount`, and asserts the inbound operation's `counterInc.number`, which is what
+  `Instance#subscribe`'s event carries; RTLC11b1 is covered at the pure tier only.
+- `live_object_subscribe.md`'s `RTLO4b/subscribe-map-update-0` states that the update names
+  the key and asserts only `updates.length == 1`.
+- `objects_pool.md`'s `RTO5c10/empty-sync-parent-refs-0` asserts
+  `pool["root"].parentReferences == {}`, which holds in every state the test can build; the
+  rest of the test has substance.
+- `objects_lifecycle_test.md`'s `RTO23-RTPO15/set-primitive-propagates-0` subscribes
+  `events_b` and never reads it.
+
+### Boundaries no objects test reaches
+
+**Spec points:** RTLM7h, RTLM8g, RTLM24c, RTLM19a1, RTLC7b, RTLC7c, RTLC7e, RTLM15b, RTLM15c,
+RTLM15e, RTLC6a, RTLC6e, RTLM6a, RTLM6e, RTLM7a1, RTLM7a3, RTLM7g, RTLM8a3, RTLM23c, RTLO6b,
+RTINS3b. Not yet filed; candidate O.5.
+
+Missing tests rather than faulty ones. Each but the last was found as a single-point mutant
+of a reference implementation that every test in `internal_live_counter.md` and
+`internal_live_map.md` let through; the last is a point a specification's table lists and no
+assertion reads. The implementation was checked against all of them outside the suite. The
+derived tests do not add them, since a test with no Test ID cannot be traced back.
+
+| Spec point | Not covered |
+|---|---|
+| RTLM7h, RTLM8g | A clear timeserial **equal** to the operation's serial rejects the operation |
+| RTLM24c | An equal clear serial is **not** stale; only a strictly greater one is |
+| RTLM19a1 | An entry exactly `gracePeriod` old is released; the fixture uses `gracePeriod + 1` |
+| RTLC7c before RTLC7e, RTLM15c before RTLM15e | A tombstoned object still records the CHANNEL serial before it rejects the operation |
+| RTLC6a before RTLC6e, RTLM6a before RTLM6e | `replaceData` on a tombstoned object still replaces `siteTimeserials` |
+| RTLM7a1 and RTLM7h before RTLM7a3 and RTLM7g, and RTLM8a3 | A MAP_SET or MAP_REMOVE rejected by LWW or by the clear floor keeps the old child's parent reference and creates no zero-value object |
+| RTLC7b, RTLM15b | A rejected operation leaves `siteTimeserials` untouched |
+| RTLM23c | A no-op entry inside a MAP_CREATE is left out of the merged update |
+| RTLO6b | A MAP_REMOVE or `replaceData` tombstoning a map entry with no `serialTimestamp` reads the local clock |
+| RTINS3b | `instance.md`'s `RTINS3/id-returns-objectid-0` lists it — `id` is null for a primitive — and asserts nothing about it |
+
+### Objects labels, commentary and harmless fixture slips
+
+Not yet filed; candidate O.6, the housekeeping class of
+[#532](https://github.com/ably/specification/issues/532). No assertion depends on any of them.
+
+| Spec | Fault |
+|---|---|
+| `internal_live_map.md` `RTLM24/map-clear-preserves-newer-0` | The "Spec requirement" line removes entries with a timeserial `<=` the clear's serial; RTLM24e1 removes only strictly older ones, and the same file's `map-clear-basic-0` keeps the equal entry. The fixture has no equal entry |
+| `internal_live_map.md` `RTLM14c/tombstoned-ref-yields-null-0` | Titled "MAP_SET referencing tombstoned objectId"; the body seeds `map.data` directly and performs no MAP_SET |
+| `realtime_object.md` `RTO20d4/mixed-null-serials-applies-non-null-0` | The commentary has `child` dangle and read undefined per RTLM5d2f1. Applying the MAP_SET creates the zero-value counter (RTLM7g1) and references it (RTLM7g2), so `child` resolves to a counter reading 0. `LiveCounter.create(5)` in the fixture would let the test show the create was skipped |
+| `realtime_object.md` `RTO19/off-deregisters-0` | Calls `sub.off()` on what `on()` returned, which is RTO18f2. `RealtimeObject#off` itself, RTO19, is exercised by no test in the file |
+| `realtime_object.md` `RTO20/ack-after-echo-no-double-apply-0` | The requirement line credits RTO9a3 with the single apply; with the echo first it is the RTLO4a newness check on the LOCAL apply that rejects the second. The assertion is the same either way |
+| `path_object.md` `RTPO6b/at-non-string-throws-0` | Asserts 40003 for a path that is not a string, where `objects-features.md`'s RTPO6 defines no error; RTPO5b gives one for `get` only. Derived as written, with a note at the site, 40003 being what RTPO5b gives the same mistake |
+| `internal_live_map.md` `RTLM15e/tombstoned-reject-ops-0` | Sets `isTombstone` without `tombstonedAt`, breaking RTLO3e's invariant that one is set exactly when the other is. Kept as written; the counter twin sets both |
+| `internal_live_map.md`, the pool-backed tests (RTLM7g, RTLM14, RTLM14c, every `parentReferences` test) | Build `InternalLiveMap(objectId: "root", pool: pool)` beside the root `ObjectsPool()` already holds (RTO3b1), so the map under test is a second `root`, and the parent references it writes resolve to the pool's. The module docstring says so |
+| `objects_pool.md`, `parent_references.md` | Every ATTACHED carries a `channelSerial`, and `RTO5-RTO7/new-sync-keeps-buffer-0` calls `seq2:` new relative to it. RTO4 reads only the HAS_OBJECTS flag; the sync cursor is the OBJECT_SYNC's (RTO5a1) |
+| `path_object_subscribe.md` | Mixes `remote_serial(n)` with bare `"98"`, `"99"`, `"100"`, `"50"` and `"serial-1"` from one site. Each applies only because no test sends two of them to one object: `"100"` sorts before `"99"` |
+| `value_types.md` `RTLMV4a/evaluate-validates-entries-0` | Carries no language note for `LiveMap.create(null)`, where RTLC12e1's table and RTLMV4b both carry one; see *Adapted Tests* |
+| `internal_live_map_api.md` `RTLM20/set-invalid-values-table-0` | Its invalid values — a function, `undefined`, a symbol — are JavaScript's; see *Adapted Tests* |
+| `uts/docs/integration-testing.md` | Names `objects_lifecycle_test.md` and `objects_sync_test.md` as the objects specifications with Protocol Variants; `objects_gc_test.md` carries the section too, and runs both |
+
+### `objects-features.md` gaps the derivation and implementation met
+
+Not faults in a UTS specification, and not yet filed; candidate O.7. The right-hand column is
+what ably-python does, and names ably-js where it agrees.
+
+| Spec point | Gap | ably-python |
+|---|---|---|
+| RTLM5d2 | Lists boolean, bytes, number, string and objectId, so an `ObjectData.json` entry falls to RTLM5d2g and reads null, though OD2g defines `json` and `path_object.md`'s compact test expects the decoded value | The decoded JSON, as ably-js |
+| OD4c5, OD4d5 | Still put a JSON payload in `string` with `encoding: "json"`, where OD2g and ably-js use the `json` field, a JSON string on both wires | Sends `json`, decodes both |
+| RTO4 | With HAS_OBJECTS set, does RTO4c and RTO4d only; whether a sync in flight, its SyncObjectsPool and its sequence id are abandoned is unsaid | Abandons them, as ably-js |
+| RTO5a5, RTO5a6 | Whether an OBJECT_SYNC with no parseable `channelSerial` discards a sequence already accumulating | Discards it |
+| RTO5d | "Skip processing that `ProtocolMessage`" when an ObjectMessage has no `object`. Skipping the ProtocolMessage loses its cursor and the sync never completes; the UTS and ably-js skip the ObjectMessage | Skips the ObjectMessage |
+| RTO4b2 | Resets the root's data to RTLM4c's zero value, and is silent on `clearTimeserial` | Resets it with the data |
+| RTO14b2 | Cites RFC 4648 §5, which allows padding; the UTS and ably-js require none | No padding |
+| RTO2a | Checks the granted modes when they are "populated"; an ATTACHED with no mode bits decodes to none at all | No granted modes counts as unpopulated, so the requested ones are checked (RTO2b), as ably-js. A real ATTACHED always carries the bits; the standard mock's does not, nor does `objects_faults.md`'s injected `flags: 128` |
+| RTPO6 | No error for a path that is not a string | 40003, as RTPO5b gives `get` |
+| RTLMV4c1 | A live object, PathObject or Instance as a value is 40013 only in the unmerged [#491](https://github.com/ably/specification/pull/491) | 40013 |
+| RTPO20c ([#471](https://github.com/ably/specification/pull/471)) | 92007 when the path "does not resolve to a `LiveObject`"; ably-js resolves through `_resolvePath` and gives **92005** for a path that does not resolve | 92007, as written |
+| RTBC16d ([#471](https://github.com/ably/specification/pull/471)) | Publishes a batch through RTO15, so its writes would apply only on their echo | Through RTO20, applying on ACK like every other write, as ably-js |
+
 ## Failing Tests
 
 The specification's assertion is preserved and gated behind `@deviation`. Removing
-the mark is the only change needed once the SDK behaviour lands, except where a row
-says otherwise.
+the mark is the only change needed once the SDK behaviour lands. Nothing derived from
+`uts/objects` is gated, so no LiveObjects entry appears in this section.
 
 ### Unimplemented features
 
@@ -819,8 +1050,8 @@ Nothing to fix here, only something to build. Each row is one feature, and the c
 the number of gated Test IDs that fall with it, with the pytest case count beside it
 where the two differ.
 
-Five of these rows are gated at both tiers. `batchPresence`, `Auth#revokeTokens`, the
-`PushChannel` surface and the `clientId` filter on `RestPresence#get` each carry
+Four of these rows are gated at both tiers. `Auth#revokeTokens`, the `PushChannel` surface
+and the `clientId` filter on `RestPresence#get` each carry
 `uts/rest/integration` tests as well as unit ones, and connection recovery carries two
 `uts/realtime/integration` ones; all are written against the spelling the unit tier
 already gates on, so both tiers go green together when the API lands. Those
@@ -828,28 +1059,27 @@ integration tests do all their real work first — the sandbox app, the channels
 presence members entered over a realtime connection, the registered device and the
 issued token are all real, and each test reaches the missing call before it fails, so the
 assertions either side of it are known to hold against real server responses. The
-`batch_presence` and `push_channels` files were additionally run against throwaway shims
-— a `batch_presence` forwarding to `GET /presence`, and a `PushChannel` posting and
-deleting `/push/channelSubscriptions` with `X-Ably-DeviceToken` — and pass in full
-against them. The two recovery tests are a different shape: there is no missing call for
-them to reach, so each runs end to end against the sandbox through `uts-proxy` and fails
-on the `recover` parameter the connection never sends.
+`push_channels` file was additionally run against a throwaway shim — a `PushChannel`
+posting and deleting `/push/channelSubscriptions` with `X-Ably-DeviceToken` — and passes in
+full against it. The two recovery tests reach the missing option rather than a missing
+call: each fails building the client that passes `recover`, which raises `TypeError` now the
+option is gone, after RTN16d has done its first phase against the sandbox through
+`uts-proxy`. Before 4.0.0 removed the option, both ran end to end and failed only on the
+`recover` parameter the connection never sent.
 
 | Spec points | Missing | Test IDs |
 |---|---|---|
-| RSC22, RSC24, BSP2, BPR2, BPF2, BAR2, BGR2, BGF2 | `batchPublish` and `batchPresence`, and all six result types. `grep -rn batch ably/` finds nothing. Checked against a throwaway prototype that follows ably-js: the 13 `batch_presence` unit tests pass as written, but only 4 of the 28 `batch_publish` ones do. Of the rest, 22 need their flat response fixtures converted to `BatchResult` envelopes (see the spec error above). Some of those also need `[0]` on reads of the request body, if a single spec is sent as a one-element array as ably-js sends it, or `json.loads` in place of a byte-for-byte comparison of JSON text. The last 2 expect validation features.md never asks for | 44 (47 cases) |
-| RSA17, RSA17b–g, BAR2, TRS2, TRF2 | `Auth#revokeTokens`, `TokenRevocationTargetSpecifier`, `BatchResult`. Gated against `auth.revoke_tokens(targets, issued_before=, allow_reauth_margin=)` returning `success_count` / `failure_count` / `results`, with `target` / `issued_before` / `applies_at` / `error` per result. RSA17d is the one case that needs no server at all — a token-authenticated client must refuse locally with 40162/401 — so it can be satisfied before any of the wire work | 21 |
+| RSA17, RSA17b–g, BAR2, TRS2, TRF2 | `Auth#revokeTokens`, `TokenRevocationTargetSpecifier` and the two token revocation result types; the `BatchResult` they would arrive in is the batch API's. Gated against `auth.revoke_tokens(targets, issued_before=, allow_reauth_margin=)` returning `success_count` / `failure_count` / `results`, with `target` / `issued_before` / `applies_at` / `error` per result. RSA17d is the one case that needs no server at all — a token-authenticated client must refuse locally with 40162/401 — so it can be satisfied before any of the wire work | 21 |
 | RSH7, RSH7a–e, RSH6, RSH8 | `PushChannel`: `channel.push`, `client.device`, `LocalDevice`. The push *admin* surface (RSH1) does exist | 12 |
-| RTN16, RTN16f–k, RTC1c (TO3i) | Connection recovery, entire. `recover` is in the `Options` signature, stored, and given a property and a setter (`options.py:30,111,193,196`), and read nowhere. No `Connection#createRecoveryKey`, no `recover` connect parameter, no recovery-key decoding. Measured through the proxy: a client built with a valid `recover=` opened a `ws_connect` whose query parameters were `{'accessToken': …, 'v': '5'}` — no `recover` — and was given a fresh `connectionId`. RTN16l is otherwise fully compliant, taking the proxy's `recovery-failed-new-id`, `recovery-failed-new-key` and error 80008 and staying CONNECTED; only the absent parameter fails it | 8 |
+| RTN16, RTN16f–k, RTC1c (TO3i) | Connection recovery, entire. No `recover` client option — 3.x accepted and stored one and read it nowhere, and 4.0.0 removed it, so passing it raises `TypeError` — no `Connection#createRecoveryKey`, no `recover` connect parameter, no recovery-key decoding. Measured through the proxy before the option was removed: a client built with a valid `recover=` opened a `ws_connect` whose query parameters were `{'accessToken': …, 'v': '5'}` — no `recover` — and was given a fresh `connectionId`. RTN16l was otherwise fully compliant, taking the proxy's `recovery-failed-new-id`, `recovery-failed-new-key` and error 80008 and staying CONNECTED; only the absent parameter failed it. RTN16f1's malformed key passed while the option was ignored, and is gated with the rest now that it cannot be passed | 9 |
 | RTL22, RTL22a–d, MFI1, MFI2a–e | `MessageFilter`. `RealtimeChannel.subscribe` (`channel.py:262-273`) accepts only a `str` or a callable, and there is no filter type of any shape to spell. Each test builds its filter through the module's `message_filter()` helper, which is the one place to repoint when the type lands | 5 |
 | RTS5, RTS5a, RTS5a1, RTS5a2, DO2a | Derived channels: `DeriveOptions` and `Channels.getDerived`. `grep -r derive ably/` is empty. Each test imports `DeriveOptions` inside its body so the module still loads | 5 |
 | RTB1, RTB1a, RTB1b | Retry backoff, jitter and `retryIn`. Retry timers schedule the flat configured timeout (`connectionmanager.py:753`, `channel.py:866-871`); `grep` for jitter/backoff/retry_in returns nothing, and neither `ConnectionStateChange` nor `ChannelStateChange` carries `retryIn` | 4 |
 | RTL25, RTL25a, RTL25b | `RealtimeChannel#whenState`. `Connection._when_state` exists (private, awaitable), so this is a gap on the channel rather than a house style; the tests are written against a `channel.when_state(state)` matching the shape the connection already has | 4 |
-| RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_handler` as a client option, and any use of `log_level` — it is stored on `Options` and read by nothing. The tests also expect log events the SDK never emits: a DEBUG "HTTP request" event carrying a structured context, and an INFO event with a context when a client is created. Every module logs through a module-level logger, so a level set by one client applies to the whole process; TO3c and TO3c2 would then leave the `ably` logger at DEBUG for later tests, and need a fixture that resets it | 4 |
+| RSC2, RSC3, RSC4, TO3b, TO3c, TO3c2 | `log_level` and `log_handler` as client options. The library logs through the standard `logging` module under the `ably.pubsub` logger, whose level and handlers are the idiomatic way to do both; `log_level`, which was stored on `Options` and read by nothing, was removed in 4.0.0, so passing either raises `TypeError` | 4 |
 | RSP3a2, RSP3a3 | `clientId` and `connectionId` filters on `RestPresence#get`. `Presence.get` is `get(self, limit=None)` (`ably/types/presence.py:216`), while `Presence.history` does take its documented params. `presence.get(client_id=...)` raises `TypeError: get() got an unexpected keyword argument 'client_id'`. The absence also forces the RSP5 decoding adaptation below | 4 (5 cases) |
 | TB4, RTL7h, RTP6e | `attachOnSubscribe`. `ChannelOptions.__init__` (`channeloptions.py:22-26`) takes only `cipher`, `params` and `modes`, and `subscribe()` on the channel, on presence and on annotations all end unconditionally with `await attach()`. This absence also forces the largest single adaptation in the suite, below | 3 |
-| RSL7 | `RestChannel#setOptions`. The realtime channel implements it; the REST `options` setter expects the kwargs dict `Channels.get` collected, so a `ChannelOptions` raises `TypeError` | 2 |
-| RTC1a (TO3h), RTL7f | `echoMessages`, in both the forms RTL7f allows. There is no `echo_messages` client option — passing one raises `TypeError` — and no `echo` connect parameter, so every message the server sends is delivered whatever its `connectionId` | 2 |
+| RTL7f | `echoMessages` in its client-filter form. The `echo_messages` option sends `echo=false` (RTC1a), which the server honours, but the client does not itself drop a message carrying its own `connectionId`, and that is the only form a mock-backed test can observe | 1 |
 | RTP12, RTP12a, RTP12c | `RealtimePresence#history`. The realtime *channel* does delegate `history` to the REST implementation; only the presence object is missing it | 2 |
 | RTN23c1, RTN23c2 | PING/PONG. `ProtocolMessageAction` stops at `ANNOTATION` (21), so PING (22) and PONG (23) are not modelled and action 22 matches no branch of `on_protocol_message` (`websockettransport.py:37-59`, `:143-199`). The message is counted as activity and discarded | 2 |
 | TI1, TI4 | `href` anywhere in the SDK, and `cause` when deserialising. `AblyException.from_dict` and `raise_for_response` read only `message`, `statusCode` and `code`, so both fields are dropped from server errors. `test_ti_errorinfo_from_json` is adapted to the same gap: it asserts `href` is absent, and flips when `href` lands | 2 |
@@ -858,8 +1088,7 @@ on the `recover` parameter the connection never sends.
 | TB3 | `ChannelOptions.withCipherKey`. The nearest equivalent, `ably.util.crypto.get_default_params({'key': key})`, is not reachable from `ChannelOptions` | 1 |
 | RTL2i, TH6 | `hasBacklog` on `ChannelStateChange`. `Flag.HAS_BACKLOG` is defined (`types/flags.py:7`) but `_on_message` reads only RESUMED and HAS_PRESENCE (`channel.py:715-721`). See the UTS Spec Error above: the features spec makes this optional | 1 |
 | RTP6b | Subscribing to an *array* of presence actions. The list reaches `EventEmitter.on` and pyee uses the event as a dict key, so `presence.subscribe([ENTER, LEAVE], listener)` raises `TypeError: unhashable type: 'list'`. A fix has to fan the list out into one registration per action, and `unsubscribe` with it. `realtime/integration/presence_lifecycle_test.py::test_rtp4_bulk_enter_observed` adapts instead of gating: it registers the one listener once for `'enter'` and once for `'present'`, which is what the array form means, and the counted set is identical | 1 |
-| RSL1i | REST publish never checks message size; only `ably/realtime/channel.py:425` calls `validate_message_size`, so an oversized REST publish goes out. The helper is not TM6 either. It measures the whole encoded array (keys, `id`, `encoding` and the msgpack or JSON framing) rather than the sum of `name`, `data`, `clientId` and `extras`, so it rejects messages near the limit that the server accepts. The test also needs the `max_message_size` option (TO3l8, under Adapted Tests), and its at-limit case carries the fixture error above | 1 |
-| TP5 | `size` on `PresenceMessage`. There is no TM6 size calculation anywhere in the SDK: `Message` has no `size` either, and `validate_message_size` measures something else (see RSL1i). The related `maxMessageSize` gap is adapted rather than gated, below; `features.md` TM6 has no UTS test | 1 |
+| TP5 | `size` on `PresenceMessage`. Published messages are measured per TM6 and checked against `max_message_size` (RSL1i, TO3l8), but presence messages are measured by nothing, and neither type exposes its size | 1 |
 
 ### Connection
 
@@ -1049,83 +1278,9 @@ that the first merely permitted.
 the adapted RTN25 unit test round to the specification's option A, so that test's
 adaptation goes with the fix.
 
-#### `ping()` rejects DISCONNECTED instead of deferring, and charges the wait to the caller — 3 tests
-
-**Spec points:** RTN13b, RTN13c, RTN13d.
-
-Two defects in the same method.
-
-- RTN13b errors only for INITIALIZED, SUSPENDED, CLOSING, CLOSED and FAILED, and RTN13d
-  defers a ping requested while CONNECTING *or DISCONNECTED* until the connection is
-  CONNECTED. `ConnectionManager.ping` (`connectionmanager.py:362`) admits only CONNECTED
-  and CONNECTING and raises `AblyException("Cannot send ping request. Calling ping in
-  invalid state", 400, 40000)` for DISCONNECTED. Note that
-  `deferred-ping-error-suspended-5` would otherwise pass for the wrong reason: its only
-  stated assertion is that an error arrives, and one does — just immediately, rather than
-  when the connection suspends.
-- RTN13c with RTN13d requires a deferred ping's timeout to run "from when the HEARTBEAT is
-  actually sent, not when `ping()` is called". `ping()` enters
-  `asyncio.wait_for(pending_ping.future, self.__timeout_in_secs)` (`:375`) as soon as it is
-  called, so the whole CONNECTING period is charged against it and a ping requested while
-  connecting can expire before its HEARTBEAT has gone out.
-
-**Tests affected:** `test_rtn13d_ping_deferred_disconnected` and
-`test_rtn13b_deferred_ping_error_suspended` fail with "the ping errored instead of waiting
-for the connection"; `test_rtn13c_deferred_ping_timeout` fails with
-`assert 0.096… >= (0.4 * 0.9)` — the error arrived 96 ms after CONNECTED where a 400 ms
-`realtimeRequestTimeout` should have run from that point.
-
-**Status:** open bug.
-
 ### Channels
 
-#### `detach()` never returns when the connection is not CONNECTED — 2 tests
-
-**Spec point:** RTL5l.
-
-When the connection is in any state other than CONNECTED and no earlier channel-state
-condition applies, the channel must transition immediately to DETACHED. Instead `detach()`
-requests DETACHING, `_check_pending_state()` returns without sending anything because the
-connection is not CONNECTED, and `detach()` then awaits the internal state emitter
-(`channel.py:212`) for a transition nothing will produce. **The coroutine never returns**
-and the channel is left in DETACHING.
-
-**Tests affected:** `test_rtl5l_detach_not_connected_immediate` and
-`test_rtl5l_detach_attached_when_disconnected`, each with a one-second `asyncio.wait_for`
-so the hang is reported as a failure rather than a stuck run. Both fail with
-`asyncio.exceptions.TimeoutError`. In the second, the assertions that set the scene — the
-connection settling in DISCONNECTED with the channel still ATTACHED — pass first, so the
-failure is unambiguously the detach.
-
-**Status:** open bug. A hang, not a wrong value.
-
-#### `set_options()` never returns for an already-ATTACHED channel — 1 test
-
-**Spec point:** RTL16a.
-
-When `params` or `modes` are supplied to `setOptions` on an attached channel, the channel
-must reattach, pass through ATTACHING, return to ATTACHED, and `setOptions` must resolve.
-Instead it hangs, and the root cause is a single missing call.
-
-`set_options` (`channel.py:93-102`) calls `_attach_impl()` and then awaits
-`self.__internal_state_emitter.once_async()`. `_attach_impl()` sends the ATTACH **without
-going through `_request_state(ChannelState.ATTACHING)`**, so the channel is still ATTACHED
-when the server's ATTACHED arrives. `_on_message` therefore takes the RTL12 branch
-(`:722-726`), which emits `update` on the *public* emitter and returns. The internal state
-emitter is written only by `_notify_state` (`:821`), which that branch never reaches, so
-the await has nothing to wake it. Both halves of the defect — no ATTACHING transition, and
-no internal event — follow from the one missing `_request_state`.
-
-Measured: the second ATTACH is sent, the server's ATTACHED is received, the options *are*
-stored, and `asyncio.wait_for(channel.set_options(...), 1.0)` raises `TimeoutError`.
-
-**Tests affected:** `test_rtl16a_triggers_reattach`. It also constrains
-`test_rtl4c1_includes_channel_serial` and `test_rtl4j_attach_resume_flag_not_set`, which run
-`set_options` as a task and cancel it — recorded under Adapted Tests.
-
-**Status:** open bug. A hang, not a wrong value.
-
-#### A server-initiated DETACHED discards its error, and the pending call then raises `TypeError` — 3 tests
+#### A server-initiated DETACHED discards its error, which `detach` then raises as `TypeError` — 3 tests
 
 **Spec points:** RTL24, RTL4c, with RTL13a and RTL13b.
 
@@ -1136,23 +1291,23 @@ An attach rejected by a DETACHED carrying an `ErrorInfo` must fail with that err
    `self._notify_state(ChannelState.SUSPENDED)` (`channel.py:735`), passing **no reason**,
    so the message's error is dropped. The same shape applies to RTL13a's
    `_request_state(ATTACHING)` and RTL13b's `_notify_state(SUSPENDED)`.
-2. `attach()` then reaches `raise state_change.reason` (`channel.py:150`) with `reason`
-   `None`, which Python reports as `TypeError: exceptions must derive from BaseException`
-   rather than as an `AblyException`. The same unguarded `raise` is at `:102` in
-   `set_options` and `:219` in `detach`.
+2. `attach()` and `set_options` then raise their 90001 fallback, having no reason to
+   raise, but `detach` reaches `raise state_change.reason` with `reason` `None`, which
+   Python reports as `TypeError: exceptions must derive from BaseException` rather than as
+   an `AblyException`.
 
 **Tests affected:** `test_rtl24_error_reason_attach_failure` and
-`test_rtl4c_error_cleared_on_attach`, both `TypeError: exceptions must derive from
-BaseException` at `channel.py:150`, and `test_rtl13b_attaching_detached_to_suspended`,
+`test_rtl4c_error_cleared_on_attach`, both failing on `error_reason` being `None` once the
+attach has raised, and `test_rtl13b_attaching_detached_to_suspended`,
 which reads the dropped error off the SUSPENDED state change and so falls one step
 earlier. The clearing half of RTL4c is still covered by
 `test_rtl4c_error_cleared_preserved_detach`, which sets the error with an ERROR message
 instead and passes. One adapted test — `test_rtl13a_attached_reattach_triggered` —
 asserts `reason is None`, and will need revisiting once the reason is carried through.
 
-**Status:** open bug, in two parts. The `raise None` is worth fixing on its own even before
-the reason is plumbed through: a missing reason should give an `AblyException`, not a
-`TypeError`.
+**Status:** open bug, in two parts. The `raise None` is worth fixing in `detach` on its
+own, as it is in `attach` and `set_options`, even before the reason is plumbed through: a
+missing reason should give an `AblyException`, not a `TypeError`.
 
 #### An ATTACHED received while DETACHING or DETACHED is ignored — 2 tests
 
@@ -1233,20 +1388,6 @@ exactly as one arriving while ATTACHED does.
 **Tests affected:** `test_rtl17_no_delivery_when_not_attached` — `assert 1 == 0`.
 
 **Status:** open bug.
-
-#### `Channels.release` removes a channel that is not INITIALIZED, DETACHED or FAILED — 1 test
-
-**Spec points:** RTS4b, RTS4e.
-
-RTS4e requires release to raise 90011/400 for a channel in any other state, and take no
-other action. `Channels.release` (`channel.py`) logs a deprecation warning and removes the
-channel, sending nothing, so an attached channel is dropped from the collection while still
-attached in the Ably service. RTS4b permits keeping the pre-6.3.0 release until the next
-major version provided that warning is logged.
-
-**Tests affected:** `test_rts4e_release_attached_fails` — `DID NOT RAISE`.
-
-**Status:** permitted by RTS4b until the next major version, which raises 90011.
 
 #### A decode error other than 40018 has no channel-level handling — 2 tests, 3 cases
 
@@ -1485,96 +1626,16 @@ correcting the test does not read as a new discovery.
 
 **Status:** open bug, untested.
 
-#### A synthesized LEAVE's timestamp is timezone-aware; every other one is naive — no test
-
-**Spec points:** RTP19, RTP19a, against TP3g.
-
-`_synthesize_leaves` and `set_presence` build the LEAVE with `datetime.now(timezone.utc)`
-(`presence.py:586`, `:720`), while every wire-derived presence message gets a **naive**
-`datetime` from `_dt_from_ms_epoch`, which is built on `datetime.utcfromtimestamp(0)`
-(`types/presence.py:12-19`, `:182-184`). Comparing the two raises
-`TypeError: can't compare offset-naive and offset-aware datetimes`, verified directly.
-
-Nothing inside the library compares them, because synthesized leaves are emitted rather than
-stored, so this bites only application code — but any subscriber that sorts or compares the
-timestamps of the messages it receives will hit it. Related to the deprecation work in
-PR #656.
-
-**Tests affected:** none. `test_rtp19_synth_leave_null_id_timestamp` brackets the LEAVE with
-two aware `datetime.now(timezone.utc)` readings and passes.
-
-**Status:** open bug, untested.
-
 ### Auth
-
-#### A JWT string with a matching clientId is rejected 40102 — 1 test
-
-**Spec point:** RSA7, `realtime/integration/RSA7/matching-clientid-succeeds-0`.
-
-RSA7 requires that a token whose `clientId` equals the client's configured `clientId` is
-accepted. `Auth._ensure_valid_auth_credentials` calls
-`self._configure_client_id(self.__token_details.client_id)` after every token fetch
-(`ably/rest/auth.py:126`). Where an `auth_callback` returns a **JWT string**,
-`request_token` wraps it as `TokenDetails(token=<jwt>)` (`auth.py:213`) without parsing the
-JWT, so `token_details.client_id` is `None`. `_configure_client_id(None)` then finds
-`None != 'test-client-…'` and raises `IncompatibleClientIdException(…, 400, 40102)`
-(`auth.py:345`), although the JWT's own `x-ably-clientId` claim is exactly the configured
-id. Measured against the sandbox, one auth-callback invocation:
-
-```
-initialized→connecting  None
-connecting→disconnected AblyAuthException 80019/401 'Client configured authentication provider request failed'
-disconnected→connecting None
-connecting→connected    None
-```
-
-The connection does arrive in the end, because `__token_details` is assigned before the
-raise: the retry takes the cached-token branch and skips `_configure_client_id` altogether.
-The observable cost is a spurious failed attempt and a full `disconnected_retry_timeout` —
-fifteen seconds — on a clientId that matched.
-
-**Tests affected:**
-`realtime/integration/auth_test.py::test_rsa7_matching_clientid_succeeds` —
-`AssertionError: Timed out waiting for connection state connected; it was disconnected`.
-The sibling `test_rsa7_mismatched_clientid_fails` is not gated and pays the same fifteen
-seconds before the server's genuine rejection arrives, which is why it waits twenty
-seconds rather than the default ten.
-
-**Status:** open bug. A fix either reads the `x-ably-clientId` claim when wrapping a bare
-token string, or leaves `_configure_client_id` alone where the fetched token carries no
-clientId of its own.
-
-#### An authCallback error is always rewritten as 401/40170, so RSA4d is unreachable — 4 tests
-
-**Spec points:** RSA4d, RSA4d1.
-
-`ably/rest/auth.py:182-187` wraps **every** exception an authCallback raises as
-`AblyException("auth_callback raised an exception", 401, 40170, cause=e)`, discarding the
-original `statusCode`. `ConnectionManager.on_error_from_authorize` (`connectionmanager.py:479-491`)
-then branches on `exception.status_code == 403` to reach FAILED, and that branch can never be
-taken for an authCallback: the status is always 401, so a 403 goes to the `__fail_state`
-(DISCONNECTED) with an 80019/401 instead. RSA4d requires FAILED with 80019/**403** and
-`cause` set to the 403, both during the connect sequence and during an RTN22 reauth.
-
-| Test | Observed |
-|---|---|
-| `connection_auth_test.py::test_rsa4d_callback_403_causes_failed` | `Timed out waiting for connection state failed; it was disconnected` |
-| `connection_auth_test.py::test_rsa4d_callback_403_reauth_causes_failed` | `Timed out waiting for connection state failed; it was connected` |
-| `auth_callback_errors_test.py::test_rsa4d_callback_403_connecting_failed` | `Timed out waiting for connection state failed; it was disconnected` |
-| `auth_callback_errors_test.py::test_rsa4d_callback_403_reauth_failed` | `Timed out waiting for connection state failed; it was connected` |
-
-**Status:** open bug. Preserving the callback error's `statusCode` — or letting an
-`AblyException` from the callback through unwrapped — also restores the `cause` chain
-recorded under Adapted Tests.
 
 #### A failed RTN22 reauth leaves no trace on the connection — 1 test
 
 **Spec points:** RSA4c1, RSA4c3.
 
 `WebSocketTransport.on_protocol_message` (`websockettransport.py:170-175`) handles a server
-AUTH by awaiting `auth.authorize()` inside a bare `except Exception` that only logs. Nothing
-reaches `on_error_from_authorize`, so no 80019 is built and `connection.errorReason` stays
-as it was.
+AUTH by awaiting `auth.authorize()` inside a bare `except Exception` that only logs. Only a
+403, which `authorize()` hands on for RSA4d, reaches `on_error_from_authorize`; any other
+failure builds no 80019, and `connection.errorReason` stays as it was.
 
 **Tests affected:** `test_rsa4c3_callback_error_stays_connected` —
 `Timed out waiting for errorReason to be set`.
@@ -1582,22 +1643,6 @@ as it was.
 **Status:** open bug, but see the UTS Spec Error above: specification#466 would make
 ably-python's behaviour the correct one, in which case this entry closes as a spec change
 rather than a fix.
-
-#### TokenParams passed to an authCallback carry no clientId on a realtime client — 1 test
-
-**Spec points:** RSA12a, RTN2e.
-
-`Auth.__init__` (`ably/rest/auth.py:36-41`) sets `self.__client_id = None` when
-`ably._is_realtime`, deferring the clientId to the CONNECTED `connectionDetails`.
-`_ensure_valid_auth_credentials` only adds `token_params['client_id']` when
-`self.client_id is not None`, so an authCallback on a realtime client is called with the
-clientId missing entirely, even though `ClientOptions.clientId` was set. The REST client does
-pass it, so the SDK is inconsistent with itself. The snake_case key is idiomatic translation,
-not the deviation; the absent member is.
-
-**Tests affected:** `test_rtn2e_callback_params_include_clientid` — `KeyError: 'client_id'`.
-
-**Status:** open bug.
 
 #### RSA4f invalid-format validation is not implemented — 1 test
 
@@ -1678,113 +1723,18 @@ JWT, fall with it.
 renew and retry on a token error whatever the flag says, and only then decide whether the
 final response is raised or returned.
 
-#### A basic-auth connection records its clientId as validated and `None`, so `enterClient` can never succeed — no test
-
-**Spec points:** RSA7b4, RTP14, RTP15.
-
-A client built from a full-access key alone and asked to `enter_client("user-1", …)`
-raises `AblyException: 40012 400 Unable to enter presence channel with clientId user-1 as
-it does not match the current clientId None`.
-
-The server tells such a connection `clientId: "*"` in CONNECTED, and
-`Auth._configure_client_id` (`ably/rest/auth.py:335-353`) opens with a branch that exists
-to stop a server wildcard overwriting a clientId the caller configured:
-
-```python
-if original_client_id != '*' and new_client_id == '*':
-    self.__client_id_validated = True
-    self.__client_id = original_client_id
-    return
-```
-
-With no configured clientId, `original_client_id` is `None`, `None != '*'` holds, and the
-client id is recorded as **validated and `None`**. `can_assume_client_id`
-(`auth.py:356-363`) then takes the validated path and answers `None == '*' or None ==
-assumed`, which is `False` for every clientId, so `enter_client` cannot succeed for any of
-them. The `original_client_id is None` escape in the unvalidated branch is unreachable once
-CONNECTED has arrived. The branch should apply only where a clientId was configured, and
-`__client_id` should become `'*'` otherwise, which is what RSA7b4 asks for.
-
-**Tests affected:** none, which is why this is recorded here rather than gated. The three
-`batch_presence.md` tests build their realtime client with `client_id='*'` instead, in
-`entering_client()`, with the diagnosis in its docstring — the repository's own presence
-suite carries the same workaround for the same reason, commented "Use wildcard auth for
-enterClient" (`test/ably/realtime/realtimepresence_test.py:394-396`). It is setup rather
-than subject: those tests are about `batchPresence`, and nothing they assert depends on how
-the members got there. A fix would let the setup halves be written exactly as the
-specification writes them. Both `realtime/integration` presence specifications carry the
-same workaround for the same reason — `presence_lifecycle_test.py::test_rtp4_bulk_enter_observed`
-and `presence/presence_sync_test.py::test_rtp2_sync_multiple_members` each build the client
-that enters members on behalf of others with `client_id='*'` — which makes five tests
-across two tiers that would otherwise be written as their specifications write them.
-
-This is distinct from the wildcard-clientId contradiction recorded under UTS Spec Errors,
-which is about a client that *does* configure `clientId: "*"`.
-
-**Status:** open bug, one line from a fix.
-
 #### Auth behaviour on the REST client
 
 | Spec points | Behaviour |
 |---|---|
-| RSA15a, RSA15c | A mismatch between `ClientOptions.clientId` and a statically supplied `TokenDetails.clientId` is never detected. `Auth.__init__` only falls back to the token's clientId; `_configure_client_id`, which would raise, is reached only after a *fetched* token and on a realtime CONNECTED. `test_rsa15a` requires the constructor to raise, while `test_rsa7_clientid_mismatch_error` and `test_rsa15c` construct the client outside `pytest.raises`, so no implementation passes all three as written. Detecting the mismatch at first use, as RSA15c describes for REST, leaves `test_rsa15a` to be adapted (see the spec error above) |
 | RSA7, RSA16c | A clientId learned from a token is treated as immutable, so `authorize()` to a token with a different clientId raises 40102. RSA15 scopes immutability to a clientId set in `ClientOptions`. `_configure_client_id` uses `self.client_id or self.auth_options.client_id`, conflating the two. The rule dates from a 2016 port of ably-ruby, and features.md gives no basis for it; still worth a maintainer's call |
-| RSA10b, RSA10h, RSA10j | `authorize()` overwrites an explicit `tokenParams.clientId`. `Auth._ensure_valid_auth_credentials` assigns `self.client_id` over whatever the caller passed, whenever the client has one. RSA10h makes it the default "if not null". The token the test's callback returns has no clientId, so the test also needs the RSA12a fix (see Adapted Tests) |
-| RSA5c, RSA6c | `create_token_request()` ignores `default_token_params`. The merge lives in `Auth.request_token` only, so a direct call yields `ttl=None` and `capability=None`. RSA5, RSA5b, RSA5d, RSA6, RSA6b and RSA6d all pass, so the nullability requirement itself is met |
-| RSA16b | `TokenDetails` built from a bare token string fabricates `expires` (now plus an hour), `issued` (0) and `capability`. RSA16b requires only `token` to be populated. Nothing inside the SDK acts on the invented values: the expiry is checked only once a server time offset is known, which a token-string client never obtains. The harm falls on callers that read them |
 | RSA16d | A failed renewal leaves the invalidated token in place — `_ensure_valid_auth_credentials` assigns only on success |
-| RSA8c1a, RSA12b | `TokenParams` reach the `auth_url` under the SDK's internal snake_case names: `Auth._ensure_valid_auth_credentials` sets `token_params['client_id']` and `token_request_from_auth_url` passes the dict straight to the query string, so an auth server sees `client_id`, not `clientId`. The test's token has no clientId, so it fails first on the RSA12a 40102 (see Adapted Tests) |
 
 ### Options
 
 | Spec points | Behaviour |
 |---|---|
 | TO3 | `endpoint` is left unset when none is given, per `TO/endpoint-affects-host-0`. `Options.__init__` resolves the default eagerly to the REC1a routing policy id `main`, so the attribute never reads back as null. Only the default case is gated; the two that name an endpoint are derived and pass |
-
-#### `httpRequestTimeout` is seconds where the specification counts milliseconds — 1 test
-
-**Spec points:** TO3l4, RSC15l2, `rest/proxy/RSC15l2/timeout-triggers-fallback-0`.
-
-`ably/http/http.py:193` builds `timeout = (self.http_open_timeout,
-self.http_request_timeout)` and hands it to `httpx`, which reads both as **seconds**.
-TO3l4's `httpRequestTimeout` is milliseconds, default 10000, and
-`CONNECTION_RETRY_DEFAULTS` holds `10`. So a caller passing the value the published
-specification describes gets a deadline a thousand times longer than the one asked for:
-`http_request_timeout=3000` is three thousand seconds. The **defaults** come out right
-by coincidence — 10 seconds is TO3l4's 10000 ms, and `http_open_timeout`'s 4 is TO3l3's
-4000 — which is why only a client that configures the option is affected, and why the
-mismatch reads as cosmetic anywhere it is only compared against `options`.
-
-Measured through the proxy. Against a session delaying the first `/time` by 20 seconds,
-a client built with the specification's `httpRequestTimeout: 3000` sat out the whole
-delay, succeeded on the primary host, and tried no fallback — one `/time` request in the
-event log where the test asserts two, which is the `assert 1 >= 2` the gated run shows.
-Passing `3` in its place makes the same test pass in 3.1 seconds: the timeout fires, the
-retry goes to the fallback host and succeeds. So RSC15l2's fallback path is compliant and
-the unit is the whole of the defect.
-
-The same mismatch is recorded twice under *Adapted Tests*, at `TO3l4, TO3l5` and at
-`RTC7 (TO3l3, TO3l4)` in *REST behaviours asserted as they are*, where it is what makes
-the effective defaults unreadable from `options`. This is that defect seen from outside:
-the same line of `http.py`, reached through a public client option rather than through an
-attribute, so a caller is affected whether or not they ever read `options`. It is counted
-as one root cause, here, because it is the only gated test on it; neither Adapted Tests
-row is counted again.
-
-**Tests affected:** `test_rsc15l2_timeout_triggers_fallback`, the one gated test in
-`rest/integration/proxy`. The test is written exactly as the specification has it, with
-`http_request_timeout=3000`, so removing the gate is all that is needed once the unit is
-fixed.
-
-**Status:** open bug. The fix converts at the boundary — `Http` dividing the option by
-1000 before it reaches `httpx`, with `CONNECTION_RETRY_DEFAULTS` restated in
-milliseconds — and has to move `http_open_timeout` (TO3l3) with it, since both halves of
-the tuple are read the same way. That same line carries a second, filed defect:
-[#709](https://github.com/ably/ably-python/issues/709) is that the value, in whatever
-unit, bounds one socket read rather than the request, so a connection that keeps
-producing frames is never timed out and `write` and `pool` are left unbounded. The two
-want fixing together, since both change what one attempt may spend of the RSC15 retry
-budget.
 
 ### Requests
 
@@ -1819,9 +1769,6 @@ through an internal object to get at a value the specification makes public.
 | RTP17, RTP17h | a distinct `LocalPresenceMap` type keyed by `clientId` | `RealtimePresence._my_members`, the same `PresenceMap` class built with `member_key_fn=lambda msg: msg.client_id` (`presence.py:79-81`). The keying requirement is met; the newness check is not, and is gated above | all of `local_presence_map_test.py` |
 | RTP2d1, RTP2h1a, and the `Interface Under Test` blocks of all three presence-map specs | `put(message) -> PresenceMessage?` and `remove(message) -> PresenceMessage?` | both return `bool` (`presencemap.py:111`, `:159`); the message to emit is the caller's own, which `set_presence` appends to `broadcast_messages` when the return is true. `IS NOT null` is read as `is True`. `put` stores a *copy* with the action rewritten to PRESENT and leaves the caller's message untouched, so RTP2d1's "emit the original action" falls out for free | all of `presence_map_test.py` |
 | RTP19, and the `Interface Under Test` block of `presence_sync.md` | `endSync() -> List<PresenceMessage>`, the synthesized LEAVEs | `end_sync()` returns `(residual, absent)` of the *stored* members; the synthesis lives one level up in `RealtimePresence.set_presence` (`presence.py:575-587`). Tests reading only counts and clientIds concatenate the two lists exactly as `set_presence` does; tests reading the LEAVE itself drive a `RealtimePresence` and assert on what its subscribers receive | 4 in `presence_sync_test.py` |
-| TB2, RTS3b, RTS3c, RTS3c1, RTL16 | `channel.options` as a `ChannelOptions` | a dict keyed by wire names, because `RealtimeChannel` passes `ChannelOptions.to_dict()` to the REST `Channel` constructor (`channel.py:84`). Assertions read `channel.options['params']['rewind']`. On `ChannelOptions` itself the cipher attribute is spelled `cipher`, not `cipherParams`. `set_options_without_reattach` replaces the stored mapping wholesale rather than merging, which `test_rts3c_options_updated_existing` pins | 5 |
-| RTS2, RTS4c, RTS4d | `channels.exists(name)` and `channels.names` | `name in client.channels` (`Channels.__contains__`); the collection iterates over its channels rather than their names. Genuinely idiomatic spelling rather than an absence — recorded only because of the `__getattr__` hazard noted below | 5 |
-| RSH1b1, RSH1b2, RSH1b3, RSH1b4, RSH1b5, RSH1c3 | `DevicePushDetails`. The specification builds every device as `DeviceDetails(…, push: DevicePushDetails(recipient: {…}))`; ably-python has no such type | `DeviceDetails.__init__` takes `push` as a plain dict and stores it unchanged (`ably/types/device.py:10-40`), and `DeviceDetails.push` hands that dict back, so the tests read `{'recipient': {…}}` directly. The recipient's `transportType` is still validated against `DevicePushTransportType` in the constructor, which is the only part of `DevicePushDetails` carrying behaviour | the 7 in `push_admin_test.py` that register a device, through its `apns_device()` helper |
 
 **Status:** open bugs of the missing-API kind, not of the wrong-behaviour kind. Adding the
 accessors would leave every assertion above unchanged; only the spelling would move.
@@ -1846,34 +1793,6 @@ asserting `clientId == 'my-client'` with the spec expectation in a comment.
 Adapted rather than gated because the behaviour is stable and the rest of each test —
 action, channel, payload — is worth running.
 
-### `AblyException`'s status code and code are transposed at six sites
-
-The constructor is `AblyException(message, status_code, code)` (`util/exceptions.py:15`).
-Six raises put the Ably error code in the status slot and the HTTP status in the code slot,
-so the resulting exception reports each as the other:
-
-| Site | As written | Should be |
-|---|---|---|
-| `realtime/channel.py:203` | `AblyException("Unable to detach; channel state = failed", 90001, 400)` | `400, 90001` |
-| `realtime/channel.py:217` | `AblyException("Detach request superseded by a subsequent attach request", 90000, 409)` | `409, 90000` |
-| `realtime/connectionmanager.py:343` | `AblyException("Connection failed", 80000, 500)` | `500, 80000` |
-| `types/mixins.py:84` | `AblyException('VCDiff decoder not available', 40019, 40019)` | `400, 40019` |
-| `types/mixins.py:88` | `AblyException('VCDiff decode failure', 40018, 40018)` | `400, 40018` |
-| `types/mixins.py:111` | `AblyException('VCDiff decode failure', 40018, 40018) from e` | `400, 40018` |
-
-The two neighbours that get it right — `channel.py:860` (`408, 90007`) and
-`message.py:304` (`400, 40018`, for the sibling of the `mixins.py` errors) — make this a
-repeated slip rather than a misunderstanding of the constructor.
-
-**Tests affected:** `test_rtl5b_detach_failed_errors` and `test_rtl4h_attach_while_detaching`
-assert on `status_code` with a comment recording the transposition.
-`test_rtn7d_fail_disconnected_no_queue`, `test_rtn7e_pending_fail_closed` and
-`test_rtn7e_multiple_pending_fail` assert only what the specification asks — that a code is
-present — so they pass; the wrong value is recorded here rather than asserted.
-
-**Status:** open bug. A mechanical fix, and a caller branching on `status_code` today gets a
-five-digit number.
-
 ### A refused connection and a connect timeout reach no failure path
 
 **Spec points:** RTN14d most directly; the same defect shapes RTN14e, RTN14f, RTN14h,
@@ -1894,7 +1813,7 @@ except (WebSocketException, socket.gaierror) as e:
 `ConnectionManager.try_host` awaits is completed only by the `connected` or `failed` events,
 so it never completes; the `except` clause in `connect_base` that would enter
 `connect_with_fallback_hosts` is never reached; and the attempt is ended only by the
-transition timer. Measured, with `fallback_hosts=[]` and `realtime_request_timeout=1000`:
+transition timer. Measured, with `fallback_hosts=[]` and `realtime_request_timeout_seconds=1`:
 
 | injected | state at settle | state change | reason |
 |---|---|---|---|
@@ -1960,8 +1879,9 @@ through their setups.
 `ConnectionDetails.from_dict` parses `connectionStateTtl` (`types/connectiondetails.py:19`)
 and nothing ever reads it. `ConnectionManager.start_suspend_timer`
 (`connectionmanager.py:745`) uses `Defaults.connection_state_ttl` — 120000 — directly, and
-no client option overrides it (`types/options.py:64` accepts the keyword and then discards
-it). A server that shortens or lengthens the TTL is ignored.
+no client option overrides it (TO3 defines none, and the `Options.connection_state_ttl`
+property that copied the default and was read by nothing was removed in 4.0.0). A server
+that shortens or lengthens the TTL is ignored.
 
 **Tests affected:** every test that has to reach a SUSPENDED connection — nine across the
 connection, channel and presence suites — sends the specification's `connectionStateTtl` and
@@ -1976,7 +1896,7 @@ has `uts-proxy` replace the first CONNECTED with one carrying `connectionStateTt
 drops the socket and refuses the retry. Measured: the replacement did reach
 `connection_details.connection_state_ttl == 2000`, and SUSPENDED still did not arrive
 within 45 s — the client sat DISCONNECTED and reconnected on the fifteen-second
-`disconnected_retry_timeout`. Honouring the TTL will not on its own turn that test green.
+`disconnected_retry_timeout_seconds`. Honouring the TTL will not on its own turn that test green.
 `#### The connection id, key and details are cleared on SUSPENDED` means a suspended client
 stops sending `resume`, which is precisely what RTN14h asserts it still does, and
 `"connectionKey": "__PASSTHROUGH__"` in the fixture is not substituted by uts-proxy v0.3.0
@@ -1985,31 +1905,19 @@ either — see the UTS Spec Error above. The three want closing together.
 **Status:** open bug. It is the reason the fake clock exists in this suite at all; see
 the fake-time section at the end of this file.
 
-### An 80019 from a failed auth carries no `cause`, and a slow callback is not attributed
+### A slow authCallback is not attributed to the auth provider
 
-**Spec points:** RSA4c, RSA4c1, RSA4c2.
+**Spec points:** RSA4c, RSA4c2.
 
-Two adaptations with one underlying theme — an auth failure reaches the right state with the
-wrong explanation.
+RSA4c treats an auth attempt that outruns `realtimeRequestTimeout` as an auth error, giving
+DISCONNECTED with 80019/401. ably-python applies no timeout to the callback —
+`await auth_callback(token_params)` is unbounded — and the CONNECTING transition timer
+(`connectionmanager.py:699-724`) ends the attempt instead, with the generic 504/50003 it
+raises for any connect that does not complete in time. Test:
+`test_rsa4c2_callback_timeout_connecting_disconnected`, asserting 50003/504 on a
+`FakeClock`.
 
-- `ConnectionManager.on_error_from_authorize` builds
-  `AblyException('Client configured authentication provider request failed', 401, 80019)`
-  with no `cause` argument, so the error the authCallback raised survives only in the log.
-  RSA4c1/RSA4c2 require `cause` to be set to the underlying error. Same root cause as the
-  RSA4d entry above: `request_token`'s wrapper loses the original error's shape, and
-  `on_error_from_authorize` then drops what is left. Adapted, not gated, because the state,
-  code and status are all correct and worth guarding — only the `cause` link is missing.
-  Tests: `test_rsa4c2_callback_error_causes_disconnected`,
-  `test_rsa4c2_callback_error_connecting_disconnected`.
-- RSA4c treats an auth attempt that outruns `realtimeRequestTimeout` as an auth error,
-  giving DISCONNECTED with 80019/401. ably-python applies no timeout to the callback —
-  `await auth_callback(token_params)` is unbounded — and the CONNECTING transition timer
-  (`connectionmanager.py:699-724`) ends the attempt instead, with the generic 504/50003 it
-  raises for any connect that does not complete in time. Test:
-  `test_rsa4c2_callback_timeout_connecting_disconnected`, asserting 50003/504 on a
-  `FakeClock`.
-
-**Status:** open bugs, cosmetic in effect — the connection recovers either way, but the
+**Status:** open bug, cosmetic in effect — the connection recovers either way, but the
 error does not say the auth provider is at fault.
 
 ### A token error with no means to renew reports the renewal failure, not the server's error
@@ -2055,24 +1963,6 @@ POSTed to `/keys/{keyName}/revokeTokens` directly, reproduced three times.
 **Status:** arguably correct as it stands; the specifications should be reconciled first.
 RSA4a does not say which state a token error observed mid-connection should be reported in,
 and other SDKs may report DISCONNECTED first and fail afterwards.
-
-### A pending `attach()` resolves, rather than failing, when the connection closes
-
-**Spec points:** RTL3b, RTL4d.
-
-RTL3b moves an ATTACHING channel to DETACHED when the connection closes, and RTL4d has the
-attach's callback invoked with an `ErrorInfo` "in all other cases" than ATTACHED.
-`channel_connection_state.md` spells it `AWAIT attach_future FAILS WITH error`. The RTL3b
-transition is correct; the pending `attach()` then returns `None`, because `attach()` ends
-with `if state_change.current in (SUSPENDED, FAILED): raise state_change.reason`
-(`channel.py:148-150`) and DETACHED is in neither, so the coroutine falls through as a
-success.
-
-**Tests affected:** `test_rtl3b_closed_attaching_to_detached` asserts `await attach_future is
-None`, and makes every other assertion the specification does. It fails if the SDK starts
-raising, so it does guard the behaviour.
-
-**Status:** open bug.
 
 ### An attach requested while DETACHING pre-empts the detach
 
@@ -2133,16 +2023,58 @@ adapted.
 
 **Status:** adapted; the gap itself is the open issue recorded above.
 
+### Timing options are seconds, and named for it
+
+Intentional. TO3l counts every timing option in milliseconds; ably-python takes seconds,
+which is what a Python caller expects, and names each option with a `_seconds` suffix so
+the unit is on the page. A 3.x caller passing the old name gets a `TypeError` at
+construction that names the replacement and, for an option that took milliseconds, gives
+the value passed in seconds, rather than a value a thousand times too long. TO3l types
+each option as an integer; ably-python takes a finite, non-negative `int` or `float`, so a
+fraction of a second can be given, and rejects anything else at construction with an
+`InvalidArgumentException`, 400/40000, as `push.admin.publish` does for its invalid arguments. The wire values the
+specification also counts in milliseconds are unchanged: token `ttl`, `ConnectionDetails`,
+`Auth.time_offset`, timestamps and the result of `ping()`.
+
+Every derived test that sets one of these options divides the specification's value by
+1000, so `disconnectedRetryTimeout: 100` is `disconnected_retry_timeout_seconds=0.1`, and
+every test reading a default back reads the seconds. Everything else stays in the
+specification's milliseconds: `ADVANCE_TIME`, `maxIdleInterval`, `connectionStateTtl` and
+every `FakeClock` value. `Options` converts each option for the clock in one place,
+rounding to the microsecond, so 0.1 schedules exactly 100 ms and a timer due on the
+boundary of an `ADVANCE_TIME` still fires.
+
+| Spec point | Specification | ably-python | Tests |
+|---|---|---|---|
+| TO3l11 | `realtimeRequestTimeout`, ms, default 10000 | `realtime_request_timeout_seconds`, default 10 | `test_rtc7_default_timeouts_applied`, and every realtime test that shortens the request timeout |
+| TO3l1 | `disconnectedRetryTimeout`, ms, default 15000 | `disconnected_retry_timeout_seconds`, default 15 | `test_rtc7_default_timeouts_applied`, and every realtime test that shortens or lengthens the retry |
+| TO3l2 | `suspendedRetryTimeout`, ms, default 30000 | `suspended_retry_timeout_seconds`, default 30 | `test_rtc7_default_timeouts_applied`, and every realtime test that sets it |
+| TO3l7 | `channelRetryTimeout`, ms, default 15000 | `channel_retry_timeout_seconds`, default 15 | every channel test that sets it, among them the RTL13b and RTB1 tests |
+| TO3l10 | `fallbackRetryTimeout`, ms, default 600000 | `fallback_retry_timeout_seconds`, default 600 | the RSC15f tests in `rest/unit/fallback_test.py` |
+| TO3l3 | `httpOpenTimeout`, ms, default 4000 | `http_open_timeout_seconds`, default 4 | `test_rtc7_default_timeouts_applied` |
+| TO3l4 | `httpRequestTimeout`, ms, default 10000 | `http_request_timeout_seconds`, default 10 | `test_to3_client_options_attributes`, `test_rtc7_default_timeouts_applied`, the RSC13, RSC15l and RSC19e unit tests, and `test_rsc15l2_timeout_triggers_fallback`, whose `httpRequestTimeout: 3000` is `http_request_timeout_seconds=3` |
+| TO3l6 | `httpMaxRetryDuration`, ms, default 15000 | `http_max_retry_duration_seconds`, default 15 | none sets it; `test/unit` covers the budget |
+
+The HTTP options were already seconds, under names that did not say so, which put
+`rest/proxy/RSC15l2/timeout-triggers-fallback-0` behind `RUN_DEVIATIONS`: written with the
+specification's `httpRequestTimeout: 3000`, its request sat out the proxy's whole 20-second
+delay on the primary host, where 3 seconds times out at 3.1 and the retry succeeds on the
+fallback. RSC15l2's fallback path was compliant throughout. Of
+[#709](https://github.com/ably/ably-python/issues/709), filed on the same line of
+`http.py`, the unbounded `write` and `pool` timeouts are fixed; that the value bounds one
+socket read rather than the request, and that the RSC15 retry budget is not consulted while
+an attempt is in flight, are not.
+
 ### Channel and presence behaviours asserted as they are
 
 | Spec points | Specification | ably-python | Tests |
 |---|---|---|---|
 | RTL13a | the ATTACHING state change triggered by a server-initiated DETACHED carries that message's `error` as its `reason` | `_on_message` discards the error and calls `_request_state(ATTACHING)` with no reason, so `reason` is null. Gated in its own right under RTL24/RTL4c above; this test asserts `reason is None` | `test_rtl13a_attached_reattach_triggered` |
-| RTP16c | answering an ATTACH with a DETACHED puts the channel in DETACHED, and a presence operation from there errors | the channel lands in SUSPENDED (`channel.py:735`) and `attach()` raises `TypeError` on the null reason. RTP16c is about the presence error, which does arrive with 90001, so the test accepts either channel state and either attach error and turns on the presence operation alone | `test_rtp16c_presence_errors_other_states` |
+| RTP16c | answering an ATTACH with a DETACHED puts the channel in DETACHED, and a presence operation from there errors | the channel lands in SUSPENDED (`channel.py:735`) and `attach()` raises its 90001 fallback for want of a reason. RTP16c is about the presence error, which does arrive with 90001, so the test accepts either channel state and either attach error and turns on the presence operation alone | `test_rtp16c_presence_errors_other_states` |
 | RTL7g | `channel.subscribe(listener)` registers the listener even when the implicit attach is rejected | the listener *is* registered (`channel.py:279-282`), and then `subscribe` awaits `attach()`, which re-raises the failure (`:150`). So `await channel.subscribe(...)` raises where the specification's fire-and-forget call returns. The RTL7g requirement itself holds | `test_rtl7g_listener_registered_attach_fails`, `test_rtl7g_no_attach_when_attaching` |
 | RTL10b | an `AblyException` when `untilAttach` is used on an unattached channel | an `AblyException`, but for the wrong reason: `history` takes no `until_attach`, and `catch_all` wraps the `TypeError` as `50000 500 Unexpected exception` whatever the channel's state. The test also asserts that no HTTP request was made | `test_rtl10b_errors_when_not_attached` |
 | RTL19b, RTL19c, RTL20, RTL21, PC3 | a vcdiff-decoded payload equals a string literal | a `bytearray`. `EncodeDataMixin.decode` (`mixins.py:106`) leaves the vcdiff result binary because no further encoding step turns it back into text, which is correct — the specification's own `RTL19b/json-wire-form-base-1`, which does carry `utf-8/vcdiff`, receives a string. Five tests assert `b'second message'` where the specification writes the string | 5 in `channel_delta_decoding_test.py` |
-| RTB1b | 1000 jitter samples | 24, because there is no jitter generator to sample and each sample costs a whole reconnection cycle. A cycle takes up to `disconnectedRetryTimeout * 2` plus the request timeout, and every one of them has to finish before the 120000 ms suspend timer moves the retries onto `suspended_retry_timeout`, which affords 29. The standard error of the mean is 0.013 against a ±0.05 allowance, so the test still separates a uniform generator from a degenerate one | `test_rtb1b_jitter_coefficient_range` |
+| RTB1b | 1000 jitter samples | 24, because there is no jitter generator to sample and each sample costs a whole reconnection cycle. A cycle takes up to `disconnectedRetryTimeout * 2` plus the request timeout, and every one of them has to finish before the 120000 ms suspend timer moves the retries onto `suspended_retry_timeout_seconds`, which affords 29. The standard error of the mean is 0.013 against a ±0.05 allowance, so the test still separates a uniform generator from a degenerate one | `test_rtb1b_jitter_coefficient_range` |
 | RTB1 | the channel test provokes its re-attach with a channel `ERROR`, citing RTL13b | RTL14 takes a channel ERROR straight to FAILED, which is correct (see *Investigated and not defects*), so the channel never suspends and no retry timer starts. The derived test provokes the re-attach with a server-initiated DETACHED instead, which RTL13a does answer with `_request_state(ATTACHING)`; from there the scenario runs as written | `test_rtb1_suspended_channel_retry_delay` |
 
 ### Translation notes that are not deviations
@@ -2152,8 +2084,8 @@ pseudocode is not mistaken for non-compliance.
 
 | Subject | Note |
 |---|---|
-| DISCONNECTED as a restable state | RTN15a retries a drop from CONNECTED through `loop.call_soon` (`connectionmanager.py:668`) with no time passing, so DISCONNECTED is left within the same turn of the event loop and a listener registered afterwards never sees it. The heartbeat specification says so itself, under "Verifying Transient States"; tests record the whole sequence with `connection.on(...)` and assert `CONTAINS_IN_ORDER`. Where a test needs the connection to *rest* in DISCONNECTED it fails the immediate retry and raises `disconnected_retry_timeout`. Correct RTN15a behaviour |
-| `Channels.__getattr__` | `ably/rest/channel.py:408` answers **any** unknown attribute with `self.get(name)`, so reading an attribute that does not exist creates a channel named after it and never raises — `hasattr(channels, 'get_derived')` is `True`, and mutates the collection. Consequences: a typo becomes a phantom channel, and `client.channels.get_derived(...)` fails with `TypeError: 'RealtimeChannel' object is not callable` rather than `AttributeError`. No test loses coverage to it, because no derived test names an attribute the collection does not define; it is recorded because it silently changes what a probing test measures. `Channels.__iter__` is annotated `Iterator[str]` but yields `Channel` objects, which is a second, smaller instance |
+| DISCONNECTED as a restable state | RTN15a retries a drop from CONNECTED through `loop.call_soon` (`connectionmanager.py:668`) with no time passing, so DISCONNECTED is left within the same turn of the event loop and a listener registered afterwards never sees it. The heartbeat specification says so itself, under "Verifying Transient States"; tests record the whole sequence with `connection.on(...)` and assert `CONTAINS_IN_ORDER`. Where a test needs the connection to *rest* in DISCONNECTED it fails the immediate retry and raises `disconnected_retry_timeout_seconds`. Correct RTN15a behaviour |
+| `Channels.__iter__` | annotated `Iterator[str]`, but yields the `Channel` objects rather than their names |
 | `RealtimeChannel.publish()` | positional-only (`*args`, `channel.py:342`). The keyword form the specifications write raises `ValueError`, although `RestChannel.publish()` accepts it. Every test uses the positional form |
 | ACK `res` | every ACK in the specifications is written `res: { "serials": [...] }`, a single object. `WebSocketTransport` (`websockettransport.py:191-193`) reads `res` as a list, one entry per acknowledged ProtocolMessage, which matches the protocol definition. The specification's single object is shorthand for the one-message case |
 | `subscribe` before `connect` | all eight `message_field_population.md` tests subscribe in their setup, before `client.connect()`. `subscribe` awaits `attach()`, which raises 90001 unless the connection is CONNECTING, CONNECTED or DISCONNECTED, so the derived tests connect first. Nothing they assert depends on the order |
@@ -2162,8 +2094,7 @@ pseudocode is not mistaken for non-compliance.
 | RTP17b's synthesized-LEAVE filter | RTP17b's own implementation note allows the check to live "either inside the presence map's `remove()` method, or at the calling level". ably-python uses the calling level (`presence.py:557-558`). Compliant |
 | RTP19a's route | the specification models an ATTACHED without HAS_PRESENCE as `startSync()` then `endSync()`. `on_attached(has_presence=False)` calls `_synthesize_leaves(...)` then `clear()` (`presence.py:611-618`), which is the requirement itself rather than the model of it |
 | `hasNext` as a value | `push_admin.md` RSH1b2 writes `ASSERT result.hasNext == true`. In Python `has_next` is a bound method (`ably/http/paginatedresult.py:63`), truthy whatever the page holds, so the direct translation asserts nothing. `test_rsh1b2_list_devices_pagination` writes `result.has_next() is True`, confirmed to fail when inverted |
-| Push `remove` return values | the specification's remove steps assert nothing about a return value ("should not throw"). `PushDeviceRegistrations.remove` / `remove_where` and `PushChannelSubscriptions.remove` / `remove_where` return the `ably.http.http.Response` from the DELETE rather than `None` (`ably/rest/push.py:112-127`, `:176-192`), so the six derived removal tests assert `response.status_code == 204`, which is stronger than the specification asks and matches what `test/ably/rest/restpush_test.py` already asserts |
-| `rest/proxy/RSC15l/unreachable-endpoint-error-0` | the specification asserts only that the error carries a non-null `status_code` or `code`, leaving the values open, so the derived test asserts exactly that and is the weakest of the eight proxy tests. What this SDK produces against a refused connection is 500 / 50000 with the message "All connection attempts failed", `catch_all` having wrapped the `httpx.ConnectError`, and that is recorded here rather than asserted, since pinning it would assert more than the specification does |
+| `rest/proxy/RSC15l/unreachable-endpoint-error-0` | the specification asserts only that the error carries a non-null `status_code` or `code`, leaving the values open, so the derived test asserts exactly that and is the weakest of the eight proxy tests. What this SDK produces against a refused connection is 500 / 80000, the RSC19e wrapping of the `httpx.ConnectError`, which it keeps as the `cause`, and that is recorded here rather than asserted, since pinning it would assert more than the specification does |
 | `RSL1k4`'s history read | the event log is per session, so any request the client under test makes through it is recorded — including the `history()` the test verifies deduplication with. The log is therefore read **before** the history call, and the POST count assertion made against that snapshot. The history read itself is a `wall_clock_poll_until` rather than one fetch, for the same reason every other integration verification is: a published message does not reach history at once |
 | RSP4b1's time bounds | the specification records `time_before = now_millis()` before generating the presence events and `time_after = now_millis()` after, then asserts a `history(start=, end=)` over that window returns them. Read from the runner's clock the window is only as good as the skew against the sandbox, which decides the timestamps actually stored, so a runner running a little fast would exclude the very events the test generated. Both bounds come from `await client.time()` instead — the same instant on the clock that stamps the events. `Presence.history` passes an `int` straight through as milliseconds (`ably/types/presence.py:232-241`), which is what `client.time()` returns, so no conversion is involved |
 
@@ -2171,39 +2102,74 @@ pseudocode is not mistaken for non-compliance.
 
 | Spec points | Specification | ably-python | Status |
 |---|---|---|---|
-| RSL2 | A space in a channel name is `%20` | `+`, from `parse.quote_plus` in `Channel.__init__`. `quote_plus` is form encoding, and a `+` in a URL *path* is a literal plus, so the name reaching the server is altered. The same call builds the presence, annotation and message-serial paths, and a realtime client's REST-backed calls, `history()` among them, share it | Open bug, and a genuine correctness issue |
-| RSL8 | `Channel#status` URI-encodes the channel id | `status()` interpolates the name with no escaping at all. `a/b` addresses the wrong resource, `a?b` truncates the name into a query string, `a#b` becomes a fragment | Open bug |
-| RSL2, RSL11b, RSL15b | `:` is `%3A` | Left literal, from `safe=':'`, everywhere except presence, whose path is built without it and so sends `%3A`. RFC 3986 allows `:` in a path segment and Ably uses it for namespaces; the server decodes both forms to the same value | Intentional |
-| RSC1b | Error code 40106 | A bare `ValueError` from `AblyRest.__init__` with an informative message, not an `AblyException`, so there is no code. The other invalid-argument checks in `AblyRest.__init__` and `Auth.__init__` raise the same way. The realtime constructor shares it — `test_rtc12_invalid_arguments_error` records the same behaviour | Open bug |
+| RSL2, RSL8, RSL11b, RSL15b | `:` is `%3A` | Left literal, from `safe=':'`. RFC 3986 allows `:` in a path segment and Ably uses it for namespaces, so the server receives the same value | Intentional |
 | RTC12 / RSC1, RSC1a, RSC1c | A string constructor argument is an API key when it contains `:` and a token when it does not | `AblyRest.__init__` treats its first positional argument as a key unconditionally and hands it to `AuthOptions.set_key`, which requires exactly two colon-separated parts, so a token string raises 40101/401 "key of not len 2 parameters". A token is supplied through the separate `token` or `token_details` arguments. The empty-string case is compliant | Intentional / SDK-wide: the constructor takes credentials as distinct named arguments and has no string-sniffing path to restore |
 | RSC18 | The constructor rejects basic auth over HTTP | Construction succeeds; 40103 is raised from `make_request` when a request needing Basic Auth is attempted, and no request goes out. RSA1/RSC18 say only "any attempt to use" | Compliant; the UTS is stricter than its source |
-| REC1b1, REC1c1 | Code 40000, or a message containing "invalid" or "conflict" | 400/40106 with a specific message, the code RSC1b requires for invalid arguments | Compliant; the UTS's 40000 contradicts RSC1b (see the spec error above) |
 | RSAN1a3 | Code 40003 for a missing `Annotation.type` | 400/40000, where the sibling checks in the same function use 40003 | Cosmetic; RSAN1a3 names no code |
-| RSH1a | Empty `recipient` or `data` rejected with code 40000, the error reaching the caller from the server | `PushAdmin.publish` validates its arguments itself and raises before touching the HTTP layer (`ably/rest/push.py:49-59`): a non-dict `recipient` or `data` raises `TypeError`, an empty one `ValueError`. So there is no request, no server error and no `code` to read. The "no HTTP request" half is satisfied, and the repository's own sandbox suite already pins the exception types (`test/ably/rest/restpush_test.py::test_admin_publish`). `test_rsh1a_push_publish_invalid_recipient` in the integration tier asserts `pytest.raises(ValueError)` alongside the unit-tier test | Open bug, minor — a stricter precondition rather than wrong behaviour. The specification's test would need a recipient the SDK will send and the server will reject, an unknown `transportType` say, to exercise the server-side path it describes |
-| HP6 | `errorCode` is a number | The raw header string, `'40101'` | Open bug, trivial |
-| HP8 | `headers` is a map | A list of `(name, value)` pairs, which is what HP8's prose describes (see the spec error above). The map lookup the IDL and the UTS describe is impossible without converting, and case-insensitivity is lost | Open bug; a `list` subclass with case-insensitive lookup by name would close it without breaking callers |
-| RSC19e | An error indicated idiomatically | `httpx.ConnectError` / `ReadTimeout` reach the caller unwrapped. Adding the `@catch_all` that `time()` and `stats()` carry would not align it: that wraps as 50000, where the UTS expects 80000 or 50003. Publish, push, annotations and status let httpx errors through the same way. The messages do name the failure | Borderline; defensible under RSC19e |
-| RSC15a | Fallbacks tried in random order, with six responses queued for the primary and all five fallbacks | Three attempts, because `Options.__get_hosts` truncates the primary plus the fallbacks to `http_max_retry_count`. TO3l5 counts fallback hosts only, so the default allows four attempts, which is what ably-js, ably-java and ably-go make. With `http_max_retry_count=0` no host is left and no request is sent | Open bug; off by one |
+| RSH1a | Empty `recipient` or `data` rejected with code 40000, the error reaching the caller from the server | `PushAdmin.publish` validates its arguments itself and raises before touching the HTTP layer: an empty or non-dict `recipient` or `data` raises an `AblyException` with 400/40000, the code the server gives, which is also a `ValueError`. So no request is made and there is no server error; the integration tier's `test_rsh1a_push_publish_invalid_recipient` asserts the local error's code | Compliant: RSH1a asks for empty values to be "immediately rejected". The specification's test would need a recipient the SDK will send and the server will reject, an unknown `transportType` say, to exercise the server-side path it describes |
+| RSC15a | Six hosts tried | Four: the primary and three fallbacks, because TO3l5's `httpMaxRetryCount`, default 3, caps the fallback hosts tried. The specification's six is the number of responses its setup queues, with a comment counting the primary and all five fallbacks, and no assertion reads it | Compliant; the setup's comment overlooks TO3l5 |
 | TI | `ErrorInfo` equality by attributes | No `__eq__`, so errors compare by identity. Python exceptions conventionally do, and the requirement appears nowhere in `features.md`. Adding `__eq__` without `__hash__` would make `AblyException` unhashable and break any caller that puts one in a set | Intentional |
-| TD5, RSA16a | `capability` is stringified JSON | A `Capability` object, a public convenience type used throughout `auth`. Narrowing the return type to `str` would break every caller that indexes or mutates it, so it is reserved for a future major | Intentional; a breaking change to align |
 | RSA6b, RSA6d | The capability literal as passed | Canonicalised by `Capability.c14n` and rendered by `json.dumps` with its default spaced separators. RSA9f permits canonicalising but does not require it; ably-js canonicalises too, and its compact JSON matches the literal | Compliant; rendering only |
 | RSA8d | `error.message` contains the callback's text | Wrapped as 40170 with the original in `cause`; `__str__` renders both | Rendering |
-| RSA4 | Token auth whenever `useTokenAuth` is unspecified and any of `authUrl`, `authCallback`, `token` or `tokenDetails` is given | With a `key` present, `auth_callback` and `auth_url` are ignored when choosing the auth scheme, so Basic is selected and the callback is never called. `Auth.__init__` considers only `use_token_auth` and `key_secret`. `AblyRest.__init__`'s credential `elif` chain compounds it by discarding `token`/`token_details` when a key is given | Open bug; aligning changes the scheme for callers who pass a key with a token source |
-| RSA12a | A token with a null clientId is accepted when `ClientOptions.clientId` is set | Rejected with 40102 "Client ID cannot be changed to 'None'". RSA15a constrains only non-wildcard token clientIds. A `new_client_id is not None` guard alone would blank the configured clientId, so the fix has to keep it | Open bug |
 | CHM2 | Missing metrics default to 0 | `ChannelMetrics.from_dict` uses a bare `obj.get(name)`, so any omitted metric parses as `None` | Open bug, broader than CHM2g/h |
 | CHM2g, CHM2h | `objectPublishers` and `objectSubscribers` on `ChannelMetrics` | Neither is modelled, so both are dropped on parsing. The test asserts their absence, and turns red once they are added | Open bug |
-| TO3l8 | `maxMessageSize` is a client option, default 65536 | Rejected by `Options.__init__`. `ably/realtime/channel.py:424` reads it with `getattr(..., 65536)`, so the default holds but cannot be configured, nor overridden by `connectionDetails` (CD2c) | Open bug |
+| TO3l8, CD2c | `maxMessageSize` is a client option, default 65536, which `connectionDetails.maxMessageSize` overrides for realtime publishes | The option and its default match, and REST and realtime publishes both measure per TM6 and raise 40009. `ConnectionDetails.from_dict` does not parse `maxMessageSize`, so a realtime publish is checked against the client option alone. No test asserts CD2c; `test_rtn24_connection_details_override` sends the field and reads back only the details ably-python parses | Open bug, CD2c only |
 | RTN15, RTN23 | A DISCONNECTED `ErrorInfo` needs no `statusCode` | `ConnectionManager.on_disconnected` evaluates `exception.status_code >= 500` unguarded, so a DISCONNECTED whose error omits `statusCode` raises `TypeError` in a task whose exception is only logged, and the connection silently stays CONNECTED. `DISCONNECTED_MESSAGE` supplies 400 | Open bug |
-| TO3l4, TO3l5 | `httpRequestTimeout` and `httpMaxRetryCount` carry their defaults on the options object | Left unset; the effective defaults are applied downstream by `Http` and by `Options.__get_hosts`. The spec's `httpRequestTimeout` is milliseconds and ably-python's `http_request_timeout` is seconds, on the value a caller passes as much as on the default — gated, with the measurement, under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests | Intentional for where the defaults are applied; the unit is an open bug, recorded there |
-| RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000` | Both `None` on `Options`; `Http.http_open_timeout` / `http_request_timeout` fall back to `CONNECTION_RETRY_DEFAULTS`, which holds 4 and 10 — seconds, where TO3l3 and TO3l4 count milliseconds. The three realtime timeouts the same test checks are defaulted on `Options` and match | Two faults in one row: the defaults are unreadable from `options`, and the unit reaches the wire — `rest/proxy/RSC15l2/timeout-triggers-fallback-0` measures a request outliving its configured timeout by a factor of a thousand. Both open; the unit is gated under *`httpRequestTimeout` is seconds where the specification counts milliseconds* in Failing Tests |
-| RTC17 (RSA7b1) | `client.clientId == client.auth.clientId` | `AblyRealtime.client_id` reads `options.client_id` and returns the configured value, while `Auth.__init__` sets `self.__client_id = None` whenever `ably._is_realtime` (`rest/auth.py:34-41`), deferring it to whatever a CONNECTED confirms. The two disagree on a client that has not connected | Open bug. RSA12b only allows the realtime clientId to be unknown while it has not been *configured* |
+| TO3l4, TO3l5 | `httpRequestTimeout` defaults to 10000 and `httpMaxRetryCount` to 3 on the options object | Both are defaulted on `Options`. `http_max_retry_count` reads back as 3 and matches; `http_request_timeout_seconds` reads back as 10, the same default in the seconds ably-python's timing options take | Intentional: see *Timing options are seconds, and named for it* |
+| RTC7 (TO3l3, TO3l4) | `client.options.httpOpenTimeout == 4000` and `httpRequestTimeout == 10000`, with the three realtime timeouts at 10000, 15000 and 30000 | `http_open_timeout_seconds == 4` and `http_request_timeout_seconds == 10`, and `realtime_request_timeout_seconds == 10`, `disconnected_retry_timeout_seconds == 15` and `suspended_retry_timeout_seconds == 30`: the same defaults, in seconds | Intentional: see *Timing options are seconds, and named for it* |
 | RTC1f | a `transportParams` boolean appears as `"true"` / `"false"` | `True` / `False`, because `WebSocketTransport.connect` builds the query string with `urllib.parse.urlencode`, which renders each value through `str()` (`websockettransport.py:89`). Integers are unaffected | Open bug. A caller can pass the strings directly, but a bool is what the spec's Stringifiable type admits |
-| TO3 | `restHost` and `fallbackHosts` read back as configured | `rest_host` is mapped into `endpoint` and not kept, since REC1d deprecates it, and `fallback_hosts` reads back in the shuffled order RSC15a tries them in | Intentional |
+
+### LiveObjects: the internal shapes the unit specifications assume — S-1 to S-6
+
+The objects unit specifications drive internal classes, and ably-python's differ in shape from
+the ones they are written against — three of them because the specification contradicts
+`objects-features.md` (the first UTS Spec Error entry on the objects tier), three because of how
+ably-python is built. Each shape has a label, cited in the module docstring and at the site, so
+that one entry here covers every test it affects. The behaviour each test asserts is the
+specification's; only the reach into the object differs.
+
+| Label | The specification | ably-python | Tests |
+|---|---|---|---|
+| S-1 | `update = obj.applyOperation(...)`, or `result == false` | `apply_operation` returns whether it applied (RTLC7g, RTLM15g) and emits the update through `notify_updated`, no-ops included. `capture_updates(obj)` records them: a specification's `update` is the one update an applied operation emitted, and its `false` is a False return with nothing emitted | the 42 in `internal_live_counter_test.py` and `internal_live_map_test.py` that read an update or a `false` |
+| S-2 | The sync and apply state machine on `ObjectsPool`: `processAttached`, `processObjectSync`, `processObjectMessage`, `applyObjectMessages`, `syncState` | On `RealtimeObject`, as in `objects-features.md`: `_on_attached(has_objects)`, `_handle_object_sync_messages(messages, channel_serial)`, `_handle_object_messages`, `_apply_object_messages`, `_sync_state`. A bare `ObjectsPool()` that is then driven is the pool a standalone `RealtimeObject()` holds; `RealtimeObject(pool: pool)` is `RealtimeObject(pool=pool)` | 30 of the 31 in `objects_pool_test.py`, every one but RTO3's; the three RTO5c10 cases in `parent_references_test.py` |
+| S-3 | `evaluate(vt)` | `evaluate(vt, timestamp_ms)`: evaluation needs the server time (RTLCV4e, RTLMV4h), which is an async read (RTO16), so the caller fetches it and passes it in. The tests pass a fixed one | the 13 in `value_types_test.py` that evaluate |
+| S-4 | The create an evaluated value type retains, as `operation.counterCreate` / `operation.mapCreate` | `operation.resolved_counter_create` / `resolved_map_create`, the `derived_from` of the `*CreateWithObjectId` payload. The two retention tests also assert that `counterCreate` / `mapCreate` is absent from `operation.to_dict()`, which is what "not sent" means and what keeps this reading honest | `test_rtlcv4g5_retains_local_counter_create`, `test_rtlcv4_evaluate_zero_count`, `test_rtlmv4j5_retains_local_map_create`, `test_rtlmv4d_entry_value_types`, `test_rtlmv4d1_nested_value_types`, `test_rtlmv4a_evaluate_validates_entries`, `test_rtlmv4e2_empty_entries`, `test_rtlmv4d_map_set_all_types_table` |
+| S-5 | Three reads on the untyped `Instance` that answer null or fail: `value()` on a map (RTINS4d), `size()` on a counter (RTINS9c), and `subscribe` on a primitive failing 92007 (RTINS16c) | The typed instances have no such method (RTTS10a–c; `PrimitiveInstance` has no `subscribe` at all, RTTS7b), and the checked views that do have it refuse the wrapped type with 92007 (RTTS9d). The tests assert the wrapped `type`, that the method is absent, and the 92007 from each view in its place | `test_rtins4_value_counter` and `test_rtins9_size` (their second halves), `test_rtins16c_subscribe_primitive_throws` |
+| S-6 | `compact()` on a path or an instance (RTPO13, RTINS10) | ably-python's only snapshot is `compact_json()` (RTTS3f, RTTS7d, LODR-061), which is `compact()` with binary as a base64 string (RTPO14b1) and a map reached again as `{'objectId': id}` (RTPO14b2). The tests take the snapshot through `compact_json()`, and where the specification asserts bytes or the reused dict they assert those two forms, so `compact-cycle-detection-0` asserts what `compact-json-0` does | `test_rtpo13_compact_recursive`, `test_rtpo13c5_compact_cycle_detection`, `test_rtpo13c_compact_counter`, `test_rtpo3c1_read_null_on_failure` (its last line), `test_rtins10_compact` |
+
+**Status:** shape adaptations, not defects. S-1, S-2 and S-4 close when the specifications are
+corrected (candidate O.1); S-3, S-5 and S-6 are how ably-python is built.
+
+### LiveObjects: inputs that do not exist in Python
+
+| Test | The specification | The test | Status |
+|---|---|---|---|
+| `test_rtlmv4a_evaluate_validates_entries` | `LiveMap.create(null)` fails 40003 | `LiveMap.create(entries=None)` is LODR-061's default, so `None` is the omitted argument and evaluates to an empty map, which the test pins. The reachable half of RTLMV4a, a non-dict, is asserted as 40003 | Flips if `create` takes a sentinel default instead; the specification carries no language note here (see O.6) |
+| `test_rtlm20_set_invalid_values_table` | A function, `undefined` and a symbol are 40013 | `lambda: None`, `None` and `object()`, each 40013; the parametrize ids keep the specification's labels | JavaScript values given their nearest Python counterparts |
+| `test_rtlc12e1_increment_invalid_amounts_table` | The null row applies "where null is distinguishable" | It applies: Python tells `increment(None)` from `increment()`, whose default is 1. `True` is in the table and fails 40003 though `bool` is an `int`; NaN and the infinities are `float('nan')`, `float('inf')` and `float('-inf')` | The specification's own reading, for Python |
+
+### LiveObjects translation notes
+
+Not deviations, recorded so the difference from the pseudocode is not mistaken for one. The
+largest, the typed views, has its own section at the end of this file.
+
+| Subject | Note |
+|---|---|
+| Granted modes | The modes a server grants are bits of the ATTACHED `flags`, so the specifications' `modes: [...]` is `flags=HAS_OBJECTS \| OBJECT_SUBSCRIBE_FLAG`. The standard mock's ATTACHED carries HAS_OBJECTS alone, which leaves `channel.modes` empty, and RTO2 then checks the modes the channel *requested* — which is why every objects channel asks for both through `objects_channel_options()`, and `get()` raises 40024 on one that asked for neither. See the RTO2a row of the features entry above |
+| Wire values | The mock tier speaks JSON. A `json` value is a JSON-encoded **string** on the v6 wire (OD2g), so a captured `mapSet.value.json` is compared after `json.loads`; a `bytes` value is base64; an action the specification writes by name compares equal to its `ObjectOperationAction`, an `IntEnum` |
+| Numbers | Every number decodes to a `float`, and a locally created value holds one too, so that a value reads the same before and after its echo; a number is read with `value(float)`. A boolean is asserted with `is True` / `is False`, since `True == 1` |
+| The public message | `PublicObjectMessage.fromObjectMessage(source, channel)` is `publicmessage.ObjectMessage._from_internal(source, channel_name)`. The public and internal `ObjectMessage` share a name, so the tests reach the public one through the `publicmessage` module |
+| Channel state | `channel.object.processChannelState(S)` is `channel.object._act_on_channel_state(ChannelState.S)`, which acts on its argument: RTO23c1's SUSPENDED case and RTO27 call it while the channel is still ATTACHED |
+| Loops | RTO17-RTO18's scenario loop and RTO27's DETACHED, FAILED and SUSPENDED blocks are one parametrized test each, keeping one Test ID |
+| Listeners | `subscribe` on a path or an instance takes any callable, a bound built-in such as `events.append` included — unlike the channel and connection `EventEmitter` |
+| ACK serials | `ack-after-echo-no-double-apply` ACKs `msgSerial` 0, relying, as the specification does, on the first OBJECT of a fresh connection taking it (RTN7b) |
+| Integration | An un-awaited `channel.attach()` or write is a task, awaited later inside `pytest.raises` where the specification expects it to fail. `poll_until_success` treats only an `AblyException` as "not yet", so that any other error fails at once. `channel.object.get()`, which the lifecycle and sync specifications leave unbounded, is bounded at the fifteen seconds `objects_gc_test.md` gives it |
 
 ## Mock Infrastructure Limitations
 
 Tests that cannot be implemented as written, kept as skipped stubs carrying their Test
-IDs so the specification's coverage is still accounted for. Fifteen in total. Two of the
+IDs so the specification's coverage is still accounted for. Twenty-seven in total, none of
+them from `uts/objects`. Two of the
 entries are caused by the SDK rather than by the mock, but they land here because the
 effect is the same: no test can observe the behaviour.
 
@@ -2280,6 +2246,24 @@ Optional per TO3k7, and `REC1b1`, `REC2a1` and `REC2b` scope their checks to lib
 that support it, so these are skipped as not applicable rather than recorded as
 deviations. ably-python removed the option in 2.0, so passing it raises `TypeError`.
 
+### `environment`, `restHost` and `realtimeHost` are omitted — 12 tests
+
+**Spec points:** REC1b1 (`endpoint-conflicts-environment-0`, `-resthost-1`,
+`-realtimehost-2`), REC1c1 (two), REC1c2, REC1d, REC1d1, REC1d2, REC2c5, and REC2c6 (two),
+all in `fallback_test.py`.
+
+TO3k1, TO3k2 and TO3k3 mark the three options optional and deprecated, and say a library
+with no backwards-compatibility requirement may omit them. ably-python 4.0.0 is a breaking
+release and omits them, so `endpoint` is the only way to name a host, passing any of the
+three raises `TypeError`, and the REC1 and REC2 clauses that only they select do not apply.
+The tests are skipped as not applicable, as the `fallbackHostsUseDefault` ones are.
+
+Four tests elsewhere use one of the three only to name a host, and pass with `endpoint` in
+its place, which REC1b2 resolves to the same host: `TG/pagination-relative-urls-5`,
+`TO3/client-options-custom-hosts-1` and `RTN17g/empty-fallback-set-error-0` each carry a
+NOTE saying so, and `TO/conflicting-options-validation-1` asserts the `TypeError` for its
+restHost-and-endpoint case, there being no conflict left to construct.
+
 ## Investigated and not defects
 
 Claims raised during derivation, investigated, and found not to be SDK faults. They are
@@ -2316,6 +2300,15 @@ method, or at the calling level". ably-python uses the calling level
 `put()` removes the member from `_residual_members` **before** the newness check
 (`presencemap.py:140-142`), which is what RTP19 needs. The three RTP19 cases the
 specification distinguishes all come out right.
+
+### A presence message does take its missing fields from the ProtocolMessage
+
+TP3a, TP3d and TP3g were gated as unimplemented, on the reading that the realtime channel
+hands the `presence` array to `from_encoded_array` with no context. It does not:
+`RealtimeChannel._on_message` first calls `Message.update_inner_message_fields`, which
+fills each presence entry's missing `id`, `connectionId` and `timestamp` from the
+ProtocolMessage, and `test/unit/message_test.py` covers it. The derived tests' decoding
+helper skipped that call; it now makes it, and the three tests pass.
 
 ### RTL18 delta recovery matches the specification exactly
 
@@ -2411,6 +2404,81 @@ is not shared between them.
 duplicates, on both protocols. The test asserts the full set rather than only the
 specification's `>= 5`, since the fixture is fixed.
 
+### The sandbox delivers the echo before the ACK, so RTO9a3 is reached at the mock tier only
+
+Against the sandbox the echo of a client's own write arrived before its ACK in every trace,
+the first write included, where both frames came in one read with the OBJECT first. The echo
+is therefore applied as a CHANNEL operation (RTO8b), the ACK's LOCAL apply is rejected by the
+RTLO4a site-serial check, and `_applied_on_ack_serials` (RTO9a3) is never written on that path.
+Both orders are correct per the specification, and nothing is applied twice — a probe writing
+every value type in every protocol combination found the writer's state unchanged by its
+echoes. The ACK-first order, where RTO9a3 does the work, is covered at the mock tier, whose
+standard mock ACKs before any echo is injected (`test_rto20_echo_dedup`, and RTO9a3 in
+`objects_pool_test.py`).
+
+The same traces show the sandbox pacing ACKs at about one per 500 ms per connection: the first
+ACK arrives with the echo, and later ones on a half-second tick. An awaited write after the
+first can take that long without anything being wrong, which is why the GC integration tests
+take over a second each.
+
+### A Python-formatted `initialValue` is accepted, because the server hashes the string it receives
+
+An object id is a hash over `[initialValue]:[nonce]` (RTO14b1), and ably-python formats
+`initialValue` as Python's `json.dumps` does — `{"count":42.0}` where ably-js writes
+`{"count":42}`, and non-ASCII as `\uXXXX` escapes where ably-js writes raw UTF-8 — so it looked
+as though the server, or another SDK, would compute a different id. Measured against the
+sandbox's REST objects endpoint with client-generated ids: Python's formatting, ably-js's
+formatting and raw UTF-8 are each accepted (201) when the id is hashed over the string sent,
+while an id hashed over `{"count":7.0}` and sent with `{"count":7}` is rejected 400/92000,
+"object id does not match expected value". The server hashes the exact string it receives. The
+evaluation computes the id from the one string it then sends, so the formatting cannot diverge,
+and the integration tier confirms it over realtime in both protocols.
+
+### A sync cursor can itself contain `:`, and splitting on the first one is right
+
+A sync the sandbox split into twenty OBJECT_SYNC messages carried channelSerials of the shape
+`4d58ad59:map:0TeL…@1791551583365` and ended on `4d58ad59:`, so the cursor contains `:` too.
+RTO5a1 splits on the first `:`, which yields the right sequence id; late joiners on both
+protocols matched the writer exactly.
+
+### `RTO5a2-RTO17/sync-interrupted-reconnect-0` does interrupt a sync
+
+Its two siblings in `objects_faults.md` never reach what they are named for (see the objects
+entry under UTS Spec Errors), so this one was measured too, and it does: the proxy drops the
+first OBJECT_SYNC and closes the socket, the client resumes on the same connectionId, receives
+an ATTACHED carrying RESUMED and HAS_OBJECTS and a fresh OBJECT_SYNC, and `get()` resolves from
+that. The ATTACHED arrives on a channel already ATTACHED, which emits no state change, so the
+re-sync depends on the channel handing every ATTACHED it accepts to the objects — which it does.
+
+### Where ably-python departs from ably-js, it follows `objects-features.md`
+
+Recorded because anyone comparing the two implementations will meet these first.
+
+| Spec point | ably-js | ably-python |
+|---|---|---|
+| RTO5c2, RTO5c10 | `_applySync` returns early when the SyncObjectsPool is empty, skipping both the removal of absent objects and the parent-reference rebuild | No early return; both run, as written |
+| RTO5e | Moves to SYNCING only on a new sequence, so an OBJECT_SYNC with no sequence id while SYNCED emits nothing | Applies RTO5e to every OBJECT_SYNC, emitting SYNCING then SYNCED |
+| RTO5a6 | `^([\w-]+):(.*)$`, so `:x` reads as having no channelSerial | Malformed means "does not contain the `:` separator", as written |
+| RTO2 | Requires a granted mode to be among the requested ones as well | RTO2b applies only "otherwise", when no modes were granted |
+| RTLC9 | A COUNTER_INC with no `counterInc` is not applied | The RTLC9h no-op, applied, reading RTLC7d5's "passing in `operation.counterInc`" as written |
+| RTLMV4c | A non-finite number in a map's entries is sent as `null` | 40013: it has no JSON representation (OD4d3), and `initialValue` is always JSON |
+
+### More `Task was destroyed` warnings, and a GC timer on every attached channel, are not faults
+
+A plain run of `test/uts` prints `Task was destroyed but it is pending!` 174 times where the
+baseline printed 80. Every one is a `ConnectionManager.connect_base()` task, the teardown
+warning the baseline prints already, and the rise comes from the objects cases that connect a
+mock-backed client; no new kind of warning appears.
+
+The GC timer is scheduled on the first ATTACHED of every channel, whether or not it uses
+objects (RTO10a; ably-js does the same whenever the plugin is loaded), and cancelled on
+DETACHED and FAILED, so a client's `close()` stops it. A non-objects test advancing a
+`FakeClock` by five minutes therefore runs one empty sweep. `Channels.release()` stops it
+too, although release does not detach — the RTS4a defect under *Failing Tests*. And a burst
+of creates on a channel that has
+not yet read the server time each request `/time`, until the first answer persists the offset
+(RTO16a); wasteful, and not wrong.
+
 ## Candidate issues
 
 `writing-derived-tests.md` asks for the deviations above to be classified into distinct
@@ -2428,9 +2496,9 @@ is missing accessors over correct behaviour. Within a tier the order is blast ra
 | Issue | Covers | Rows below it answers |
 |---|---|---|
 | [#706](https://github.com/ably/ably-python/issues/706) | the fabricated `"None:0"` message id | 3.3 |
-| [#658](https://github.com/ably/ably-python/issues/658) | presence messages sent on reconnection before reattach | adjacent to 3.14, which is the other half of RTP17 automatic re-entry |
-| [#656](https://github.com/ably/ably-python/issues/656) | `utcfromtimestamp` deprecation | adjacent to 2.4 |
-| [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712) | REST request timeout, token-request nonce reuse, single-host retry, `dispose()` teardown | adjacent to I.3, which is a second defect on the line #709 is about and is not covered by it; otherwise none, these having been filed from the REST derivation |
+| [#658](https://github.com/ably/ably-python/issues/658) | presence messages sent on reconnection before reattach | adjacent to 3.13, which is the other half of RTP17 automatic re-entry |
+| [#656](https://github.com/ably/ably-python/issues/656) | `utcfromtimestamp` deprecation | none: `PresenceMessage.timestamp` is now milliseconds since the epoch, the synthesized LEAVE's included, and no `utcfromtimestamp` remains |
+| [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712) | REST request timeout, token-request nonce reuse, single-host retry, `dispose()` teardown | none, these having been filed from the REST derivation. The timeout's unit, once a second defect on #709's line, is settled by the `_seconds` options; see *Timing options are seconds, and named for it* |
 
 Every reproduction below is prefixed by:
 
@@ -2468,22 +2536,6 @@ connection fails.
 `test/uts/realtime/unit/channels/channel_publish_pending_test.py -k rtn7e`
 `test/uts/realtime/integration/proxy/connection_resume_test.py -k rtn15j`
 
-**1.3 `detach()` never returns when the connection is not CONNECTED.** RTL5l.
-RTL5l requires an immediate transition to DETACHED. `detach()` requests DETACHING,
-`_check_pending_state()` sends nothing because the connection is not CONNECTED, and
-`detach()` then awaits the internal state emitter (`channel.py:212`) for a transition
-nothing will produce. The coroutine never returns and the channel is stuck in DETACHING.
-`test/uts/realtime/unit/channels/channel_detach_test.py -k rtl5l`
-
-**1.4 `set_options()` never returns for an already-ATTACHED channel.** RTL16a.
-`_attach_impl()` (`channel.py:99`) sends the ATTACH without going through
-`_request_state(ATTACHING)`, so the channel is still ATTACHED when the server's ATTACHED
-arrives; `_on_message` takes the RTL12 branch (`:722-726`), which emits `update` on the
-*public* emitter, while `set_options` awaits the *internal* one, written only by
-`_notify_state`. The options are stored; the call never resolves. Adding the
-`_request_state` fixes both halves.
-`test/uts/realtime/unit/channels/channel_options_test.py -k rtl16a`
-
 **1.5 A presence action on a DETACHED channel re-attaches and then hangs.** RTL11, RTP8g.
 Both require an immediate error with nothing sent. `_enter_or_update_client` groups DETACHED
 with INITIALIZED (`presence.py:258-264`), starts an implicit attach and queues the message,
@@ -2494,8 +2546,8 @@ have the grouping, so the SDK is inconsistent with itself.
 ### Tier 2 — the wrong error, or an error where there should be none
 
 **2.1 `raise state_change.reason` raises `TypeError` when the reason is `None`.** RTL24,
-RTL4c, RTL13b, RTP16c. Three sites — `channel.py:102` (`set_options`), `:150` (`attach`),
-`:219` (`detach`) — raise whatever the state change carries, and the state change often
+RTL4c, RTL13b, RTP16c. `detach` raises whatever the state change carries, where `attach`
+and `set_options` fall back to a 90001, and the state change often
 carries nothing, because a server-initiated DETACHED's error is discarded at `:735`,
 `_request_state(ATTACHING)` and `_notify_state(SUSPENDED)` being called with no reason. The
 caller gets `TypeError: exceptions must derive from BaseException` instead of an
@@ -2519,29 +2571,6 @@ e.on('alpha', listener); e.on('beta', listener); e.off('alpha', listener)
 The registry needs an `(event, listener)` key holding a list per key.
 `test/uts/realtime/unit/channels/channel_subscribe_test.py -k rtl8b`
 `test/uts/realtime/unit/presence/realtime_presence_subscribe_test.py -k rtp7b`
-
-**2.3 `Channels.__getattr__` answers any unknown attribute by creating a channel.**
-`ably/rest/channel.py:408` is `return self.get(name)`, so `hasattr(client.channels, 'x')`
-is always `True` **and creates a channel called `x`**. A typo becomes a phantom channel,
-`client.channels.get_derived(...)` raises `TypeError: 'RealtimeChannel' object is not
-callable` rather than `AttributeError`, and any code that probes the collection mutates it.
-No derived test loses coverage to it, because none names an attribute the collection does
-not define — that constraint is itself the evidence. `Channels.__iter__` is annotated
-`Iterator[str]` and yields `Channel` objects, which is the same carelessness one size down.
-No gated test; reproduce with:
-```python
-len(client.channels)            # 0
-hasattr(client.channels, 'foo') # True
-len(client.channels)            # 1
-```
-
-**2.4 Synthesized LEAVE timestamps are timezone-aware; every other one is naive.** RTP19,
-RTP19a, TP3g. `presence.py:586` and `:720` use `datetime.now(timezone.utc)`, while every
-wire-derived `PresenceMessage.timestamp` comes from `_dt_from_ms_epoch`, built on
-`datetime.utcfromtimestamp(0)` (`types/presence.py:12-19`). Comparing them raises
-`TypeError: can't compare offset-naive and offset-aware datetimes`. Nothing inside the
-library compares them, so it bites only application code — but any subscriber that sorts the
-timestamps of the messages it receives will hit it. Related to #656. No gated test.
 
 **2.5 `Channels._on_channel_message` subscripts before it checks.** `channel.py:1038-1045`
 does `channel = self.__all[channel_name]` and only then `if not channel:`, so a message for
@@ -2568,26 +2597,13 @@ each request and bypasses the client's own HTTP layer entirely — no client-sco
 observe or stub it. Two issues in one line. The derived tests reach it only through
 `monkeypatch`; the three REC3 tests are skipped stubs.
 
-**2.8 An authCallback error is always rewritten as 401/40170, so RSA4d is unreachable.**
-RSA4d, RSA4d1. `rest/auth.py:182-187` wraps every callback exception as
-`AblyException(…, 401, 40170, cause=e)`, discarding the original status, and
-`on_error_from_authorize` branches on `status_code == 403` to reach FAILED — a branch an
-authCallback can never take. A 403 from an auth provider therefore gives DISCONNECTED with
-80019/401 where the spec requires FAILED with 80019/403. The same wrapper is why the 80019
-carries no `cause`, and why RSA4f's non-`AblyException` (`AttributeError: 'int' object has
-no attribute 'key_name'`) reaches `Connection#errorReason` with no `code` at all. One issue,
-three symptoms.
-`test/uts/realtime/unit/auth -k "rsa4d or rsa4f_callback_invalid_type_format"`
-
-**2.9 `AblyException`'s status code and code are transposed at six sites.** The constructor
-is `(message, status_code, code)`. `channel.py:203` (`90001, 400`), `channel.py:217`
-(`90000, 409`), `connectionmanager.py:343` (`80000, 500`), `mixins.py:84` (`40019, 40019`),
-`mixins.py:88` and `:111` (`40018, 40018`). `channel.py:860` (`408, 90007`) and
-`message.py:304` (`400, 40018`) are right, so it is a repeated slip rather than a
-misunderstanding. A caller branching on `status_code` today gets a five-digit number.
-Mechanical fix. No gated test — three adapted tests assert the wrong values deliberately
-(`channel_detach_test.py -k "rtl5b or rtl4h"`), so they turn red when it is fixed, which is
-the signal wanted.
+**2.8 An authCallback result of the wrong type reaches `errorReason` as an `AttributeError`.**
+RSA4f, RSA4c2. `Auth.request_token` has no RSA4f type check, so a callback returning `12345`
+falls through to `token_request.key_name` and raises `AttributeError`, which `try_host`'s
+`except AblyException` does not catch. `connect_base` then records it as
+`Connection#errorReason`, with no `code` at all, where the spec requires DISCONNECTED with
+80019/401.
+`test/uts/realtime/unit/auth -k rsa4f_callback_invalid_type_format`
 
 ### Tier 3 — silently wrong data
 
@@ -2661,34 +2677,27 @@ disconnect per RTN7e", which issue 1.2 above proves false. No gated test: the UT
 this cannot distinguish the behaviours (recorded under UTS Spec Errors), so the finding is
 the output.
 
-**3.9 `Channels.release` drops a channel that is still attached.** RTS4e. `Channels.release`
-deletes the entry and sends nothing, so the channel is dropped from the collection while still
-attached in the Ably service — the application goes on being billed for and delivered to a
-channel it believes it released. RTS4b permits this until the next major version, with the
-deprecation warning it now logs; the next major version raises 90011 instead. Do not file.
-`test/uts/realtime/unit/channels/channels_collection_test.py -k rts4e_release_attached_fails`
-
-**3.10 The UPDATE event drops the CONNECTED message's error.** RTN24. `on_connected`
+**3.9 The UPDATE event drops the CONNECTED message's error.** RTN24. `on_connected`
 (`connectionmanager.py:425-428`) builds the `ConnectionStateChange` without the `reason` it
 was handed, so an application never sees the error a CONNECTED carries — including the
 RTN15c7 failed-resume error, which RTN25 lists among those that must set
 `Connection#errorReason`. A one-line fix.
 `test/uts/realtime/unit/connection/update_events_test.py -k rtn24_update_event_with_error`
 
-**3.11 Detach protocol faults.** RTL5i — a detach requested while already DETACHING sends a
+**3.10 Detach protocol faults.** RTL5i — a detach requested while already DETACHING sends a
 **second** DETACH, because `_request_state` calls `_check_pending_state()` even after
 `_notify_state` returns early. RTL5k — an ATTACHED arriving while DETACHING or DETACHED is
 ignored instead of answered with a new DETACH, so the detach times out and the channel
 returns to ATTACHED. Same method, one issue.
 `test/uts/realtime/unit/channels/channel_detach_test.py -k "rtl5i or rtl5k"`
 
-**3.12 The deleted RTL4j ATTACH_RESUME flag is still set on every reattach.** RTL4j, deleted
+**3.11 The deleted RTL4j ATTACH_RESUME flag is still set on every reattach.** RTL4j, deleted
 in specification 6.1.0. `_notify_state` sets `__attach_resume` on every ATTACHED and
 `_encode_flags` ORs it in, so every reattach carries `flags: 32` and tells the server
 something the server now decides for itself.
 `test/uts/realtime/unit/channels/channel_attach_test.py -k rtl4j`
 
-**3.13 A decode error other than 40018 never fails the channel.** PC3. `channel.py:744-748`
+**3.12 A decode error other than 40018 never fails the channel.** PC3. `channel.py:744-748`
 gives channel-level handling to 40018 alone; every other decode error is logged and the batch
 **silently skipped**, with no state change and no `error_reason`, so a vcdiff message with no
 decoder is simply lost. Compounding it, `message.py:302-305` checks the delta's `from` id
@@ -2696,34 +2705,20 @@ decoder is simply lost. Compounding it, `message.py:302-305` checks the delta's 
 missing-decoder branch at all.
 `test/uts/realtime/unit/channels/channel_delta_decoding_test.py -k pc3_no_plugin_fails`
 
-**3.14 A failed automatic re-entry reports the NACK, not the 91004 wrapper.** RTP17e.
+**3.13 A failed automatic re-entry reports the NACK, not the 91004 wrapper.** RTP17e.
 `_reenter_member` (`presence.py:667-674`) emits the UPDATE with `resumed=False` and the raw
 NACK as `reason`, where the spec requires `resumed` true and a 91004 naming the clientId with
 the NACK as `cause`. Local to one method.
 `test/uts/realtime/unit/presence/realtime_presence_reentry_test.py -k rtp17e`
 
-**3.15 `ping()` rejects DISCONNECTED, and charges the connect wait to the caller's timeout.**
-RTN13b, RTN13c, RTN13d. `ConnectionManager.ping` (`:362`) admits only CONNECTED and
-CONNECTING where RTN13d requires a ping from DISCONNECTED to be deferred; and `:375` enters
-`asyncio.wait_for` as soon as `ping()` is called, so a ping requested while CONNECTING can
-expire before its HEARTBEAT has gone out.
-`test/uts/realtime/unit/connection/connection_ping_test.py -k "rtn13b_deferred or rtn13c or rtn13d"`
-
-**3.16 A failed RTN22 reauth leaves no trace on the connection.** RSA4c1, RSA4c3.
+**3.15 A failed RTN22 reauth leaves no trace on the connection.** RSA4c1, RSA4c3.
 `websockettransport.py:170-175` awaits `auth.authorize()` inside a bare `except Exception`
 that only logs, so nothing reaches `on_error_from_authorize` and `errorReason` stays as it
 was. **Hold this one**: specification#466 would make the current behaviour correct, and the
 two UTS specs disagree about it today.
 `test/uts/realtime/unit/auth/connection_auth_test.py -k rsa4c3_callback_error_stays_connected`
 
-**3.17 TokenParams passed to an authCallback carry no clientId on a realtime client.**
-RSA12a, RTN2e. `Auth.__init__` nulls `client_id` for a realtime client (`rest/auth.py:36-41`)
-and `_ensure_valid_auth_credentials` only adds it when non-null, so an auth server never
-learns the configured clientId. The REST client does pass it. The same nulling is why
-`client.client_id` and `client.auth.client_id` disagree before CONNECTED (RTC17).
-`test/uts/realtime/unit/auth/connection_auth_test.py -k rtn2e`
-
-**3.18 No 40171 log at instantiation with a non-renewable token.** RSA4a1. Requires an
+**3.16 No 40171 log at instantiation with a non-renewable token.** RSA4a1. Requires an
 info-level record carrying 40171 and the TI5 help URL; the SDK logs at debug with no code,
 and `grep -rn href ably/` finds no help URLs at all. Small, and the TI5 half is a gap of its
 own.
@@ -2735,13 +2730,13 @@ Each row is one feature and one issue. None is a bug in existing code.
 
 | Feature | Spec points | Tests | Reproduction (`-k` against `test/uts/realtime/unit/`) |
 |---|---|---|---|
-| Connection recovery, entire — `createRecoveryKey`, the `recover` connect parameter, recovery-key decoding. `recover` is stored on `Options` and read nowhere. Measured through the proxy: a client given a valid `recover=` sends no `recover` query parameter and is issued a fresh `connectionId` | RTN16, RTN16f–k, RTC1c | 8 | `connection/connection_recovery_test.py`, `client/realtime_client_test.py -k rtc1c`, and `test/uts/realtime/integration/proxy/connection_resume_test.py -k "rtn16d or rtn16l"` |
+| Connection recovery, entire — the `recover` client option, `createRecoveryKey`, the `recover` connect parameter, recovery-key decoding. 3.x stored `recover` and read it nowhere, and 4.0.0 removed it. Measured through the proxy before then: a client given a valid `recover=` sent no `recover` query parameter and was issued a fresh `connectionId` | RTN16, RTN16f–k, RTC1c | 9 | `connection/connection_recovery_test.py`, `client/realtime_client_test.py -k rtc1c`, and `test/uts/realtime/integration/proxy/connection_resume_test.py -k "rtn16d or rtn16l"` |
 | `MessageFilter` and filtered subscriptions | RTL22, RTL22a–d, MFI1, MFI2a–e | 5 | `channels/channel_subscribe_test.py -k rtl22` |
 | Derived channels — `DeriveOptions`, `Channels.getDerived` | RTS5, RTS5a, RTS5a1, RTS5a2, DO2a | 5 | `channels/channel_options_test.py -k "rts5 or do2a"` |
 | Retry backoff, jitter and `retryIn` on both state-change types | RTB1, RTB1a, RTB1b | 4 | `connection/backoff_jitter_test.py` |
 | `RealtimeChannel#whenState` (the connection has a private equivalent) | RTL25, RTL25a, RTL25b | 4 | `channels/channel_when_state_test.py` |
 | `attachOnSubscribe` on `ChannelOptions`. Also forces the suite's largest adaptation — 21 tests attach explicitly to work around it | TB4, RTL7h, RTP6e | 3 | `channels/channel_subscribe_test.py -k rtl7h`, `channels/channel_options_test.py -k tb4`, `presence/realtime_presence_subscribe_test.py -k rtp6e` |
-| `echoMessages`, in both the client-filter and `echo`-parameter forms | RTC1a, RTL7f | 2 | `client/realtime_client_test.py -k rtc1a`, `channels/channel_subscribe_test.py -k rtl7f` |
+| `echoMessages` in its client-filter form; the `echo` connect parameter is sent | RTL7f | 1 | `channels/channel_subscribe_test.py -k rtl7f` |
 | `RealtimePresence#history` (the realtime *channel* does delegate `history`) | RTP12, RTP12a, RTP12c | 2 | `presence/realtime_presence_history_test.py` |
 | PING/PONG handling — actions 22 and 23 are not modelled | RTN23c1, RTN23c2 | 2 | `connection/heartbeat_test.py -k rtn23c1` |
 | The `heartbeats` connect parameter. Binding on ably-python, which cannot observe ping frames | RTN23a | 1 | `connection/heartbeat_test.py -k rtn23a_heartbeats_true` |
@@ -2768,11 +2763,10 @@ none of these shows up as a failure — which is why they are easy to lose.
 
 The five tiers above classify the realtime unit derivation; the REST unit derivation's
 candidates went upstream as [#709](https://github.com/ably/ably-python/issues/709)–[#712](https://github.com/ably/ably-python/issues/712).
-Six further defects came out of the two integration tiers, and none of them is filed. I.1
-and I.2 are tier 2 by the ranking above — an error where there should be none — and I.3 is
-tier 1 for a client that configures the option it concerns, since the call does not come
-back when the caller asked for it to. I.4 and I.6 are tier 2 as well; I.5 is tier 3, a
-presence member silently leaving the set with nothing to report it.
+Three further defects came out of the two integration tiers, and none of them is filed; each
+keeps the label it was first given. I.1 is tier 2 by the ranking above — an error where
+there should be none — and so is I.6; I.5 is tier 3, a presence member silently leaving the
+set with nothing to report it.
 
 The realtime integration tier also put four defects the unit tier had already recorded in
 front of the real server, and those extend the entries above rather than opening issues of
@@ -2790,40 +2784,6 @@ separately inert, because `token_details_has_expired()` returns `False` with no 
 offset. The same expired token renews correctly through `publish()`. A fix has to separate
 the two meanings `raise_on_error` carries.
 `test/uts/rest/integration/auth_test.py -k rsc10`
-
-**I.2 `enterClient` cannot succeed on a basic-auth connection.** RSA7b4, RTP14, RTP15. A
-connection built from a key alone is told `clientId: "*"`, and the branch of
-`Auth._configure_client_id` (`ably/rest/auth.py:335-353`) that guards a configured clientId
-against a server wildcard fires when there is no configured clientId, recording it as
-validated and `None`. `can_assume_client_id` then refuses every clientId. One line from a
-fix, and `enter_client` is unusable without one. No test gates on it — the three tests that
-would hit it pass `client_id='*'` in setup instead, as the repository's own presence suite
-does — so it will not show up as a failure.
-
-**I.3 `httpRequestTimeout` is applied as seconds where the specification counts
-milliseconds.** TO3l4, TO3l3, RSC15l2. `ably/http/http.py:193` hands
-`(http_open_timeout, http_request_timeout)` to `httpx`, which reads seconds, so a client
-built with the specification's `httpRequestTimeout: 3000` waits three thousand seconds.
-Measured through `uts-proxy` against a session delaying `/time` by 20 seconds: the
-request sat out the whole delay, succeeded on the primary host and attempted no
-fallback, where `http_request_timeout=3` timed out at 3.1 seconds and the fallback retry
-succeeded. The defaults are unaffected, 4 and 10 seconds being TO3l3's and TO3l4's 4000
-and 10000 ms, so this reaches only a client that sets the option — but such a client gets
-no timeout and no fallback at all. Distinct from
-[#709](https://github.com/ably/ably-python/issues/709), which is about the same value
-bounding a single socket read rather than the request; a fix wants to settle both.
-`test/uts/rest/integration/proxy/rest_fallback_test.py -k rsc15l2`
-
-**I.4 A JWT string whose clientId matches the configured one is rejected 40102.** RSA7.
-An `auth_callback` returning an Ably JWT gets wrapped as `TokenDetails(token=<jwt>)`
-without the JWT being parsed (`ably/rest/auth.py:213`), so `token_details.client_id` is
-`None`; `_configure_client_id(None)` (`:126`, raising at `:345`) then reads that as a
-clientId change and raises 40102 although the JWT's `x-ably-clientId` claim is the
-configured id exactly. The connection recovers on the retry, which takes the cached-token
-branch, so the cost is a spurious failed attempt and a full `disconnected_retry_timeout` —
-fifteen seconds — on every such client. Affects anyone whose auth provider returns a JWT
-and who also configures `clientId`, which is the ordinary shape of a JWT deployment.
-`test/uts/realtime/integration/auth_test.py -k rsa7_matching`
 
 **I.5 RTP17i re-entry never runs on a channel that is already ATTACHED.** RTP17i, RTP17g.
 `RealtimePresence.on_attached()` is reached only from `RealtimeChannel._notify_state()`, and
@@ -2844,6 +2804,87 @@ renews its token and connects, the 40142 is still there. RTN25 permits either re
 the unit tier adapts to that; RTN14b does not, which is what makes this a defect rather
 than a choice.
 `test/uts/realtime/integration/proxy/connection_open_failures_test.py -k rtn14b`
+
+### From the objects derivation
+
+These are against `ably/specification`, not ably-python: the objects tier found no SDK
+non-compliance, and each item is a fault in `uts/objects` or, for O.7, a gap in
+`objects-features.md`. **None is filed.** Each matches an entry under *UTS Spec Errors*, which
+carries the detail, and the command after it runs the derived tests that correct or work
+around it — they pass, and are the reference for what the specification should say;
+`RUN_DEVIATIONS` makes no difference to them. They are ranked by what an SDK deriving from the
+specification as written would suffer: first where a conforming SDK fails or has to adapt
+(O.1–O.3), then where a non-conforming one passes (O.4, O.5), then housekeeping (O.6), with the
+features-spec gaps last, being questions for a different document.
+
+**O.1 The unit specifications model three internal interfaces against `objects-features.md`.**
+RTLC7g, RTLM15g, RTO3a, RTO7, RTO17, RTLCV4g5, RTLMV4j5, MCRO2, CCRO2.
+`internal_live_counter.md` and `internal_live_map.md` take an update from `applyOperation`
+while asserting, of the same call, the boolean RTLC7g and RTLM15g say it returns;
+`objects_pool.md` puts the sync state machine on `ObjectsPool`, and `PLAN.md` repeats it;
+`value_types.md` and `public_object_message.md` read the retained create in two different
+places, one of which would put it on the wire, and the latter gives `*CreateWithObjectId` fields
+MCRO2 and CCRO2 do not define. Every SDK has to adapt all of it — S-1, S-2 and S-4 here, and
+ably-js's derived suite likewise. One issue: write the files against the features spec's shapes.
+`test/uts/objects/unit/internal_live_map_test.py test/uts/objects/unit/objects_pool_test.py test/uts/objects/unit/value_types_test.py test/uts/objects/unit/public_object_message_test.py`
+
+**O.2 Fixtures put values where the protocol does not.** RTO2, RTO25a, RTO26a, RTLMV4d,
+RTLMV4f1. Granted modes written as an ATTACHED `modes: [...]` field rather than as `flags` bits;
+`connectionId` inside `connectionDetails` in the helper specification and two hand-written
+mocks; RTLMV4d's bytes row comparing an in-memory entry with its base64 wire form; and the
+provisioning comment's one result per batch entry, where the server answers one result for
+the batch. A conforming SDK fails the first three as written.
+`test/uts/objects/unit/realtime_object_test.py test/uts/objects/unit/value_types_test.py -k "rto2_mode or rto25a or rto26a or rtlmv4d_map_set_all_types_table"`
+
+**O.3 Steps read state as though an injected frame were applied at once.** RTO5c9, RTO10c1b1,
+RTO17, RTO18d, RTO19, RTO20, RTO20d4, RTO20e, RTO20e1, RTO23c1, RTO24b1, RTO24c1, RTINS16,
+RTINS16h, RTLO4b, RTPO19, and at the integration tier RTO5a2, RTO7, RTO8, RTO17. An SDK that
+processes frames on a task of its own **fails** the three RTO23c1 tests, the two RTO20e1 tests,
+RTO20e and RTO20d4's empty-list test as written — the operation starts before the re-sync
+ATTACHED has been processed, sees SYNCED and resolves — while the negatives of RTO20's
+echo-dedup, RTO19, RTO10c1b1 and RTINS16h pass whatever the SDK does, and every exact count
+after a `poll_until(>= n)` is half a negative. `path_object.md` already waits for an inbound
+frame in its compact tests and `standard_test_pool.md` already defines the quiescence pattern;
+the fix is to use them throughout, with `process_pending_events()` after each frame that is
+read from, and, in `objects_faults.md`, a recorded state sequence in place of `AWAIT_STATE` for
+DISCONNECTED and for a re-attach.
+`test/uts/objects/unit/realtime_object_test.py test/uts/objects/unit/instance_test.py -k "rto23c1 or rto20e or rto20d4_empty or rto20_echo or rto19 or rto10c1b1 or rto5c9_rto20 or rtins16h"`
+`test/uts/objects/integration/proxy/objects_faults_test.py`
+
+**O.4 Tests that pass without the behaviour they are named for.** RTLM8g, RTLM9b, RTO10,
+RTO10b1, RTO10c1b1, RTPO6b, RTPO19 with RTO24b2a2, RTO4b2, RTO14b1, RTINS16g, RTO20e, RTO23c,
+RTO20c, RTO20d1, RTO20e1; and, derived as written, RTO4 with RTO5a2, RTO7 and RTO8 through the
+proxy, RTLC11b1, RTLO4b, RTO5c10 and the lifecycle test's unread `events_b`. Sixteen derived
+tests carry the assertion or the direct check their specification omits. The sharpest are the GC
+tests, which read a value that is null with no GC at all — RTO10b1 also advances less than one
+GC interval — and the two `objects_faults.md` tests titled for RTO8a's buffer, neither of which, by
+measurement, exercises the buffer. Same class as
+[#543](https://github.com/ably/specification/issues/543).
+`test/uts/objects/unit -k "rtlm8g or rtlm9b or rto10 or rtpo6_at_escaped or rtpo19_map_clear or rto4b_attached or rto14_objectid_format_counter or rtins16g or rto20e or rto23c_get_waits or rto20c_missing or rto20d1"`
+
+**O.5 Boundaries no test reaches.** RTLM7h, RTLM8g, RTLM24c, RTLM19a1, RTLC7c, RTLM15c,
+RTLC6a, RTLM6a, RTLM7a3, RTLC7b, RTLM15b, RTLM23c, RTLO6b, RTINS3b. Equal serials against the
+clear floor, an entry exactly one grace period old, the order of serial bookkeeping against the
+tombstone checks, a rejected MAP_SET's parent references, the serials a rejected operation
+leaves, MAP_CREATE no-ops, the clock a map-entry tombstone reads, and a primitive instance's
+`id`. Each but the last was found as a mutant every existing test lets through, so each new
+test can be written against that mutant. No reproduction: there is no test to run.
+
+**O.6 Labels, commentary and harmless fixture slips.** The thirteen rows of the objects
+housekeeping entry: RTLM24's `<=`, RTLM14c's title, RTO20d4's commentary, an RTO19 test that
+exercises RTO18f2, RTO20's credit to RTO9a3, RTPO6b's undefined 40003, RTLM15e's half-set
+tombstone, the second `root` beside the pool's, the ATTACHED `channelSerial`s, fragile bare
+serials, two missing language notes, and `integration-testing.md`'s Protocol Variants list.
+None changes an outcome. Same class as
+[#532](https://github.com/ably/specification/issues/532).
+
+**O.7 `objects-features.md` gaps.** RTLM5d2, OD4c5, OD4d5, RTO4, RTO5a5, RTO5a6, RTO5d, RTO4b2,
+RTO14b2, RTO2a, RTPO6; and, on the unmerged pull requests, RTLMV4c1
+([#491](https://github.com/ably/specification/pull/491)) and RTPO20c and RTBC16d
+([#471](https://github.com/ably/specification/pull/471)). The widest reaching are RTLM5d2,
+under which every JSON map entry reads null, and RTO5d, under which one ObjectMessage with no
+`object` stalls the whole sync. The two #471 points want raising on that pull request before it
+merges, since ably-js already disagrees with its text on the first.
 
 ## How the specifications are adopted here
 
@@ -2911,8 +2952,8 @@ module-level factory would outlive the test that set it and be shared by every
 client the suite builds.
 
 A derived test reaches for it where nothing else reaches the behaviour.
-`realtime_request_timeout`, `disconnected_retry_timeout`,
-`suspended_retry_timeout` and `channel_retry_timeout` are client options, so a
+`realtime_request_timeout_seconds`, `disconnected_retry_timeout_seconds`,
+`suspended_retry_timeout_seconds` and `channel_retry_timeout_seconds` are client options, so a
 real short value drives those and the test stays free of the interaction
 between faked time and the real `await`s around it. Two things have no such
 handle: `connection_state_ttl`, which is not a constructor parameter and which
@@ -3043,7 +3084,8 @@ renaming; the function name makes failures readable without it.
 `enable_fake_timers()` and `ADVANCE_TIME(ms)` correspond to the clock a client
 reads, which `rest_client(mock_http, clock=...)` replaces. The derived REST tests
 shorten the interval through a client option instead, which is what the
-specifications themselves do for `fallback_retry_timeout`, and reach for the clock
+specifications themselves do for `fallbackRetryTimeout` (`fallback_retry_timeout_seconds`
+here), and reach for the clock
 only where no option exposes the interval; see the fake time section above.
 
 ### A TokenDetails payload is recognised by its `token`, not only by `issued`
@@ -3198,6 +3240,104 @@ and each message still gets a distinct id, so only the setup latency differs. Ea
 then polls history until the expected count is visible before paginating, which is the
 specifications' own `poll_until`, because history is not immediately consistent.
 
+### The objects tier mirrors the other two, with a pure tier inside its unit tier
+
+`uts/objects/unit/<name>.md` becomes `test/uts/objects/unit/<name>_test.py`,
+`uts/objects/integration/<name>_test.md` becomes `test/uts/objects/integration/<name>_test.py`,
+and `integration/proxy/objects_faults.md` becomes `integration/proxy/objects_faults_test.py`,
+whose Test IDs read `objects/proxy/...`. `uts/objects/helpers/standard_test_pool.md` becomes
+`test/uts/objects/helpers/standard_test_pool.py`, with tests of its own beside it, which are
+the 18 harness cases the header counts separately.
+
+Seven of the fifteen unit specifications — `internal_live_counter`, `internal_live_map`,
+`objects_pool`, `parent_references`, `object_id`, `value_types` and `public_object_message`,
+161 Test IDs — construct internal objects and connect nothing. The other eight, 161 Test IDs
+more, drive `channel.object` over the mock websocket. The specifications draw no such line,
+but it decides which shapes apply: S-1 to S-4 are pure-tier adaptations, and the mock tier
+reaches the library only through its public surface and a handful of underscore readers.
+
+### The specifications' untyped `PathObject` and `Instance` become LODR-061's typed views
+
+The specifications are written against the merged features spec's `PathObject` and
+`Instance`, each one class carrying every method. ably-python follows LODR-061 and the RTTS
+partition of [#491](https://github.com/ably/specification/pull/491): navigation, `instance`,
+`compact_json` and `subscribe` are on the base `PathObject`, and a type-specific
+method is reached through the view for that type. So `root.get("score").value()` is
+`root.get('score').as_live_counter().value()`, `root.get("name").value()` is
+`root.get('name').as_primitive().value()`, and `pathObject.set(k, v)` is
+`await path_object.as_live_map().set(k, v)`; `root` is already a `LiveMapPathObject` and
+needs no view. A path's views are unchecked — a view of the wrong type reads `None`, or `[]`
+for a collection (RTTS5d1), and a write through it raises 92007 or 92005 (RTTS5d2) — so
+where a specification expects the untyped `value()` to be null, the test asserts it through
+both value views. An `Instance`'s views are checked and raise 92007 (RTTS9d).
+
+That is a difference of spelling, which `writing-derived-tests.md` says is not a deviation,
+and nothing above records it test by test. Where the partition makes a read unreachable
+rather than differently spelled, the test is an S-5 adaptation, and where the specification
+calls `compact()`, which the partition leaves out (RTTS3f, RTTS7d), it is an S-6 one.
+Mutations are `async` and awaited; reads, navigation, the views and `subscribe` are
+synchronous; `entries()` yields `(key, value)` tuples; `Instance.id` and `Instance.type` are
+properties.
+
+### A standalone `RealtimeObject` drives the pure tier
+
+`objects-features.md` puts the sync state machine on `RealtimeObject` (S-2), so the pure
+tier needs one without a channel. `RealtimeObject()` built with none, or
+`RealtimeObject(pool=pool)` around a pool a test filled, is a working state machine: `get()`
+waits for SYNCED and returns the root, `_publish` raises 40000, the server time is the local
+clock, the channel-mode and channel-state preconditions check nothing, and a path
+subscription's events carry no channel name. None of that is reachable through the public
+API; it exists so that a pure test exercises the code the mock tier runs. Members of a
+public class that LODR-061 does not name carry a leading underscore — `_objects_pool`,
+`_sync_state`, `_on_attached`, `_gc_interval_ms` — and the tests reach them by those names.
+
+### The objects mock tier speaks JSON, and answers `/time`
+
+`setup_synced_channel` connects through `objects_client`, which sets
+`use_binary_protocol=False`, so the builders' dictionaries go over the mock exactly as the
+specification describes the JSON wire: camelCase keys, numeric actions and semantics, a `json`
+value as a JSON-encoded string and `bytes` as base64. The msgpack wire is covered by the
+integration tier, which runs its three specifications under both protocols, and by
+`standard_test_pool_test.py`, which round-trips every wire type through both encodings.
+
+Creating a `LiveCounter` or `LiveMap` reads the server time (RTO16), which is a REST request,
+so `objects_client` also installs a `MockHttpClient` answering `GET /time` from the test's
+clock and 404 to anything else. Without it a mock-backed client would reach the network for
+the time. The harness CONNECTED carries a `siteCode`, an `objectsGCGracePeriod` and a
+`maxIdleInterval` of 0, so that a `FakeClock` test — the GC tests, chiefly — has no idle timer
+to fire.
+
+### The objects integration tier provisions its own sandbox app, and its proxy clients sign a JWT
+
+`test/uts/objects/integration/conftest.py` provisions a sandbox app for the tier, separate
+from the realtime tier's, whose fixtures are not visible from `test/uts/objects`; it is
+called `realtime_sandbox` all the same, so the tests read as the realtime tier's do. All three
+specifications outside `proxy` carry Protocol Variants, so every test there takes the
+`use_binary_protocol` fixture. Objects are provisioned over REST with `X-Ably-Version: 6`, in
+JSON whichever protocol the realtime client speaks. The proxy package repeats the realtime
+tier's `proxy_control` and `proxy_session` fixtures and its 300-second marker, prepended so
+that it wins over the parent's 120. A client under test there authenticates with an
+`auth_callback` returning a locally signed Ably JWT, which costs no round trip and so puts
+nothing in the event log beside the frames a test counts; a second client, where a test has
+one, goes straight to the sandbox with the key, as the specification builds it.
+
+### Batch and the typed views are tested outside `test/uts`, for want of a specification
+
+No UTS specification covers batched writes (RTPO20, RTINS17, RTBC1–RTBC16, in the unmerged
+[#471](https://github.com/ably/specification/pull/471)) or the typed views (RTTS2–RTTS10, in
+#491). Both are implemented, so both are tested, in `test/unit/liveobjects/`: `batch_test.py`, 29
+functions run as 76 cases, and `typed_views_test.py`, 17 functions run as 61. They are written
+against `objects-features.md`, the two pull requests and LODR-061, carry no `# UTS:` comment,
+and are not counted in the header. Beside them, `realtime_object_test.py`,
+`subscription_test.py` and `value_types_test.py` (17 functions, 18 cases) hold regression
+tests for behaviour no specification test reaches: a sync wait on a channel that is already
+detached, failed or released, an object message that fails to decode, a GC sweep that raises,
+and the validation of a creation value before the server time is read. They drive the standard synced pool over the mock
+websocket with this tier's helpers, and their own `conftest.py` closes clients as
+`test/uts/conftest.py` does. Single-point mutants of the implementation checked that they
+bite: they kill 15 of 16 in the batch code — the survivor removes a check another layer
+repeats — and all 7 in the view code.
+
 ### Deviation records are consolidated, not accumulated
 
 Each round of derivation runs a specification area per agent, and each writes its own
@@ -3213,7 +3353,11 @@ new ones: `Auth#revokeTokens`, `Rest#batchPresence`, the `PushChannel` surface a
 same root cause as RTN15h1's, and sits in that entry. The realtime integration round did
 the same for five more: the RTN15h3 stall, the connection-level ERROR bypass, the unused
 `connectionStateTtl`, connection recovery, and the missing channel-level handling for a
-decode error other than 40018.
+decode error other than 40018. The objects round found its specification faults several
+times over in the same way: the internal shapes the unit specifications assume were
+reported by three agents, the missing barriers after an injected frame by four, and the
+RTO8a buffer that `objects_faults.md` never exercises by the agent that wrote the contract,
+the one that derived the tier and the one that measured it.
 
 A verdict can change the same way, when a second specification reaches a behaviour the
 first was content with. `errorReason` surviving a successful reconnect is permitted by
@@ -3233,16 +3377,22 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 215 failures and 15 skips with the variable set, and
-230 skips and 1135 passes without it, the 1135 being 1005 derived cases and 130
-`helpers/` ones.
+it. As of this writing that is 143 failures, 1586 passes and 27 skips with the variable
+set, and 170 skips and 1586 passes without it, the 1586 being 1438 derived cases and 148
+harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
+the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
+the ably-common fixtures skip as well. The tiers are told apart by the junit report's
+`classname`, `test.uts.<area>.<tier>`, with `proxy` the package within an integration tier.
 
 The other two counts are measured from the source rather than from a run. The number of
-**derived tests** is the number of `# UTS:` comments, 1142. The number of **Test IDs** is
-the number of *distinct* ids in them, 1133 — not the same figure, because five ids in
+**derived tests** is the number of `# UTS:` comments, 1481. The number of **Test IDs** is
+the number of *distinct* ids in them, 1472 — not the same figure, because five ids in
 `rest/unit` are carried by more than one test function. Counting the comments and calling
 the result Test IDs is the easy mistake here, and it overstates the specification coverage
-by nine.
+by nine. The other is to gate or un-gate a test, record it in the body, and leave the
+header alone. A test moved from passing to `@spec_error` moves the passing, gated,
+per-side and specification-fault figures together, and this file's were a case short for a
+while after `test_rsc7d_ably_agent_header_format` was gated that way.
 
 Anyone changing the suite should re-run both and update the header, rather than copying
 the previous numbers forward. Keep the three units apart while doing it: one Test ID is

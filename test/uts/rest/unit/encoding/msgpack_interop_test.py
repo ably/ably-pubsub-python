@@ -10,7 +10,7 @@ import os
 import msgpack
 import pytest
 
-from ably.types.message import Message
+from ably.pubsub.types.message import Message
 
 FIXTURES_PATH = os.path.join(
     os.path.dirname(__file__), '..', '..', '..', '..', '..',

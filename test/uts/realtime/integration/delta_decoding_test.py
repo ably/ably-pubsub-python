@@ -7,7 +7,7 @@ The full delta pipeline against the sandbox: a channel attached with
 vcdiff delta, and the SDK decodes it against the payload it stored for the previous one.
 
 The specification's `plugins: { vcdiff: decoder }` is the `vcdiff_decoder` client option
-here, and its `VCDiffDecoder` interface is `ably.types.options.VCDiffDecoder` —
+here, and its `VCDiffDecoder` interface is `ably.pubsub.types.options.VCDiffDecoder` —
 `decode(delta, base) -> bytes`, the VD2a argument order. `AblyVCDiffDecoder` is the real
 implementation, backed by the `vcdiff-decoder` library; `CountingDecoder` wraps it so a
 test can assert how many deltas the server actually sent.
@@ -20,11 +20,11 @@ check without any change to what the server sends.
 
 import os
 
-from ably import AblyVCDiffDecoder
-from ably.realtime.connection import ConnectionState
-from ably.types.channeloptions import ChannelOptions
-from ably.types.channelstate import ChannelState
-from ably.types.options import VCDiffDecoder
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.server import AblyVCDiffDecoder
+from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.options import VCDiffDecoder
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,

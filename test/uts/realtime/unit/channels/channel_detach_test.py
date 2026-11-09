@@ -7,10 +7,10 @@ import asyncio
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,
@@ -171,8 +171,9 @@ async def test_rtl5i_detach_while_attaching():
     mock_ws.send_to_client(attached_message(channel_name))
 
     # The specification allows the superseded attach either to resolve or to be
-    # rejected; ably-python resolves it on the DETACHING state change
-    await asyncio.wait_for(attach_future, OPERATION_TIMEOUT)
+    # rejected; ably-python rejects it on the DETACHING state change
+    with pytest.raises(AblyException):
+        await asyncio.wait_for(attach_future, OPERATION_TIMEOUT)
     await asyncio.wait_for(detach_future, OPERATION_TIMEOUT)
 
     assert channel.state == ChannelState.DETACHED
@@ -208,9 +209,8 @@ async def test_rtl5b_detach_failed_errors():
     with pytest.raises(AblyException) as error:
         await asyncio.wait_for(channel.detach(), OPERATION_TIMEOUT)
 
-    # The 90001 the library passes lands in `status_code` and the 400 in `code`,
-    # the two being the other way round in `AblyException(message, status_code, code)`
-    assert error.value.status_code == 90001
+    assert error.value.code == 90001
+    assert error.value.status_code == 400
     assert channel.state == ChannelState.FAILED
 
 
@@ -229,7 +229,7 @@ async def test_rtl5j_detach_suspended_to_detached():
             detach_messages.append(msg)
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -251,7 +251,6 @@ async def test_rtl5j_detach_suspended_to_detached():
 
 
 # UTS: realtime/unit/RTL5l/detach-not-connected-immediate-0
-@deviation
 async def test_rtl5l_detach_not_connected_immediate():
     channel_name = 'test-RTL5l'
     detach_messages = []
@@ -278,11 +277,13 @@ async def test_rtl5l_detach_not_connected_immediate():
 
     assert channel.state == ChannelState.DETACHED
     assert detach_messages == []
-    attach_future.cancel()
+    # The detach leaves the pending attach to fail (RTL4d), which is retrieved so it is not left
+    # unhandled
+    with pytest.raises(AblyException):
+        await asyncio.wait_for(attach_future, OPERATION_TIMEOUT)
 
 
 # UTS: realtime/unit/RTL5l/detach-attached-when-disconnected-1
-@deviation
 async def test_rtl5l_detach_attached_when_disconnected():
     channel_name = 'test-channel'
     messages_sent = []
@@ -292,7 +293,7 @@ async def test_rtl5l_detach_attached_when_disconnected():
         on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE_NO_IDLE),
     )
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=300, disconnected_retry_timeout=60000)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.3, disconnected_retry_timeout_seconds=60)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -378,7 +379,7 @@ async def test_rtl5f_timeout_returns_previous_state():
             mock_ws.send_to_client(attached_message(channel_name))
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -420,7 +421,7 @@ async def test_rtl5k_attached_while_detaching():
                 mock_ws.send_to_client(detached_message(channel_name))
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = await connected_client(mock_ws, realtime_request_timeout=300)
+    client = await connected_client(mock_ws, realtime_request_timeout_seconds=0.3)
     channel = client.channels.get(channel_name)
 
     await asyncio.wait_for(channel.attach(), OPERATION_TIMEOUT)

@@ -1,5 +1,5 @@
-from ably import MessageAction, MessageOperation, MessageVersion, UpdateDeleteResult
-from ably.types.message import Message
+from ably.pubsub.server import MessageAction, MessageOperation, MessageVersion, UpdateDeleteResult
+from ably.pubsub.types.message import Message
 
 
 def test_message_version_none_values_filtered():
@@ -100,7 +100,7 @@ def test_message_version_serialization():
 def test_message_extras_preserved_in_as_dict():
     """Test that extras are included when a Message with extras is serialized.
 
-    Regression test: _send_update() in both RestChannel and RealtimeChannel
+    Regression test: _send_update() in both HttpChannel and RealtimeChannel
     constructed a new Message without copying extras or annotations from the
     user-supplied message, violating RSL15b/RTL32b which require "whatever
     fields were in the user-supplied Message" to be sent.
@@ -137,7 +137,7 @@ def test_message_extras_none_excluded_from_as_dict():
 # RSL15b, RTL32b, TM2u
 def test_message_annotations_preserved_in_as_dict():
     """Test that annotations are included when a Message with annotations is serialized."""
-    from ably.types.message import MessageAnnotations
+    from ably.pubsub.types.message import MessageAnnotations
     annotations = MessageAnnotations(summary={'reaction:distinct.v1': {'thumbsup': 5}})
     message = Message(
         name='test',

@@ -5,10 +5,10 @@ Spec points: RTN2e, RTN27b, RSA4, RSA4c, RSA4c1, RSA4c2, RSA4c3, RSA4d, RSA8d, R
 
 import time
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.tokendetails import TokenDetails
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_websocket import MockWebSocket, connected_message
@@ -16,8 +16,8 @@ from test.uts.helpers.mock_websocket import MockWebSocket, connected_message
 AUTH_MESSAGE = {'action': int(ProtocolMessageAction.AUTH)}
 
 # A retry far enough out that a DISCONNECTED connection does not reconnect
-# behind the assertions.
-NO_RECONNECT = 60000
+# behind the assertions, in seconds.
+NO_RECONNECT = 60
 
 
 def now():
@@ -77,7 +77,7 @@ async def test_rtn2e_callback_error_prevents_connect():
         conn.respond_with_success(connected_message('connection-id', connectionKey='connection-key'))
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
-    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout=NO_RECONNECT)
+    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -89,7 +89,6 @@ async def test_rtn2e_callback_error_prevents_connect():
 
 
 # UTS: realtime/unit/RTN2e/callback-params-include-clientid-2
-@deviation
 async def test_rtn2e_callback_params_include_clientid():
     received_params = None
 
@@ -107,9 +106,7 @@ async def test_rtn2e_callback_params_include_clientid():
     assert received_params is not None
     # `TokenParams` is a plain dict here, and ably-python spells its members
     # snake_case throughout, so `client_id` is the idiomatic rendering of the
-    # specification's `clientId`. The deviation is that the member is absent:
-    # `Auth.__init__` leaves `client_id` unset on a realtime client, so
-    # `_ensure_valid_auth_credentials` never puts it in the token params.
+    # specification's `clientId`.
     assert received_params['client_id'] == 'my-client-id'
 
 
@@ -149,7 +146,7 @@ async def test_rsa4c2_callback_error_causes_disconnected():
         return TokenDetails(token=f'valid-token-{auth_callback_count}', expires=now() + 3600000)
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
-    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout=NO_RECONNECT)
+    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.DISCONNECTED)
@@ -157,10 +154,8 @@ async def test_rsa4c2_callback_error_causes_disconnected():
     assert client.connection.error_reason is not None
     assert client.connection.error_reason.code == 80019
     assert client.connection.error_reason.status_code == 401
-    # RSA4c1 requires `cause` to carry the underlying 50000 error.
-    # `ConnectionManager.on_error_from_authorize` builds the 80019 without one,
-    # so the callback's own error is only in the log.
-    assert client.connection.error_reason.cause is None
+    assert client.connection.error_reason.cause is not None
+    assert client.connection.error_reason.cause.code == 50000
 
 
 # UTS: realtime/unit/RSA4c3/callback-error-stays-connected-0
@@ -202,13 +197,12 @@ async def test_rsa4c3_callback_error_stays_connected():
 
 
 # UTS: realtime/unit/RSA4d/callback-403-causes-failed-0
-@deviation
 async def test_rsa4d_callback_403_causes_failed():
     async def auth_callback(params):
         raise AblyException('Account disabled', 403, 40300)
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
-    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout=NO_RECONNECT)
+    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.FAILED)
@@ -221,7 +215,6 @@ async def test_rsa4d_callback_403_causes_failed():
 
 
 # UTS: realtime/unit/RSA4d/callback-403-reauth-causes-failed-1
-@deviation
 async def test_rsa4d_callback_403_reauth_causes_failed():
     auth_callback_count = 0
 
@@ -233,7 +226,7 @@ async def test_rsa4d_callback_403_reauth_causes_failed():
         raise AblyException('Account suspended', 403, 40300)
 
     mock_ws = MockWebSocket(on_connection_attempt=connect_successfully())
-    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout=NO_RECONNECT)
+    client = realtime_client(mock_ws, auth_callback=auth_callback, disconnected_retry_timeout_seconds=NO_RECONNECT)
 
     client.connect()
     await await_connection_state(client, ConnectionState.CONNECTED)

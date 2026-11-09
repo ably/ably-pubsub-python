@@ -10,12 +10,12 @@ awaited. A presence action is named by its lowercase wire name — `'enter'`, `'
 
 import uuid
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channeloptions import ChannelOptions
-from ably.types.channelstate import ChannelState
-from ably.types.flags import Flag
-from ably.types.presence import PresenceAction
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.flags import Flag
+from ably.pubsub.types.presence import PresenceAction
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,

@@ -7,10 +7,10 @@ import asyncio
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import await_connection_state, poll_until, realtime_client
 from test.uts.helpers.clock import FakeClock, settle
 from test.uts.helpers.deviations import deviation
@@ -127,7 +127,7 @@ async def test_rtl13a_suspended_reattach_triggered():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=60000)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=60)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -172,7 +172,7 @@ async def test_rtl13b_failed_reattach_suspended_retry():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -215,8 +215,7 @@ async def test_rtl13b_attaching_detached_to_suspended():
     # DEVIATION: RTL13b carries the DETACHED message's error onto the SUSPENDED state
     # change. `RealtimeChannel._on_message` answers a DETACHED received while ATTACHING
     # with `_notify_state(ChannelState.SUSPENDED)` and no reason, so the error is
-    # discarded, and the pending `attach()` reaches `raise state_change.reason` with
-    # `reason` None, raising `TypeError` rather than an AblyException. The state cycle
+    # discarded, and the pending `attach()` raises its 90001 fallback instead. The state cycle
     # this drives is covered ungated by
     # `test_rtl13b_failed_reattach_suspended_retry` above.
     channel_name = 'test-RTL13b-attaching'
@@ -237,7 +236,7 @@ async def test_rtl13b_attaching_detached_to_suspended():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=500, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.5, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -293,7 +292,7 @@ async def test_rtl13b_repeated_failure_cycle():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -360,7 +359,7 @@ async def test_rtl13c_retry_cancelled_disconnected():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=100, channel_retry_timeout=200)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.1, channel_retry_timeout_seconds=0.2)
     channel = client.channels.get(channel_name)
 
     client.connect()

@@ -9,12 +9,12 @@ import base64
 
 import pytest
 
-from ably import AblyRealtime
-from ably.types.channelstate import ChannelState
-from ably.types.message import Message
-from ably.types.mixins import DecodingContext
-from ably.types.options import VCDiffDecoder
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import create_realtime_client
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.mixins import DecodingContext
+from ably.pubsub.types.options import VCDiffDecoder
+from ably.pubsub.util.exceptions import AblyException
 from test.ably.utils import BaseAsyncTestCase
 
 
@@ -131,7 +131,7 @@ class TestChannelDeltaBatch(BaseAsyncTestCase):
     """RealtimeChannel handling of a protocol message carrying several deltas"""
 
     def setup_channel(self, decoder):
-        ably = AblyRealtime(key='not_a.real:key', auto_connect=False, vcdiff_decoder=decoder)
+        ably = create_realtime_client(key='not_a.real:key', auto_connect=False, vcdiff_decoder=decoder)
         channel = ably.channels.get('delta')
         received = []
         # subscribe() would also wait for the channel to attach, which this client cannot do

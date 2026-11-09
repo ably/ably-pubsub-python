@@ -8,9 +8,10 @@ import re
 import msgpack
 import pytest
 
-from ably.rest.auth import Auth
-from ably.util.exceptions import AblyException
+from ably.pubsub.http.auth import Auth
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
+from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient
 
 SERVER_TIME_MS = 1234567890000
@@ -56,6 +57,10 @@ async def test_rsc7e_ably_version_header():
 
 
 # UTS: rest/unit/RSC7d/ably-agent-header-format-0
+# SPEC ERROR RSC7d: the pattern `ably-[a-z]+/` rejects a hyphenated library name.
+# RSC7d1 allows any product key, and ably-python reports itself as
+# `ably-pubsub-python`. Recorded in deviations.md. Fix the specification first.
+@spec_error
 async def test_rsc7d_ably_agent_header_format():
     mock_http = MockHttpClient(on_connection_attempt=connect_successfully)
     mock_http.queue_response(200, TIME_RESPONSE)
@@ -218,14 +223,14 @@ async def test_rsc8_error_decoded_from_msgpack():
 
 # UTS: rest/unit/RSC13/request-timeout-enforced-0
 async def test_rsc13_request_timeout_enforced():
-    # NOTE: http_request_timeout is seconds in ably-python where the spec counts milliseconds,
-    # so the spec's 1000ms is shortened to 0.1 to keep the test quick.
+    # NOTE: the spec's httpRequestTimeout of 1000 ms would be http_request_timeout_seconds=1;
+    # it is shortened to 0.1 to keep the test quick.
     # Every host delays, because a timed-out request sends the client on to the next one.
     mock_http = MockHttpClient(
         on_connection_attempt=connect_successfully,
         on_request=lambda request: request.respond_with_delay(5000, 200, TIME_RESPONSE),
     )
-    client = rest_client(mock_http, http_request_timeout=0.1)
+    client = rest_client(mock_http, http_request_timeout_seconds=0.1)
 
     with pytest.raises(AblyException) as excinfo:
         await client.time()

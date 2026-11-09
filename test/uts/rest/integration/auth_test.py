@@ -17,8 +17,8 @@ import time
 
 import pytest
 
-from ably.transport.defaults import Defaults
-from ably.util.exceptions import AblyException
+from ably.pubsub.transport.defaults import Defaults
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import sandbox_rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt, random_id
@@ -140,8 +140,7 @@ async def test_rsa4_invalid_credentials_rejected(sandbox):
     result = await channel_status(client, channel_name)
 
     assert result.status_code == 401
-    # `error_code` is the raw `X-Ably-Errorcode` header, so a string.
-    assert result.error_code == '40400'
+    assert result.error_code == 40400
 
 
 # UTS: rest/integration/RSC10/token-renewal-expired-jwt-0

@@ -1,0 +1,353 @@
+"""The Ably Pub/Sub client for servers.
+
+Servers are trusted environments which typically authenticate with an API key,
+and whose connections are exempt from monthly-active-user counting. This
+package names that side, so the client an application reaches for is the one
+whose package matches where it runs.
+
+Build a client with :func:`create_http_client` or
+:func:`create_realtime_client`; the classes behind them are internal and
+reject direct construction. Annotate against the prototypes they return,
+:class:`~ably.pubsub.prototypes.PubSubHttpClient` and
+:class:`~ably.pubsub.prototypes.PubSubRealtimeClient`.
+
+The types a client hands out or accepts are exported here too: the messages,
+states and results it returns, and the classes of the objects it hands out,
+such as :class:`RealtimeChannel` and :class:`Presence`, for annotations and
+``isinstance`` checks. Those objects come from the client; construct them
+through it rather than directly.
+
+This is the public API of the ``ably-pubsub-server`` distribution. Both
+``ably`` and ``ably.pubsub`` are PEP 420 namespace packages shared with the
+other ``ably-*`` distributions, so neither carries an ``__init__.py`` of its
+own and neither exports anything; everything the library offers is reachable
+from here, from :mod:`ably.pubsub.server.sync` for the synchronous client, or
+from :mod:`ably.pubsub.server.liveobjects` for LiveObjects.
+"""
+
+from ably.pubsub.http.annotations import HttpAnnotations
+from ably.pubsub.http.auth import Auth
+from ably.pubsub.http.channel import Channel
+from ably.pubsub.http.channel import Channels as HttpChannels
+from ably.pubsub.http.http import DefaultPubSubHttpClient as _DefaultPubSubHttpClient
+from ably.pubsub.http.push import Push, PushAdmin, PushChannelSubscriptions, PushDeviceRegistrations
+from ably.pubsub.prototypes import PubSubHttpClient, PubSubRealtimeClient
+from ably.pubsub.realtime.annotations import RealtimeAnnotations
+from ably.pubsub.realtime.channel import Channels as RealtimeChannels
+from ably.pubsub.realtime.channel import RealtimeChannel
+from ably.pubsub.realtime.connection import Connection
+from ably.pubsub.realtime.presence import RealtimePresence
+from ably.pubsub.realtime.realtime import DefaultPubSubRealtimeClient as _DefaultPubSubRealtimeClient
+from ably.pubsub.request.paginatedresult import HttpPaginatedResponse, PaginatedResult
+from ably.pubsub.types.annotation import Annotation, AnnotationAction
+from ably.pubsub.types.batch import (
+    BatchPresenceFailureResult,
+    BatchPresenceSuccessResult,
+    BatchPublishFailureResult,
+    BatchPublishSpec,
+    BatchPublishSuccessResult,
+    BatchResult,
+)
+from ably.pubsub.types.capability import Capability
+from ably.pubsub.types.channeldetails import ChannelDetails, ChannelMetrics, ChannelOccupancy, ChannelStatus
+from ably.pubsub.types.channelmode import ChannelMode
+from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.channelstate import ChannelState, ChannelStateChange
+from ably.pubsub.types.channelsubscription import PushChannelSubscription
+from ably.pubsub.types.connectionstate import ConnectionEvent, ConnectionState, ConnectionStateChange
+from ably.pubsub.types.device import DeviceDetails, DevicePushDetails
+from ably.pubsub.types.message import Message, MessageAction, MessageVersion
+from ably.pubsub.types.operations import MessageOperation, PublishResult, UpdateDeleteResult
+from ably.pubsub.types.options import Options, VCDiffDecoder
+from ably.pubsub.types.presence import Presence, PresenceAction, PresenceMessage
+from ably.pubsub.types.stats import Stats
+from ably.pubsub.types.tokendetails import TokenDetails
+from ably.pubsub.types.tokenrequest import TokenRequest
+from ably.pubsub.util.construction import factory_construction
+from ably.pubsub.util.crypto import CipherParams, generate_random_key, get_default_params
+from ably.pubsub.util.exceptions import (
+    AblyAuthException,
+    AblyException,
+    IncompatibleClientIdException,
+    InvalidArgumentException,
+)
+from ably.pubsub.vcdiff.defaultvcdiffdecoder import AblyVCDiffDecoder
+from ably.pubsub.version import api_version, lib_version
+
+
+def create_http_client(**kwargs) -> PubSubHttpClient:
+    """Create a server Pub/Sub client that operates entirely over HTTP.
+
+    Handles publish, history, presence reads, stats and token issuing. Give the client one
+    of `key`, `token` or `token_details` to authenticate, or configure token auth through
+    `auth_callback` or `auth_url`.
+
+    The client logs through the standard :mod:`logging` module, to the `ably.pubsub` logger
+    and the loggers beneath it, and adds no handler of its own beyond a `NullHandler`.
+    Configure that logger to choose the level and where records go, for example
+    ``logging.getLogger('ably.pubsub').setLevel(logging.DEBUG)``.
+
+    Parameters
+    ----------
+    **kwargs: client options
+        **Credentials**
+
+        key: str
+            A valid Ably API key, in `name:secret` form. Mutually exclusive with `key_name`
+            and `key_secret`.
+        token: str
+            A valid token string to authenticate with in place of an API key.
+        token_details: TokenDetails
+            A TokenDetails instance to authenticate with in place of an API key.
+        key_name: str
+            The first half of an API key, as an alternative to passing `key`.
+        key_secret: str
+            The second half of an API key, as an alternative to passing `key`.
+
+        **Token authentication**
+
+        auth_callback: callable
+            Called when a new token is needed, and returns a token string, a TokenDetails,
+            a TokenRequest or a signed token request dict. Prefer this to `auth_url` when
+            the token source is in-process.
+        auth_url: str
+            A URL to request a token from when a new token is needed. The client issues a
+            request to this URL and uses the response as the token.
+        auth_method: str
+            The HTTP method used for the `auth_url` request. Defaults to `GET`.
+        auth_headers: dict
+            Headers to include in the `auth_url` request.
+        auth_params: dict
+            Query parameters to include in the `auth_url` request.
+        use_token_auth: bool
+            Whether to use token authentication. By default the client uses token auth when
+            any of `auth_callback`, `auth_url`, `token` or `token_details` is given, and
+            basic auth when only a key is. Set it to False to authenticate with the key
+            regardless, or to True to request tokens with the key.
+        query_time: bool
+            Query the Ably service for the current time when signing token requests, rather
+            than trusting the local clock. Defaults to False.
+        default_token_params: dict
+            Parameters applied to every token request this client makes.
+
+        **Connection**
+
+        client_id: str
+            The ID this client identifies as. Messages it publishes carry this ID, and it
+            cannot be changed once the client has authenticated.
+        endpoint: str
+            Either a routing policy name or a fully qualified domain name to connect to.
+            Defaults to `main`.
+        tls: bool
+            Whether the client should use TLS. Defaults to True.
+        port: int
+            The non-TLS port to connect to. Defaults to 80.
+        tls_port: int
+            The TLS port to connect to. Defaults to 443.
+        fallback_hosts: list[str]
+            Hosts to fall back to when the primary endpoint is unreachable. Set this only
+            if Ably has provided you with a custom set.
+        fallback_retry_timeout_seconds: float
+            TO3l10 fallbackRetryTimeout, in seconds: how long a fallback host stays
+            preferred once the client has failed over to it. The default is 600 (10
+            minutes).
+
+        **HTTP behaviour**
+
+        The timeouts are in seconds, where the Ably specification counts milliseconds, and
+        their names say so; a `datetime.timedelta` converts with `.total_seconds()`.
+
+        http_open_timeout_seconds: float
+            TO3l3 httpOpenTimeout, in seconds: the timeout for establishing an HTTP
+            connection. The default is 4.
+        http_request_timeout_seconds: float
+            TO3l4 httpRequestTimeout, in seconds: the timeout for each read and write of
+            an HTTP request, and for a free pooled connection. The default is 10.
+        http_max_retry_duration_seconds: float
+            TO3l6 httpMaxRetryDuration, in seconds: how long the client keeps retrying a
+            request across hosts before giving up. The default is 15.
+        http_max_retry_count: int
+            The most fallback hosts the client will try for a single request, after the
+            primary endpoint. The default is 3; 0 tries the primary endpoint only.
+
+        **Protocol**
+
+        use_binary_protocol: bool
+            Encode messages with MessagePack rather than JSON. Defaults to True.
+        idempotent_rest_publishing: bool
+            Assign an ID to published messages so that a retried publish is not duplicated.
+            Defaults to True.
+        add_request_ids: bool
+            Add a `request_id` query parameter to every request, which makes a request
+            traceable in Ably's logs. Defaults to False.
+        max_message_size: int
+            The largest total size of the messages one publish may carry, counting each
+            message's name, data, client ID and extras. A larger publish raises an
+            AblyException with code 40009 and is not sent. The default is 65536 (64 KiB).
+
+    Returns
+    -------
+    PubSubHttpClient
+        A client ready to use. It opens no connection until its first request.
+
+    Raises
+    ------
+    AblyException
+        With code 40106, if no means of authenticating is given, or if `key` is
+        combined with `key_name` or `key_secret`; with code 40000 if a `*_seconds`
+        timing option is not a finite, non-negative int or float. It is also a
+        ValueError.
+    IncompatibleClientIdException
+        If `client_id` conflicts with the client ID of `token_details`.
+    TypeError
+        If an option is passed under a name it does not have, including a timing
+        option's 3.x name, which the message names the replacement for.
+    """
+    with factory_construction():
+        return _DefaultPubSubHttpClient(**kwargs)
+
+
+def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
+    """Create a server Pub/Sub client with a persistent realtime connection.
+
+    Everything the HTTP client does, plus subscribing to channels and entering presence.
+    Accepts every option :func:`create_http_client` does — see there for credentials,
+    token authentication, connection and HTTP behaviour — and the following in addition.
+    It logs to the `ably.pubsub` logger, as :func:`create_http_client` describes.
+
+    Parameters
+    ----------
+    **kwargs: client options
+        **Connection lifecycle**
+
+        loop: asyncio.AbstractEventLoop
+            The event loop the client runs on. Defaults to the running loop; the client
+            logs a warning if it is created outside one.
+        auto_connect: bool
+            Connect as soon as the client is created. Set this to False to connect later
+            with `connect()`. Defaults to True.
+        queue_messages: bool
+            Hold messages published while the connection is not yet established and send
+            them once it is, rather than failing them. Defaults to True.
+        echo_messages: bool
+            Deliver the messages this client publishes back to it on its own connection.
+            LiveObjects writes require it. Defaults to True.
+        transport_params: dict
+            Additional query parameters to send when opening the realtime connection.
+
+        **Timeouts and retries**
+
+        The timeouts are in seconds, where the Ably specification counts milliseconds, and
+        their names say so; a `datetime.timedelta` converts with `.total_seconds()`.
+
+        realtime_request_timeout_seconds: float
+            TO3l11 realtimeRequestTimeout, in seconds: how long to wait for
+            acknowledgement of an operation performed over the realtime connection, such
+            as establishing a connection or sending a HEARTBEAT, CONNECT, ATTACH, DETACH
+            or CLOSE request. The default is 10.
+        disconnected_retry_timeout_seconds: float
+            TO3l1 disconnectedRetryTimeout, in seconds: how long to stay DISCONNECTED
+            before attempting to reconnect automatically. The default is 15.
+        suspended_retry_timeout_seconds: float
+            TO3l2 suspendedRetryTimeout, in seconds: how long to stay SUSPENDED before
+            attempting to reconnect automatically. The default is 30.
+        channel_retry_timeout_seconds: float
+            TO3l7 channelRetryTimeout, in seconds: how long a channel stays SUSPENDED,
+            following a server initiated DETACHED, before the client re-attaches it —
+            provided the connection is CONNECTED. The default is 15.
+        connectivity_check_url: str
+            The URL the client requests to decide whether the internet is reachable. On
+            failing to reach the primary endpoint, a success response from this URL tells
+            the client to try a fallback host instead of giving up.
+
+        **Deltas**
+
+        vcdiff_decoder: VCDiffDecoder
+            The decoder used to apply delta-encoded messages on channels configured with
+            `params={"delta": "vcdiff"}`. Pass an :class:`AblyVCDiffDecoder`.
+
+    Returns
+    -------
+    PubSubRealtimeClient
+        A client which, unless `auto_connect=False`, is already connecting.
+
+    Raises
+    ------
+    AblyException
+        With code 40106, if no means of authenticating is given, or if `key` is
+        combined with `key_name` or `key_secret`; with code 40000 if a `*_seconds`
+        timing option is not a finite, non-negative int or float. It is also a
+        ValueError.
+    """
+    with factory_construction():
+        return _DefaultPubSubRealtimeClient(**kwargs)
+
+
+__all__ = [
+    'AblyAuthException',
+    'AblyException',
+    'AblyVCDiffDecoder',
+    'Annotation',
+    'AnnotationAction',
+    'Auth',
+    'BatchPresenceFailureResult',
+    'BatchPresenceSuccessResult',
+    'BatchPublishFailureResult',
+    'BatchPublishSpec',
+    'BatchPublishSuccessResult',
+    'BatchResult',
+    'Capability',
+    'Channel',
+    'ChannelDetails',
+    'ChannelMetrics',
+    'ChannelMode',
+    'ChannelOccupancy',
+    'ChannelOptions',
+    'ChannelState',
+    'ChannelStateChange',
+    'ChannelStatus',
+    'CipherParams',
+    'Connection',
+    'ConnectionEvent',
+    'ConnectionState',
+    'ConnectionStateChange',
+    'DeviceDetails',
+    'DevicePushDetails',
+    'HttpAnnotations',
+    'HttpChannels',
+    'HttpPaginatedResponse',
+    'IncompatibleClientIdException',
+    'InvalidArgumentException',
+    'Message',
+    'MessageAction',
+    'MessageOperation',
+    'MessageVersion',
+    'Options',
+    'PaginatedResult',
+    'Presence',
+    'PresenceAction',
+    'PresenceMessage',
+    'PubSubHttpClient',
+    'PubSubRealtimeClient',
+    'PublishResult',
+    'Push',
+    'PushAdmin',
+    'PushChannelSubscription',
+    'PushChannelSubscriptions',
+    'PushDeviceRegistrations',
+    'RealtimeAnnotations',
+    'RealtimeChannel',
+    'RealtimeChannels',
+    'RealtimePresence',
+    'Stats',
+    'TokenDetails',
+    'TokenRequest',
+    'UpdateDeleteResult',
+    'VCDiffDecoder',
+    'api_version',
+    'create_http_client',
+    'create_realtime_client',
+    'generate_random_key',
+    'get_default_params',
+    'lib_version',
+]

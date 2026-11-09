@@ -15,11 +15,11 @@ import asyncio
 
 import pytest
 
-from ably.realtime.channel import ChannelState
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.operations import PublishResult
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.channel import ChannelState
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.operations import PublishResult
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     STATE_TIMEOUT,
     await_channel_state,
@@ -78,7 +78,7 @@ async def test_rtn7e_pending_fail_suspended():
 
     mock_ws = MockWebSocket(on_connection_attempt=on_connection_attempt)
     mock_ws.on_message_from_client = attach_only_server(mock_ws)
-    client = await connected_client(mock_ws, clock=clock, disconnected_retry_timeout=1000)
+    client = await connected_client(mock_ws, clock=clock, disconnected_retry_timeout_seconds=1)
     channel = client.channels.get(channel_name)
 
     await channel.attach()

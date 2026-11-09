@@ -8,13 +8,14 @@ shapes were written the same way in every file that needed them, so they live he
 
 from types import SimpleNamespace
 
-from ably.realtime.presence import RealtimePresence
-from ably.realtime.presencemap import PresenceMap
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.presence import PresenceAction, PresenceMessage
+from ably.pubsub.realtime.presence import RealtimePresence
+from ably.pubsub.realtime.presencemap import PresenceMap
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.presence import PresenceAction, PresenceMessage
+from ably.pubsub.types.testoptions import TestOptions
 
 #: The lowercase action names `RealtimePresence` emits its events under, which come
-#: from `PresenceAction._action_name` and exist only once `presence.py` is imported.
+#: from the `PresenceAction` member names, lowercased.
 PRESENCE_EVENT_NAMES = ('absent', 'present', 'enter', 'leave', 'update')
 
 
@@ -35,16 +36,18 @@ def presence_message(action, client_id, connection_id, id, timestamp, data=None)
     )
 
 
-def subscribed_presence(connection_id='conn-1', name='presence-test'):
+def subscribed_presence(connection_id='conn-1', name='presence-test', clock=None):
     """A `RealtimePresence` over a stub channel, with every presence event recorded.
 
     Returns the presence object and the list of `(event_name, message)` pairs its
     subscribers receive. One listener is registered per event name because
-    `EventEmitter` keys its wrappers on the listener alone.
+    `EventEmitter` keys its wrappers on the listener alone. `clock` is the time the
+    presence object reads when it synthesizes a LEAVE.
     """
     channel = SimpleNamespace(
         name=name,
         ably=SimpleNamespace(
+            options=SimpleNamespace(_test_options=TestOptions(clock=clock)),
             connection=SimpleNamespace(
                 connection_manager=SimpleNamespace(connection_id=connection_id),
             ),

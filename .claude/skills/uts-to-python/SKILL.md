@@ -20,6 +20,9 @@ gh api 'repos/ably/specification/contents/uts/realtime/integration/<spec>.md' --
 gh api repos/ably/specification/contents/uts/docs/proxy.md --jq '.content' | base64 -d
 gh api 'repos/ably/specification/contents/uts/rest/integration/proxy/<spec>.md' --jq '.content' | base64 -d
 gh api 'repos/ably/specification/contents/uts/realtime/integration/proxy/<spec>.md' --jq '.content' | base64 -d
+gh api 'repos/ably/specification/contents/uts/objects/unit/<spec>.md' --jq '.content' | base64 -d
+gh api 'repos/ably/specification/contents/uts/objects/integration/<spec>.md' --jq '.content' | base64 -d
+gh api repos/ably/specification/contents/uts/objects/helpers/standard_test_pool.md --jq '.content' | base64 -d
 ```
 
 The realtime integration tier nests, so list a directory before fetching from it:
@@ -39,9 +42,10 @@ carries over as it stands: `channels/channel_publish_test.md` becomes
 `channels/channel_publish_test.py`. Every directory needs an `__init__.py`, as `test` is
 a package.
 
-There are two kinds of tier. `rest/unit` and `realtime/unit` serve every request from a
-mock and reach no network; `rest/integration` and `realtime/integration` run against the
-real Ably sandbox and have no mock at all. See **The integration tier** below.
+There are two kinds of tier. `rest/unit`, `realtime/unit` and `objects/unit` reach no
+network; `rest/integration`, `realtime/integration` and `objects/integration` run against
+the real Ably sandbox and have no mock at all. See **The integration tier** below, and
+**The objects tier** for LiveObjects.
 
 `test/uts/rest/unit/time_test.py` is the reference example for REST unit,
 `test/uts/realtime/unit/connection/auto_connect_test.py` for realtime unit,
@@ -451,6 +455,105 @@ async def test_rsc15l4_cloudfront_header_fallback(sandbox, proxy_session):
     assert http_responses(log)[0]['status'] == 403
 ```
 
+## The objects tier
+
+`uts/objects/unit/<name>.md` becomes `test/uts/objects/unit/<name>_test.py`, the integration
+specifications keep their `_test` suffix under `test/uts/objects/integration/`, and
+`integration/proxy/objects_faults.md` becomes
+`test/uts/objects/integration/proxy/objects_faults_test.py`. Seven unit specifications are
+pure and construct internal objects; the other eight drive `channel.object` over the mock
+websocket. Follow `internal_live_map_test.py` (pure), `path_object_mutations_test.py` (mock)
+and `objects_lifecycle_test.py` (integration). The integration package's own `conftest.py`
+provisions a separate app under the realtime tier's fixture name, `realtime_sandbox`, and
+all three of its specifications take `use_binary_protocol`. The package is
+`ably.pubsub.liveobjects`, named for the product as PDR-080 has package names do, while
+`test/uts/objects/` keeps the specification's directory name so that each test file maps
+onto its specification; the public names are exported from `ably.pubsub.server.liveobjects`.
+
+**Translate the untyped API through the typed views** (LODR-061, the RTTS partition). The
+specifications call every method on one `PathObject` or `Instance` class; ably-python
+reaches a type's methods through its view:
+
+| Pseudocode | ably-python |
+|---|---|
+| `root.get("score").value()` | `root.get('score').as_live_counter().value()` |
+| `root.get("name").value()` | `root.get('name').as_primitive().value()` |
+| `pathObject.set("k", v)` | `await path_object.as_live_map().set('k', v)`; `root` is already a `LiveMapPathObject` |
+| untyped `value() == null` | `as_primitive().value() is None` **and** `as_live_counter().value() is None` |
+| `inst.id()` | `inst.id`, a property, as is `inst.type` |
+| `{ depth: n }` | `subscribe(listener, depth=n)`, keyword-only |
+
+Mutations are `async`; reads, navigation, views and `subscribe` are not. `entries()` yields
+tuples. A path's views never raise, and a write through the wrong one raises 92007, or 92005
+for a path that does not resolve; an `Instance`'s views raise 92007. A spelling difference is
+not a deviation. Where the partition makes a read unreachable — `value()` on a
+`LiveMapInstance` — assert the `type`, `not hasattr(...)` and the 92007, and cite S-5.
+
+**The pure tier adapts to five shapes**, defined in `deviations.md` and cited by label in the
+module docstring: S-1 `apply_operation` returns a boolean, so record updates with
+`capture_updates(obj)`; S-2 the sync state machine is a standalone `RealtimeObject()`'s
+(`_on_attached(has_objects)`, `_handle_object_sync_messages(msgs, channel_serial)`,
+`_sync_state`); S-3 `evaluate(vt, timestamp_ms)`; S-4 the retained create is
+`operation.resolved_counter_create` / `resolved_map_create`; S-5 above. Members of a public
+class that LODR-061 does not name carry a leading underscore (`channel.object._objects_pool`).
+
+`test/uts/objects/helpers/standard_test_pool.py` holds what the specifications share:
+`setup_synced_channel` (and `_no_ack`), `standard_mock_websocket`, `objects_client`,
+`objects_channel_options`, `objects_connected_message`, `objects_attached_message`, the
+`build_*` builders, `json_value`, `bytes_value`, `ack_serial`, `remote_serial`,
+`below_ack_serial`, `object_message(s)`, `capture_updates`, `build_public_object_message`,
+`assert_unchanged_after_quiescence`, `provision_objects_via_rest`, and the wire constants
+(`HAS_OBJECTS`, `OBJECT_SUBSCRIBE_FLAG`, `OBJECT_PUBLISH_FLAG`, `LWW`, the actions).
+`test/uts/README.md` says what each is.
+
+### Traps found while deriving and implementing the objects tier
+
+- **An injected frame is applied on the transport's read task, not by `send_to_client`.**
+  Read state only after a `poll_until` on its effect. A negative — "did not fire", "the echo
+  was not applied" — needs a positive control sent *behind* the message under test and
+  `assert_unchanged_after_quiescence`; an exact count after `poll_until(>= n)` needs
+  `await settle()` first; and a subscription made straight after a seeding message receives
+  the seed, so poll for the seed before subscribing. The specifications often skip all three,
+  and their negatives then pass whatever the SDK does.
+- **Process a re-sync ATTACHED before starting what it should hold back.** Send it, poll until
+  `channel.object._sync_state == ObjectsSyncState.SYNCING`, then start `get()` or the write as
+  a task; started earlier, it sees SYNCED and resolves at once.
+- **A mock ATTACHED grants no modes.** The standard one carries `HAS_OBJECTS` alone, which
+  empties `channel.modes`, and RTO2 then checks the modes the channel *requested* — so request
+  them with `objects_channel_options()` or `get()` raises 40024. Grant modes as `flags` bits,
+  never as the specifications' `modes: [...]`. An injected `flags: 128` at the integration tier
+  empties them the same way.
+- **A write resolves on its ACK.** The standard mock ACKs each OBJECT with
+  `ack_serial(msgSerial, i)`; under `setup_synced_channel_no_ack`, drive the write as a task.
+  Those serials land in `appliedOnAckSerials`, so never reuse one as an inbound serial, and
+  use `remote_serial(n)` for a remote write: a bare `'99'` sorts before `POOL_SERIAL` and is
+  stale.
+- **`json` values are JSON strings on the wire** (OD2g), so compare a captured
+  `mapSet.value.json` after `json.loads`; `bytes` are base64. Actions are
+  `ObjectOperationAction`, an `IntEnum`.
+- **Numbers decode to `float`.** Read them with `value(float)`; `value(int)` raises
+  `TypeError`, since `expected` must be exactly one of `str, float, bool, bytes, list, dict`.
+  Assert booleans with `is True`, since `True == 1`.
+- **Creating a `LiveCounter` or `LiveMap` reads `/time`.** `objects_client` answers it; a
+  client built any other way needs `mock_http=time_mock_http(clock)`.
+- **A tombstoned object reads null with no GC at all**, so a GC test asserts that the object
+  left `_objects_pool`. The GC interval, 300000 ms, is read when the first ATTACHED schedules
+  the timer on the client's clock: set `channel.object._gc_interval_ms` before `get()`.
+- **The public and internal `ObjectMessage` share a name.** Reach the public one as
+  `publicmessage.ObjectMessage`, from `ably.pubsub.liveobjects`.
+- **Check that a test can fail.** Several objects specifications assert something that holds
+  with the behaviour removed. The derivation caught them by running each module against a
+  throwaway reference implementation with one fault injected; add the discriminating
+  assertion under `# UTS SPEC ERROR:` and record the fault.
+- **At the sandbox, the echo arrives before the ACK**, so RTO9a3's dedup is only reachable at
+  the mock tier, and **ACKs are paced at about one per 500 ms per connection**, so each
+  awaited write after the first can take half a second.
+- **Every objects channel gets an OBJECT_SYNC**, an empty one included, and a resumed
+  ATTACHED on an attached channel restarts the sync without a state change: wait on
+  `get()`, not on a channel state. A sync cursor can itself contain `:`.
+- **uts-proxy matches `action` as a string and names actions only up to AUTH**: OBJECT_SYNC
+  is `'20'`, OBJECT `'19'`. Its `delay` holds every later frame behind the delayed one.
+
 ## Traps that cost the most time
 
 Ordered by how much they cost, not by subject. Every one was hit for real while
@@ -500,7 +603,7 @@ from CONNECTED (`loop.call_soon`, not a timer), so DISCONNECTED is gone before t
 `await` returns and `await_connection_state(client, DISCONNECTED)` times out. Record
 the sequence with `connection.on(...)` and assert on the list, as `mock_websocket.md`
 says. To *rest* in DISCONNECTED, use `drop_transport(...)`, or fail the immediate retry
-and raise `disconnected_retry_timeout`.
+and raise `disconnected_retry_timeout_seconds`.
 
 **5. Deadlock: `await connection.once_async(SUSPENDED)` before calling `advance()`
 hangs forever** — nothing fires timers but `advance`. Record with `connection.on(...)`,
@@ -518,7 +621,7 @@ a small `maxIdleInterval` in `connected_message(...)`, on real time. For every *
 
 **7. `ping()`'s timeout is real loop time, not the seam.**
 `connectionmanager.py:375` is `asyncio.wait_for(pending_ping.future, timeout)`, so
-`advance()` will not move it. Use a short real `realtime_request_timeout`.
+`advance()` will not move it. Use a short real `realtime_request_timeout_seconds`.
 
 **8. `clock.settle()` is twenty event-loop yields, not true quiescence.** The
 disconnect path chains `create_task` several levels deep. If a derived test shows a
@@ -536,7 +639,7 @@ so `ConnectionRefusedError` and `asyncio.TimeoutError` never reach `_emit('faile
 the attempt hangs until the transition timer fires with a generic 50003/504.
 `respond_with_dns_error()` is the only fast, caught failure — 40000/400 with the real
 cause — so **prefer it** whenever you just need "the connect failed", and note the
-substitution at the site. Keep `realtime_request_timeout` short in any test that does
+substitution at the site. Keep `realtime_request_timeout_seconds` short in any test that does
 wait a refusal out.
 
 **11. Keep the fallback hosts empty** unless the spec is about them.
@@ -594,13 +697,12 @@ for a client whose connect failed — `WebSocketTransport.send` raises a bare
 a bare `simulate_disconnect()` leaves the channel ATTACHED. And RTL4f's channel attach
 timeout and the connection's transition timeout are the **same option** (TO3l11), so a
 test that needs the connection to suspend before the channel does must set
-`realtime_request_timeout` very high.
+`realtime_request_timeout_seconds` very high.
 
 **21. `presence.subscribe()` and `annotations.subscribe()` are coroutines that
 attach.** They must be awaited, and they cannot run before `connect()`. `unsubscribe()`
-is not a coroutine. Presence event names are the lowercase action names from
-`PresenceAction._action_name`, which is monkey-patched onto `PresenceAction` at the
-bottom of `presence.py` and exists only once that module is imported.
+is not a coroutine. Presence event names are the lowercase names of the `PresenceAction`
+members, an `IntEnum`, as `_action_name` in `realtime/presence.py` gives them.
 
 **22. `RecordedUrl` cannot survive a URL httpx rejects.** `httpx.URL` caps at 64 KiB
 and raises inside `PendingConnection.__init__` **before** the attempt is recorded, so
@@ -650,7 +752,7 @@ Infrastructure Limitation. RTN23a via `send_to_client(HEARTBEAT_MESSAGE)` works.
   response processor decodes the body through `Response.to_native()`. A native dict or
   list body gets one automatically.
 - **The mock enforces the client's read timeout**, so `respond_with_delay` beyond
-  `http_request_timeout` raises rather than arriving late.
+  `http_request_timeout_seconds` raises rather than arriving late.
 - **Several client options are missing entirely** — `max_message_size` and
   `log_handler` among them — and raise `TypeError` rather than being ignored. Check
   `ably/types/options.py` first.
@@ -726,7 +828,7 @@ Established against the real proxy and the real sandbox while deriving
   asks for a token through a client pointed at the session puts a request in front of
   the waiting rule and an extra `http_request` in the log, which breaks every
   assertion that counts requests exactly (`== 1` for RSC15l's 4xx test, `>= 2` for the
-  fallback ones). Build an inner `AblyRest(key=api_key, endpoint=SANDBOX_ENDPOINT)`,
+  fallback ones). Build an inner `create_http_client(key=api_key, endpoint=SANDBOX_ENDPOINT)`,
   request the token through that, and close it.
 - **`http_response` events carry no `path`.** They have `status` and `ruleMatched`
   only, so "the injected response fired" is read off the response events **in order**
@@ -756,14 +858,13 @@ Established against the real proxy and the real sandbox while deriving
   same client adds its own `http_request` events. In `RSL1k4` the log is read
   **before** the history call, and the history read is a `wall_clock_poll_until` rather
   than a single fetch, because a published message does not reach history at once.
-- **`httpRequestTimeout` is milliseconds in the specification and seconds in
-  ably-python.** `ably/http/http.py:193` hands `(http_open_timeout,
-  http_request_timeout)` to `httpx`, which reads seconds, so the specification's
-  `http_request_timeout=3000` is a 3000-second deadline: measured, the request sat out
-  the proxy's whole 20-second delay and then succeeded on the primary host, and no
-  fallback was attempted. Passing `3` makes the same test pass in 3.1s, so only the
-  unit is wrong. The test is written as the specification has it and gated with
-  `@deviation`; `test/uts/deviations.md` carries the entry.
+- **`httpRequestTimeout` is milliseconds in the specification and
+  `http_request_timeout_seconds` is seconds in ably-python**, as are
+  `http_open_timeout_seconds` and `http_max_retry_duration_seconds`. Divide the
+  specification's value by 1000: passed undivided, `httpRequestTimeout: 3000` is a
+  3000-second deadline, and measured, the request sat out the proxy's whole 20-second
+  delay and then succeeded on the primary host with no fallback attempted. `3` makes
+  the same test pass in 3.1s.
 
 ## Traps found while deriving the realtime integration tier
 
@@ -791,10 +892,11 @@ Each was established against the sandbox, or against the sandbox behind `uts-pro
   `respond_with_refused`. The proxy answers the upgrade with HTTP 502, `websockets`
   raises, and the SDK reports `40000/400 'Error opening websocket connection: server
   rejected WebSocket connection: HTTP 502'` at once. No timeout shortening is needed.
-- **`realtime_request_timeout` is milliseconds at the client option**, and `Timer`
-  divides by 1000, so a specification's `realtimeRequestTimeout: 3000` maps straight
-  across. That is the opposite of `http_request_timeout`, which the REST proxy tier found
-  is applied as seconds; the defect does not generalise, so do not carry it over.
+- **The realtime timing options are seconds, and named `*_seconds`.** A specification's
+  `realtimeRequestTimeout: 3000` is `realtime_request_timeout_seconds=3`, and the same
+  division by 1000 applies to `disconnectedRetryTimeout`, `suspendedRetryTimeout` and
+  `channelRetryTimeout`. Only the options move: `ADVANCE_TIME`, `maxIdleInterval`,
+  `connectionStateTtl` and every `FakeClock` value stay milliseconds.
 - **The proxy's event timestamps are RFC 3339 with a variable number of fractional
   digits.** Comparing them as strings is wrong, and `datetime.fromisoformat` will not
   take the trailing `Z` on Python 3.9. Order the log by position rather than by timestamp
@@ -824,12 +926,14 @@ Three regimes; pick by tier.
 `rest_client(mock_http, clock=...)` replaces it: a stand-in supplies `now_ms()`,
 `monotonic_ms()` and `timer(timeout_ms, callback)`, and is where a spec's
 `enable_fake_timers()` / `ADVANCE_TIME(ms)` goes. Where a spec shortens an interval
-through a client option instead (`fallback_retry_timeout=100`), follow the spec.
+through a client option instead (`fallbackRetryTimeout: 100`, which is
+`fallback_retry_timeout_seconds=0.1`), follow the spec.
 
 **Realtime unit.** The same seam, with `realtime_client(mock, clock=clock)` installing a
 `FakeClock` on it. Still prefer a short real interval through a client option
-(`realtime_request_timeout`, `disconnected_retry_timeout`, `suspended_retry_timeout`,
-`channel_retry_timeout`) or through `connected_message(maxIdleInterval=...)`, and reach
+(`realtime_request_timeout_seconds`, `disconnected_retry_timeout_seconds`,
+`suspended_retry_timeout_seconds`, `channel_retry_timeout_seconds`, each the spec's
+milliseconds divided by 1000) or through `connected_message(maxIdleInterval=...)`, and reach
 for `FakeClock` where nothing else reaches the elapsing: `connection_state_ttl`, whose
 default costs 120 real seconds, and the transport's idle detection, which measures the
 silence against the same clock it arms its timer on. See the fake-time section of
@@ -894,8 +998,8 @@ the reasoning. The next reader will otherwise reach the same first conclusion.
 
 ```bash
 uv run --frozen --extra crypto --extra dev ruff check ably/ test/
-uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/helpers -q
-uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration test/uts/realtime/integration -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/rest/unit test/uts/realtime/unit test/uts/objects/unit test/uts/helpers test/uts/objects/helpers -q
+uv run --frozen --extra crypto --extra dev pytest test/uts/rest/integration test/uts/realtime/integration test/uts/objects/integration -q
 RUN_DEVIATIONS=1 uv run --frozen --extra crypto --extra dev pytest test/uts -q
 ```
 
@@ -904,7 +1008,7 @@ environment's cutoff — and `--extra dev` carries pytest. Line length is 115. I
 `uv.lock` changes, revert only what the run touched; a wholesale
 `git checkout -- uv.lock` takes any edit of your own with it.
 
-The second command is the offline tiers, which need no network. The third is the two
+The second command is the offline tiers, which need no network. The third is the three
 integration tiers, each of which provisions a sandbox app of its own and does need the
 network; `pytest test/uts -q` runs everything together, so run the tiers separately when
 only one is in question. All three must pass.

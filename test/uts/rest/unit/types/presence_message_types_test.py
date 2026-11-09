@@ -3,25 +3,18 @@
 Spec points: TP1, TP2, TP3, TP3a, TP3b, TP3c, TP3d, TP3e, TP3f, TP3g, TP3h, TP3i, TP4, TP5
 """
 
-from datetime import datetime, timedelta
-
-from ably.types.message import Message
-from ably.types.presence import PresenceAction, PresenceMessage
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.presence import PresenceAction, PresenceMessage
 from test.uts.helpers.deviations import deviation, spec_error
-
-
-def datetime_from_ms(ms):
-    """The datetime ably-python decodes a wire timestamp into."""
-    return datetime.utcfromtimestamp(0) + timedelta(milliseconds=ms)
 
 
 def decode_protocol_message_presence(protocol_message):
     """The `presence` array of a ProtocolMessage, decoded the way the client decodes one.
 
-    ably-python has no ProtocolMessage type. `RealtimeChannel._on_message` fills the
-    presence attributes the ProtocolMessage supplies with `update_inner_message_fields`,
-    then hands the raw `presence` array of an incoming PRESENCE or SYNC message to
-    `from_encoded_array`.
+    ably-python has no ProtocolMessage type; `RealtimeChannel._on_message` fills each
+    entry's missing `id`, `connectionId` and `timestamp` from the raw ProtocolMessage
+    through `Message.update_inner_message_fields`, then hands the `presence` array of an
+    incoming PRESENCE or SYNC message to `from_encoded_array`.
     """
     Message.update_inner_message_fields(protocol_message)
     return PresenceMessage.from_encoded_array(protocol_message['presence'])
@@ -134,8 +127,7 @@ def test_tp3g_timestamp_from_protocol_message():
     }
 
     presence_msg = decode_protocol_message_presence(protocol_msg)[0]
-    # NOTE: features.md types TP3g as `Time`, so a datetime is the idiomatic rendering.
-    assert presence_msg.timestamp == datetime_from_ms(9999999)
+    assert presence_msg.timestamp == 9999999
 
 
 # UTS: rest/unit/TP3/presence-from-json-0
@@ -160,8 +152,7 @@ def test_tp3_presence_from_json():
     assert msg.client_id == 'user-1'
     assert msg.connection_id == 'conn-1'
     assert msg.data == 'hello'
-    # NOTE: features.md types TP3g as `Time`, so a datetime is the idiomatic rendering.
-    assert msg.timestamp == datetime_from_ms(1234567890000)
+    assert msg.timestamp == 1234567890000
     assert msg.extras['headers']['x-key'] == 'x-value'
 
 

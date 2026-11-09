@@ -9,10 +9,10 @@ import asyncio
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.types.channelstate import ChannelState
-from ably.types.presence import PresenceAction
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.presence import PresenceAction
+from ably.pubsub.util.exceptions import AblyException
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase
 

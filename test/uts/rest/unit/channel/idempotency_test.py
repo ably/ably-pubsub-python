@@ -8,7 +8,7 @@ import uuid
 
 import msgpack
 
-from ably.types.message import Message
+from ably.pubsub.types.message import Message
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import spec_error
 from test.uts.helpers.mock_http import MockHttpClient

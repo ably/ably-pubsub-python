@@ -1,5 +1,90 @@
 # Change Log
 
+## [4.0.0](https://github.com/ably/ably-pubsub-python/tree/v4.0.0)
+
+[Full Changelog](https://github.com/ably/ably-pubsub-python/compare/v3.1.4...v4.0.0)
+
+The 4.0.0 release makes it clear that this is the SDK for code running on a server. It is now published as `ably-pubsub-server` and imported from `ably.pubsub.server`, a single module that is the whole public API. The package name is also what coding assistants see in the install step and the import line, so they get the choice right too.
+
+4.0.0 adds LiveObjects, and batch publish and batch presence on the HTTP client. It also removes the APIs and client options deprecated in 3.x, and makes the client behave as the Ably specification and the other Ably SDKs do where 3.x departed from them.
+
+Below is an overview of the major changes in this release.
+
+Please refer to the [migration guide](./UPDATING.md#version-3x-to-400) for the full details, including a list of all breaking changes and instructions on how to address them.
+
+### New package and imports
+
+This repository no longer publishes `ably`. Install `ably-pubsub-server`, which installs into the `ably.pubsub` namespace:
+
+- Import everything from `ably.pubsub.server`, or from `ably.pubsub.server.sync` for the synchronous HTTP client. The packages beneath them, such as `ably.pubsub.types`, are internal and free to move.
+- `ably.pubsub.server` now exports every type a client returns, hands to a listener or accepts, including those 3.x left in submodules, such as `ConnectionState` and `PresenceMessage`, and the encryption helpers `generate_random_key` and `get_default_params`.
+
+### Client API naming
+
+- Clients are created through factory functions instead of constructors: `create_realtime_client` and `create_http_client`. Constructing `AblyRealtime` or `AblyRest` directly raises `TypeError`, and the API key is passed as `key=`, no longer positionally.
+- Annotate clients with the prototypes the factories return: `PubSubRealtimeClient` and `PubSubHttpClient`.
+- `Rest` is renamed `Http` across the public API, for example `RestAnnotations` is now `HttpAnnotations`.
+- The synchronous client's presence, annotations and push admin classes end in `Sync`, as its other classes already did.
+
+### New features
+
+- LiveObjects on the realtime client, through `channel.object`, with the path-based API: `PathObject`, `Instance`, typed views, subscriptions and batched writes.
+- `batch_publish` and `batch_presence` on the HTTP client.
+- The `echo_messages` client option.
+- The `max_message_size` client option. HTTP publishes are now checked against it too.
+- The library uses Ably protocol version 6.
+
+### Client options
+
+- The timing options take seconds and end in `_seconds`, for example `disconnected_retry_timeout_seconds` and `http_request_timeout_seconds`. The realtime timing options and `fallback_retry_timeout` used to take milliseconds. Passing an old name raises a `TypeError` that names its replacement and converts the value, and every timing option is validated when the client is created.
+- `http_max_retry_count` counts fallback hosts only, so the default of 3 tries one more host than before.
+- `http_request_timeout_seconds` also bounds writing a request and waiting for a pooled connection.
+- The HTTP options on `client.options` read back their defaults rather than `None`.
+
+### Auth and tokens
+
+- A `key` no longer overrides an `auth_callback`, `auth_url`, `token` or `token_details` given alongside it. The client uses token auth and keeps the key for renewal. Pass `use_token_auth=False` to keep basic auth.
+- Token params reach an `auth_url` under their wire names, for example `clientId` rather than `client_id`, so update your auth server before or together with the clients.
+- `TokenDetails.capability` is the JSON string the Ably service returned. A `TokenDetails` known only by its token string has `expires`, `issued` and `capability` set to `None`.
+- `create_token_request()` applies `default_token_params`, and token params given to it or to `request_token()` replace the defaults rather than merging with them.
+- A realtime client reports its configured `client_id` before it connects. `authorize()` keeps an explicit `client_id`, and a `token_details` whose client ID conflicts with `client_id` is rejected when the client is created.
+
+### Errors
+
+- Network errors and timeouts are raised as `AblyException`, with the `httpx` exception as its `cause`: code 50003 for a timeout and 80000 for other network errors.
+- An `AblyException` raised by an `auth_callback` reaches the caller unchanged. A callback error with status 403 fails a realtime connection instead of retrying.
+- Invalid arguments to the factories and to `push.admin.publish` raise `AblyException`.
+- Seven errors that had their `code` and `status_code` the wrong way round now carry them correctly.
+
+### Channels
+
+- `channels.release()` raises an `AblyException` with code 90011 unless the channel is `INITIALIZED`, `DETACHED` or `FAILED`. Detach the channel before releasing it.
+- `attach()` and `subscribe()` raise when the channel does not reach `ATTACHED`.
+- Setting channel options replaces them whole, so options without a `cipher` turn encryption off. `channel.options` is a `ChannelOptions`, and HTTP channels accept `ChannelOptions` too.
+- Channels are no longer attributes of the channels collection: `client.channels.my_channel` raises `AttributeError`. Use `channels.get(name)`.
+- A space in a channel name is sent as `%20` over HTTP, so it reaches the channel it names rather than one with `+` in its place.
+- `connection.ping()` waits for a disconnected connection to reconnect instead of raising.
+
+### Values and types
+
+- `PresenceMessage.timestamp` is milliseconds since the epoch, as `Message.timestamp` is, rather than a `datetime`.
+- `Stats.interval_time` is a timezone-aware `datetime`.
+- `PresenceAction` is an `IntEnum`.
+- `HttpPaginatedResponse.error_code` is an `int`, and `HttpPaginatedResponse.headers` a read-only, case-insensitive mapping.
+- Push removals return `None`, `PaginatedResult` no longer has a `response` attribute, and `DeviceDetails.push` is a `DevicePushDetails`.
+- A `timedelta` token `ttl` is sent exact to the millisecond.
+
+### Removed APIs
+
+- The `environment`, `rest_host` and `realtime_host` client options are removed in favour of `endpoint`, and `auth_token` in favour of `token`. Passing any of them raises `TypeError`.
+- The `log_level` option is removed. Configure the `ably.pubsub` logger instead.
+- The `recover` option is removed, since connection recovery was never implemented.
+- The unused `timeout` argument is removed from request methods, and `paginated` from `stats()`.
+
+### Supported platforms changes
+
+- Support for Python 3.7 has been dropped.
+
 ## [3.1.4](https://github.com/ably/ably-pubsub-python/tree/v3.1.4)
 
 [Full Changelog](https://github.com/ably/ably-pubsub-python/compare/v3.1.3...v3.1.4)

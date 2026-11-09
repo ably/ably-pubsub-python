@@ -10,10 +10,10 @@ serials is exercised even though the object that should carry them is missing.
 
 import asyncio
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelstate import ChannelState
-from ably.types.flags import Flag
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.flags import Flag
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,
@@ -342,7 +342,7 @@ async def test_rtl15b2_serial_retained_suspended():
             # A second ATTACH goes unanswered, so it times out into SUSPENDED
 
     mock_ws.on_message_from_client = on_message_from_client
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()

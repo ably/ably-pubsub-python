@@ -11,6 +11,7 @@ import httpx
 import msgpack
 import pytest
 
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
@@ -18,8 +19,8 @@ from test.uts.helpers.mock_http import MockHttpClient
 SPEC_KEY = 'appId.keyId:keySecret'
 
 # The number of hosts a single request is tried against: the primary domain plus
-# fallbacks, capped at Defaults.http_max_retry_count
-HOST_ATTEMPTS = 3
+# up to Defaults.http_max_retry_count fallbacks (TO3l5)
+HOST_ATTEMPTS = 4
 
 
 def succeed(conn):
@@ -312,9 +313,7 @@ async def test_rsc19d_response_error_code_header():
 
     response = await client.request('GET', '/test', version='3')
 
-    # DEVIATION: the spec asserts errorCode == 40101, and HP6 types it as a number.
-    # error_code returns the raw X-Ably-Errorcode header value, so it is a string.
-    assert response.error_code == '40101'
+    assert response.error_code == 40101
 
 
 # UTS: rest/unit/RSC19d/response-error-message-header-3
@@ -350,12 +349,10 @@ async def test_rsc19d_response_headers_accessible():
 
     response = await client.request('GET', '/test', version='3')
 
-    # DEVIATION: the spec (and HP8) expects a map keyed by header name. `headers` is a
-    # list of (name, value) pairs, with the names lower-cased by httpx.
-    headers = dict(response.headers)
-    assert headers['content-type'] == 'application/json'
-    assert headers['x-request-id'] == 'req-123'
-    assert headers['x-custom-header'] == 'custom-value'
+    headers = response.headers
+    assert headers['Content-Type'] == 'application/json'
+    assert headers['X-Request-Id'] == 'req-123'
+    assert headers['X-Custom-Header'] == 'custom-value'
 
 
 # UTS: rest/unit/RSC19d/response-items-decoded-5
@@ -426,35 +423,30 @@ async def test_rsc19e_network_error_propagated():
 
     client = rest_client(mock_http, key=SPEC_KEY, fallback_hosts=[])
 
-    # DEVIATION: the spec expects an error carrying code 80000, or a message naming the
-    # network/connection failure. request() is not wrapped by @catch_all (unlike time()
-    # and stats()), so the transport exception reaches the caller unwrapped. Its message
-    # does name the connection failure, which is what RSC19e asks be indicated.
-    with pytest.raises(httpx.ConnectError) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         await client.request('GET', '/test', version='3')
 
-    assert 'Connection refused' in str(excinfo.value)
+    assert excinfo.value.code == 80000
+    assert isinstance(excinfo.value.cause, httpx.ConnectError)
 
 
 # UTS: rest/unit/RSC19e/timeout-error-handling-1
 async def test_rsc19e_timeout_error_handling():
     # NOTE: the spec drives this with a 5s delayed response against a 1s
-    # http_request_timeout (which it gives in milliseconds; ably-python takes seconds).
+    # httpRequestTimeout, which is http_request_timeout_seconds=1 here.
     # An injected transport is responsible for enforcing httpx timeouts, and the mock
     # does not implement them, so a delayed response would simply be waited out.
     # queue_timeout() raises the read timeout the client would otherwise have seen.
     mock_http = MockHttpClient(on_connection_attempt=succeed)
     mock_http.queue_timeout()
 
-    client = rest_client(mock_http, key=SPEC_KEY, http_request_timeout=1, fallback_hosts=[])
+    client = rest_client(mock_http, key=SPEC_KEY, http_request_timeout_seconds=1, fallback_hosts=[])
 
-    # DEVIATION: the spec expects an error carrying code 50003, or a message naming the
-    # timeout. request() is not wrapped by @catch_all, so the transport exception reaches
-    # the caller unwrapped; its message does name the timeout.
-    with pytest.raises(httpx.ReadTimeout) as excinfo:
+    with pytest.raises(AblyException) as excinfo:
         await client.request('GET', '/test', version='3')
 
-    assert 'timed out' in str(excinfo.value)
+    assert excinfo.value.code == 50003
+    assert isinstance(excinfo.value.cause, httpx.TimeoutException)
 
 
 # UTS: rest/unit/RSC19e/http-error-no-fallback-2
@@ -474,8 +466,7 @@ async def test_rsc19e_http_error_no_fallback():
     # Should return the error response, not retry to fallback
     assert response.status_code == 400
     assert response.success is False
-    # DEVIATION: the spec asserts errorCode == 40000; error_code returns the raw header
-    assert response.error_code == '40000'
+    assert response.error_code == 40000
 
     # Only one request should have been made (no fallback)
     assert len(mock_http.captured_requests) == 1

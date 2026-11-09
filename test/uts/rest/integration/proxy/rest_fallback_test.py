@@ -19,18 +19,17 @@ take no `use_binary_protocol`; the proxy reads text frames in any case.
 
 import pytest
 
-from ably import AblyRest
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import create_http_client
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
-from test.uts.helpers.deviations import deviation
 from test.uts.helpers.sandbox import SANDBOX_ENDPOINT, random_id
 
 # The specification's `non_listening_port`: a port nothing is bound to, so that
 # connecting to it is refused rather than answered.
 NON_LISTENING_PORT = 19999
 
-# The specification's `httpRequestTimeout: 3000`.
-HTTP_REQUEST_TIMEOUT_MS = 3000
+# The specification's `httpRequestTimeout: 3000`, in the seconds the client option takes.
+HTTP_REQUEST_TIMEOUT_SECONDS = 3
 
 
 def token_auth_callback(api_key):
@@ -44,7 +43,7 @@ def token_auth_callback(api_key):
     it: the token arrives over a connection the proxy never sees.
     """
     async def auth_callback(params):
-        inner_rest = AblyRest(key=api_key, endpoint=SANDBOX_ENDPOINT)
+        inner_rest = create_http_client(key=api_key, endpoint=SANDBOX_ENDPOINT)
         try:
             return await inner_rest.auth.request_token()
         finally:
@@ -75,7 +74,6 @@ def http_responses(log):
     return [event for event in log if event['type'] == 'http_response']
 
 
-@deviation
 # UTS: rest/proxy/RSC15l2/timeout-triggers-fallback-0
 async def test_rsc15l2_timeout_triggers_fallback(sandbox, proxy_session):
     session = await proxy_session(rules=[{
@@ -95,7 +93,7 @@ async def test_rsc15l2_timeout_triggers_fallback(sandbox, proxy_session):
         port=session.proxy_port,
         tls=False,
         use_binary_protocol=False,
-        http_request_timeout=HTTP_REQUEST_TIMEOUT_MS,
+        http_request_timeout_seconds=HTTP_REQUEST_TIMEOUT_SECONDS,
     )
 
     result = await client.time()
@@ -167,7 +165,7 @@ async def test_rsc15l_unreachable_endpoint_error(sandbox):
     # (the exact code/statusCode depends on the SDK's HTTP layer, but it must
     # be present and non-null so callers can programmatically handle it).
     # NOTE: the specification leaves the values open. This SDK reports 500 and
-    # 50000, the connection error having been wrapped by `catch_all`.
+    # 80000, the connection error having been wrapped per RSC19e.
     error = excinfo.value
     assert error is not None
     assert error.status_code is not None or error.code is not None

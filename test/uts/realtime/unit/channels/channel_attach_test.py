@@ -8,13 +8,13 @@ import asyncio
 
 import pytest
 
-from ably.realtime.connection import ConnectionState
-from ably.transport.websockettransport import ProtocolMessageAction
-from ably.types.channelmode import ChannelMode
-from ably.types.channeloptions import ChannelOptions
-from ably.types.channelstate import ChannelState
-from ably.types.flags import Flag
-from ably.util.exceptions import AblyException
+from ably.pubsub.realtime.connection import ConnectionState
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.types.channelmode import ChannelMode
+from ably.pubsub.types.channeloptions import ChannelOptions
+from ably.pubsub.types.channelstate import ChannelState
+from ably.pubsub.types.flags import Flag
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import (
     await_channel_state,
     await_connection_state,
@@ -153,9 +153,8 @@ async def test_rtl4h_attach_while_detaching():
     # detach and makes the pending detach fail with 90000
     with pytest.raises(AblyException) as detach_error:
         await asyncio.wait_for(detach_future, OPERATION_TIMEOUT)
-    # The 90000 the library passes lands in `status_code` and the 409 in `code`,
-    # the two being the other way round in `AblyException(message, status_code, code)`
-    assert detach_error.value.status_code == 90000
+    assert detach_error.value.code == 90000
+    assert detach_error.value.status_code == 409
 
     await asyncio.wait_for(attach_future, OPERATION_TIMEOUT)
 
@@ -215,7 +214,7 @@ async def test_rtl4c_clears_error_reason():
 
     mock_ws.on_message_from_client = on_message_from_client
     client = realtime_client(
-        mock_ws, clock=clock, realtime_request_timeout=300, suspended_retry_timeout=2000)
+        mock_ws, clock=clock, realtime_request_timeout_seconds=0.3, suspended_retry_timeout_seconds=2)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -291,7 +290,8 @@ async def test_rtl4b_fails_connection_suspended():
     clock = FakeClock()
 
     mock_ws = MockWebSocket(on_connection_attempt=lambda conn: conn.respond_with_refused())
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=300, channel_retry_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.3,
+                             channel_retry_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -428,7 +428,7 @@ async def test_rtl4c1_includes_channel_serial():
     assert len(attach_messages) == 2
     assert attach_messages[0].get('channelSerial') is None
     assert attach_messages[1].get('channelSerial') == 'serial-from-server-1'
-    set_options.cancel()
+    await asyncio.wait_for(set_options, OPERATION_TIMEOUT)
 
 
 # UTS: realtime/unit/RTL4f/timeout-to-suspended-0
@@ -439,7 +439,7 @@ async def test_rtl4f_timeout_to_suspended():
     mock_ws = MockWebSocket(
         on_connection_attempt=lambda conn: conn.respond_with_success(CONNECTED_MESSAGE_NO_IDLE),
     )
-    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout=100)
+    client = realtime_client(mock_ws, clock=clock, realtime_request_timeout_seconds=0.1)
     channel = client.channels.get(channel_name)
 
     client.connect()
@@ -562,4 +562,4 @@ async def test_rtl4j_attach_resume_flag_not_set():
     assert len(attach_messages) == 2
     assert not attach_messages[0].get('flags', 0) & Flag.ATTACH_RESUME
     assert not attach_messages[1].get('flags', 0) & Flag.ATTACH_RESUME
-    set_options.cancel()
+    await asyncio.wait_for(set_options, OPERATION_TIMEOUT)

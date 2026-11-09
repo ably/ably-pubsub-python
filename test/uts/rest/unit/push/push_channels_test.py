@@ -7,16 +7,16 @@ DEVIATION: ably-python implements neither the PushChannel interface (RSH7, the
 ``push`` field on a channel) nor LocalDevice (RSH8), so every test in this file
 is gated behind RUN_DEVIATIONS. The assertions are written against the spec, using
 the names ably-python would use for these APIs: ``client.device``,
-``ably.types.device.LocalDevice`` and ``channel.push.subscribe_device()`` and
+``ably.pubsub.types.device.LocalDevice`` and ``channel.push.subscribe_device()`` and
 friends. Running them raises ImportError/AttributeError until the APIs land.
 """
 
 import msgpack
 import pytest
 
-from ably.http.paginatedresult import PaginatedResult
-from ably.types.channelsubscription import PushChannelSubscription
-from ably.util.exceptions import AblyException
+from ably.pubsub.request.paginatedresult import PaginatedResult
+from ably.pubsub.types.channelsubscription import PushChannelSubscription
+from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import rest_client
 from test.uts.helpers.deviations import deviation
 from test.uts.helpers.mock_http import MockHttpClient
@@ -30,7 +30,7 @@ CHANNEL_NAME = 'my-channel'
 def set_local_device(client, device_id=DEVICE_ID, device_identity_token=DEVICE_IDENTITY_TOKEN,
                      client_id=CLIENT_ID):
     """Configure the client's local device, standing in for the spec's ``client.device = ...``."""
-    from ably.types.device import LocalDevice
+    from ably.pubsub.types.device import LocalDevice
 
     client.device = LocalDevice(
         id=device_id,

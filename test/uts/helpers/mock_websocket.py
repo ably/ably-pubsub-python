@@ -27,7 +27,7 @@ import httpx
 import msgpack
 from websockets.exceptions import WebSocketException
 
-from ably.transport.websockettransport import ProtocolMessageAction
+from ably.pubsub.transport.websockettransport import ProtocolMessageAction
 from test.uts.helpers.mock_http import RecordedUrl
 
 MSGPACK_PROTOCOL = 'application/x-msgpack'
