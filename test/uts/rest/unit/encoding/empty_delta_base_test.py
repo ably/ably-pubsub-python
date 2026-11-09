@@ -1,9 +1,9 @@
 import pytest
 
-from ably import AblyVCDiffDecoder
-from ably.types.message import Message
-from ably.types.mixins import DecodingContext
-from ably.util.exceptions import AblyException
+from ably.pubsub.server import AblyVCDiffDecoder
+from ably.pubsub.types.message import Message
+from ably.pubsub.types.mixins import DecodingContext
+from ably.pubsub.util.exceptions import AblyException
 
 # A VCDIFF window containing only an ADD instruction, independent of source bytes.
 DELTA = bytes.fromhex('d6c3c40000000b0500050100') + b'hello' + bytes([6])
