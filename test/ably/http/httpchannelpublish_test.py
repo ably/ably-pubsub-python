@@ -31,7 +31,12 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
         self.test_vars = await TestApp.get_test_vars()
         self.ably = await TestApp.get_ably_rest()
         self.client_id = uuid.uuid4().hex
-        self.ably_with_client_id = await TestApp.get_ably_rest(client_id=self.client_id, use_token_auth=True)
+
+        async def auth_callback(token_params):
+            return await TestApp.get_jwt(client_id=self.client_id)
+
+        self.ably_with_client_id = await TestApp.get_ably_rest(client_id=self.client_id,
+                                                               auth_callback=auth_callback)
         yield
         await self.ably.close()
         await self.ably_with_client_id.close()
@@ -118,9 +123,13 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
             assert message['data'] == str(i)
 
     async def test_publish_error(self):
-        ably = await TestApp.get_ably_rest(use_binary_protocol=self.use_binary_protocol)
-        await ably.auth.authorize(
-            token_params={'capability': {"only_subscribe": ["subscribe"]}})
+        async def auth_callback(token_params):
+            return await TestApp.get_jwt(capability={"only_subscribe": ["subscribe"]})
+
+        ably = await TestApp.get_ably_rest(use_binary_protocol=self.use_binary_protocol,
+                                           auth_callback=auth_callback)
+        # The protocol harness needs one successful response, and the publish below fails.
+        await ably.time()
 
         with pytest.raises(AblyException) as excinfo:
             await ably.channels["only_subscribe"].publish()
@@ -235,7 +244,7 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
 
         # defined after publish
         assert isinstance(self.ably_with_client_id.auth.token_details, TokenDetails)
-        assert self.ably_with_client_id.auth.token_details.client_id == self.client_id
+        assert self.ably_with_client_id.auth.client_id == self.client_id
         assert self.ably_with_client_id.auth.auth_mechanism == Auth.Method.TOKEN
         history = await channel.history()
         assert history.items[0].client_id == self.client_id
@@ -254,7 +263,7 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
             assert messages is not None, "Expected non-None messages"
             assert len(messages) == 1, "Expected 1 message"
 
-            assert post_mock.call_count == 2
+            assert post_mock.call_count == 1
 
             if self.use_binary_protocol:
                 posted_body = msgpack.unpackb(
@@ -295,10 +304,12 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
             await channel.publish(message)
 
     async def test_publish_message_with_wrong_client_id_on_implicit_identified_client(self):
-        new_token = await self.ably.auth.authorize(token_params={'client_id': uuid.uuid4().hex})
+        token = await TestApp.get_jwt(client_id=uuid.uuid4().hex)
         new_ably = await TestApp.get_ably_rest(key=None,
-                                               token=new_token.token,
+                                               token=token,
                                                use_binary_protocol=self.use_binary_protocol)
+        # The protocol harness needs one successful response, and the publish below fails.
+        await new_ably.time()
 
         channel = new_ably.channels[
             self.get_channel_name('persisted:wrong_client_id_implicit_client')]
@@ -313,10 +324,11 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
 
     # RSA15b
     async def test_wildcard_client_id_can_publish_as_others(self):
-        wildcard_token_details = await self.ably.auth.request_token({'client_id': '*'})
+        wildcard_token = await TestApp.get_jwt(client_id='*')
         wildcard_ably = await TestApp.get_ably_rest(
             key=None,
-            token_details=wildcard_token_details,
+            token=wildcard_token,
+            client_id='*',
             use_binary_protocol=self.use_binary_protocol)
 
         assert wildcard_ably.auth.client_id == '*'

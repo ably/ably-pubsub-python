@@ -1,8 +1,8 @@
 import asyncio
 import json
+import time
 import urllib.parse
 
-import httpx
 import pytest
 
 from ably.pubsub.realtime.connection import ConnectionState
@@ -12,7 +12,7 @@ from ably.pubsub.types.connectionstate import ConnectionEvent
 from ably.pubsub.types.tokendetails import TokenDetails
 from ably.pubsub.util.exceptions import IncompatibleClientIdException
 from test.ably.testapp import TestApp
-from test.ably.utils import BaseAsyncTestCase, random_string
+from test.ably.utils import NATIVE_TOKEN_AUTH_UNSUPPORTED, BaseAsyncTestCase, random_string
 
 echo_url = 'https://echo.ably.io'
 
@@ -51,6 +51,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert state_change.reason.status_code == 401
         await ably.close()
 
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_auth_with_token_string(self):
         rest = await TestApp.get_ably_rest()
         token_details = await rest.auth.request_token()
@@ -69,6 +70,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert state_change.reason.status_code == 401
         await ably.close()
 
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_auth_with_token_details(self):
         rest = await TestApp.get_ably_rest()
         token_details = await rest.auth.request_token()
@@ -87,6 +89,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert state_change.reason.status_code == 401
         await ably.close()
 
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_auth_with_auth_callback_with_token_request(self):
         rest = await TestApp.get_ably_rest()
 
@@ -101,6 +104,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert ably.connection.error_reason is None
         await ably.close()
 
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_auth_with_auth_callback_token_with_details(self):
         rest = await TestApp.get_ably_rest()
 
@@ -116,11 +120,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_auth_with_auth_callback_with_token_string(self):
-        rest = await TestApp.get_ably_rest()
-
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
@@ -139,6 +140,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert state_change.reason.status_code == 401
         await ably.close()
 
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_auth_with_auth_url_json(self):
         rest = await TestApp.get_ably_rest()
         token_details = await rest.auth.request_token()
@@ -156,9 +158,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_auth_with_auth_url_text_plain(self):
-        rest = await TestApp.get_ably_rest()
-        token_details = await rest.auth.request_token()
-        url_path = f"{echo_url}/?type=text&body={token_details.token}"
+        token = await TestApp.get_jwt()
+        url_path = f"{echo_url}/?type=text&body={token}"
 
         ably = await TestApp.get_ably_realtime(auth_url=url_path)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
@@ -168,12 +169,11 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_auth_with_auth_url_post(self):
-        rest = await TestApp.get_ably_rest()
-        token_details = await rest.auth.request_token()
+        token = await TestApp.get_jwt()
         url_path = f"{echo_url}/?type=json&"
 
         ably = await TestApp.get_ably_realtime(auth_url=url_path, auth_method='POST',
-                                               auth_params=token_details)
+                                               auth_params={'token': token})
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
         response_time_ms = await ably.connection.ping()
         assert response_time_ms is not None
@@ -181,11 +181,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_reauth_while_connected(self):
-        rest = await TestApp.get_ably_rest()
-
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
@@ -221,11 +218,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_reauth_while_connecting(self):
-        rest = await TestApp.get_ably_rest()
-
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         original_transport = await ably.connection.connection_manager.once_async('transport.pending')
@@ -247,11 +241,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_reauth_immediately(self):
-        rest = await TestApp.get_ably_rest()
-
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         await ably.auth.authorize()
@@ -260,12 +251,10 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_capability_change_without_loss_of_continuity(self):
-        rest = await TestApp.get_ably_rest()
         channel_name = random_string(5)
 
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
 
@@ -280,12 +269,10 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_capability_downgrade(self):
-        rest = await TestApp.get_ably_rest()
         channel_name = random_string(5)
 
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
 
@@ -312,11 +299,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.close()
 
     async def test_reauth_inbound_auth_protocol_msg(self):
-        rest = await TestApp.get_ably_rest()
-
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         msg = {
@@ -336,17 +320,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     # RSC8a4
     async def test_jwt_reauth(self):
-        test_vars = await TestApp.get_test_vars()
-        key = test_vars["keys"][0]
-        key_name = key["key_name"]
-        key_secret = key["key_secret"]
-
         async def auth_callback(_):
-            response = httpx.get(
-                echo_url + '/createJWT',
-                params={"keyName": key_name, "keySecret": key_secret, "expiresIn": 35}
-            )
-            return response.text
+            return await TestApp.get_jwt(ttl=35 * 1000)
 
         ably = await TestApp.get_ably_realtime(auth_callback=auth_callback)
 
@@ -359,11 +334,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     # RTN14b
     async def test_renew_token_single_attempt(self):
-        rest = await TestApp.get_ably_rest()
-
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt()
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         msg = {
@@ -379,19 +351,15 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await transport.on_protocol_message(msg)
         assert ably.auth.token_details is not original_token_details
         await ably.close()
-        await rest.close()
 
     # RTN14b
     async def test_renew_token_connection_attempt_fails(self):
-        rest = await TestApp.get_ably_rest()
         call_count = 0
 
         async def callback(params):
             nonlocal call_count
             call_count += 1
-            params = {"ttl": 1}
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details
+            return await TestApp.get_jwt(expires_at=time.time() - 60)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
 
@@ -401,7 +369,6 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert ably.connection.error_reason.status_code == 401
 
         await ably.close()
-        await rest.close()
 
     # RSA4a
     async def test_renew_token_no_renew_means_provided(self):
@@ -497,11 +464,8 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     # RTN15h2
     async def test_renew_token_single_attempt_upon_disconnection(self):
-        rest = await TestApp.get_ably_rest()
-
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         msg = {
@@ -518,14 +482,12 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await ably.connection.connection_manager.transport.on_protocol_message(msg)
         assert ably.auth.token_details is not original_token_details
         await ably.close()
-        await rest.close()
 
     # RTN15h1
     async def test_renew_token_no_renew_means_provided_upon_disconnection(self):
-        rest = await TestApp.get_ably_rest()
-        token_details = await rest.auth.request_token()
+        token = await TestApp.get_jwt()
 
-        ably = await TestApp.get_ably_realtime(token_details=token_details)
+        ably = await TestApp.get_ably_realtime(token=token)
 
         state_change = await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
         msg = {
@@ -542,14 +504,10 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert state_change.reason.code == 40171
         assert state_change.reason.status_code == 403
         await ably.close()
-        await rest.close()
 
     async def test_renew_token_single_attempt_on_resume(self):
-        rest = await TestApp.get_ably_rest()
-
         async def callback(params):
-            token_details = await rest.auth.request_token(token_params=params)
-            return token_details.token
+            return await TestApp.get_jwt(**params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         msg = {
@@ -572,13 +530,11 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         await transport.on_protocol_message(msg)
         assert ably.auth.token_details is not original_token_details
         await ably.close()
-        await rest.close()
 
     async def test_renew_token_no_renew_means_provided_on_resume(self):
-        rest = await TestApp.get_ably_rest()
-        token_details = await rest.auth.request_token()
+        token = await TestApp.get_jwt()
 
-        ably = await TestApp.get_ably_realtime(token_details=token_details)
+        ably = await TestApp.get_ably_realtime(token=token)
 
         msg = {
             "action": ProtocolMessageAction.DISCONNECTED,
@@ -603,16 +559,14 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert state_change.reason.code == 40171
         assert state_change.reason.status_code == 403
         await ably.close()
-        await rest.close()
 
     # Request a token using client_id, then initialize a connection without one,
     # and check that the connection inherits the client_id from the token_details
     async def test_auth_client_id_inheritance_auth_callback(self):
-        rest = await TestApp.get_ably_rest()
         client_id = 'test_client_id'
 
         async def auth_callback(_):
-            return await rest.auth.request_token({"client_id": client_id})
+            return await TestApp.get_jwt(client_id=client_id)
 
         realtime = await TestApp.get_ably_realtime(auth_callback=auth_callback)
 
@@ -624,7 +578,6 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert realtime.auth.client_id == client_id
 
         await realtime.close()
-        await rest.close()
 
     # Rest token generation with client_id, then constructing a client with a
     # different client_id, should fail with a library-generated error before
@@ -645,12 +598,11 @@ class TestRealtimeAuth(BaseAsyncTestCase):
     # Rest token generation with clientId '*', then connecting with just the
     # token string and a different clientId, should succeed (RSA15b)
     async def test_auth_client_id_wildcard_token(self):
-        rest = await TestApp.get_ably_rest()
         client_id = 'test_client_id'
 
-        token_details = await rest.auth.request_token({"client_id": "*"})
+        token = await TestApp.get_jwt(client_id="*")
 
-        realtime = await TestApp.get_ably_realtime(token_details=token_details, client_id=client_id)
+        realtime = await TestApp.get_ably_realtime(token=token, client_id=client_id)
 
         # RTC17: the configured clientId holds before CONNECTED
         assert realtime.auth.client_id == client_id
@@ -660,15 +612,14 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert realtime.auth.client_id == client_id
 
         await realtime.close()
-        await rest.close()
 
     # Request a token using clientId, then initialize a connection using just the token string,
     # and check that the connection inherits the clientId from the connectionDetails
     async def test_auth_client_id_inheritance_token(self):
-        rest = await TestApp.get_ably_rest()
         client_id = 'test_client_id'
 
-        token_details = await rest.auth.request_token({"client_id": client_id})
+        token = await TestApp.get_jwt(client_id=client_id)
+        token_details = TokenDetails(token=token, client_id=client_id)
 
         realtime = await TestApp.get_ably_realtime(token_details=token_details)
 
@@ -680,4 +631,3 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         assert realtime.auth.client_id == client_id
 
         await realtime.close()
-        await rest.close()

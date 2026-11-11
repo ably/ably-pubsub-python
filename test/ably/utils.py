@@ -13,6 +13,14 @@ from httpx import Response
 
 from ably.pubsub.request.http import Http
 
+# Skip reason for tests whose subject is a native Ably token. A server client cannot authenticate
+# with one: Ably accepts the server declaration under token auth only from a signed x-ably-clientType
+# JWT claim (40167).
+NATIVE_TOKEN_AUTH_UNSUPPORTED = (
+    "A server client cannot authenticate with a native Ably token: Ably accepts the server declaration "
+    "under token auth only from a signed x-ably-clientType JWT claim (40167)"
+)
+
 
 class BaseTestCase:
 
@@ -150,6 +158,8 @@ class VaryByProtocolTestsMetaclass(type):
             await old_func(self)
 
         wrapper.__name__ = old_name + '_' + ttype
+        # carry marks such as pytest.mark.skip over to the protocol-specific copy
+        wrapper.pytestmark = getattr(old_func, 'pytestmark', [])
         return wrapper
 
 
