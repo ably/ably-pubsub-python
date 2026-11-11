@@ -178,9 +178,11 @@ class Http:
             body = self.dump_body(body)
 
         if body:
-            all_headers = HttpUtils.default_post_headers(self.options.use_binary_protocol, version=version)
+            all_headers = HttpUtils.default_post_headers(self.options.use_binary_protocol, version=version,
+                                                       agents=self.options.agents)
         else:
-            all_headers = HttpUtils.default_get_headers(self.options.use_binary_protocol, version=version)
+            all_headers = HttpUtils.default_get_headers(self.options.use_binary_protocol, version=version,
+                                                      agents=self.options.agents)
 
         params = HttpUtils.get_query_params(self.options)
 

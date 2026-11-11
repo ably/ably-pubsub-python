@@ -117,7 +117,7 @@ class Options(AuthOptions):
                  suspended_retry_timeout_seconds=None, connectivity_check_url=None,
                  channel_retry_timeout_seconds=None, add_request_ids=False,
                  vcdiff_decoder: VCDiffDecoder = None, transport_params=None, echo_messages=True,
-                 max_message_size=None, _test_options=None, **kwargs):
+                 max_message_size=None, agents=None, _test_options=None, **kwargs):
 
         _reject_renamed_timing_options(kwargs)
         super().__init__(**kwargs)
@@ -210,6 +210,7 @@ class Options(AuthOptions):
         self.__vcdiff_decoder = vcdiff_decoder
         self.__transport_params = transport_params or {}
         self.__max_message_size = max_message_size
+        self.__agents = dict(agents) if agents else {}
         self.__test_options = _test_options
         self.__hosts = self.__get_hosts()
 
@@ -392,6 +393,10 @@ class Options(AuthOptions):
     @property
     def max_message_size(self):
         return self.__max_message_size
+
+    @property
+    def agents(self):
+        return self.__agents
 
     @property
     def _test_options(self):
