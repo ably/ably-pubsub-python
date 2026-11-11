@@ -160,7 +160,7 @@ realtime = create_realtime_client(key=ably_api_key, endpoint='nonprod:sandbox')
 
 - Never put a port in `endpoint`: `localhost:8080` is not a hostname and does not resolve.
 - Set the port with `tls_port`, or with `port` when TLS is off.
-- With TLS off (`tls=False`), use token authentication.
+- With TLS off (`tls=False`), authenticate with a JWT carrying the `x-ably-clientType=server` claim: an API key is refused without TLS.
 
 See [UPDATING.md](https://github.com/ably/ably-pubsub-python/blob/main/UPDATING.md#deprecated-and-duplicate-options-are-removed) for how the old
 options map to `endpoint`.

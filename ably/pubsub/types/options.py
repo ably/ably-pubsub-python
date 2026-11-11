@@ -210,7 +210,15 @@ class Options(AuthOptions):
         self.__vcdiff_decoder = vcdiff_decoder
         self.__transport_params = transport_params or {}
         self.__max_message_size = max_message_size
-        self.__agents = dict(agents) if agents else {}
+        if agents is not None and not isinstance(agents, dict):
+            raise InvalidArgumentException(
+                f'agents must be a dict of product name to version or None, not {type(agents).__name__}',
+                400, 40000)
+        for name, version in (agents or {}).items():
+            if not name or any(c in f'{name}{version or ""}' for c in ' /'):
+                raise InvalidArgumentException(
+                    f'agents entry {name!r}: {version!r} must not contain spaces or "/"', 400, 40000)
+        self.__agents = dict(agents or {})
         self.__test_options = _test_options
         self.__hosts = self.__get_hosts()
 
@@ -396,6 +404,11 @@ class Options(AuthOptions):
 
     @property
     def agents(self):
+        return dict(self.__agents)
+
+    @property
+    def _agents(self):
+        """The agents for building the Ably-Agent header, without a defensive copy per request."""
         return self.__agents
 
     @property

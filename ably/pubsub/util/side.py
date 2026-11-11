@@ -31,4 +31,7 @@ def options_with_side_agent(kwargs, identifier):
     Pub/Sub SDK, so a version could not say what it versions, and would only duplicate the
     `ably-pubsub-python` entry sent alongside it.
     """
-    return {**kwargs, 'agents': {**(kwargs.get('agents') or {}), identifier: None}}
+    agents = kwargs.get('agents')
+    if agents is not None and not isinstance(agents, dict):
+        return kwargs  # left for Options to reject with a message naming the option
+    return {**kwargs, 'agents': {**(agents or {}), identifier: None}}

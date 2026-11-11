@@ -10,7 +10,7 @@ import pytest
 
 import ably.pubsub.server.sync as server_sync
 from ably.pubsub.realtime.connection import ConnectionState
-from ably.pubsub.server import create_http_client
+from ably.pubsub.server import InvalidArgumentException, create_http_client
 from ably.pubsub.sync.types.testoptions import TestOptions as SyncTestOptions
 from ably.pubsub.types.testoptions import TestOptions
 from test.uts.helpers.client import await_connection_state, close_open_clients, realtime_client
@@ -95,3 +95,15 @@ async def test_a_caller_cannot_redeclare_the_side():
 
     assert agents.count('ably-pubsub-server') == 1
     assert 'ably-pubsub-server/9.9.9' not in agents
+
+
+@pytest.mark.parametrize('agents', [['my-sdk'], {'my sdk': '1.0'}, {'my-sdk': '1/0'}, {'': None}])
+def test_malformed_agents_are_rejected(agents):
+    with pytest.raises(InvalidArgumentException):
+        create_http_client(key=KEY, agents=agents)
+
+
+def test_the_agents_property_cannot_change_the_header():
+    client = create_http_client(key=KEY)
+    client.options.agents.pop('ably-pubsub-server')
+    assert 'ably-pubsub-server' in client.options.agents
