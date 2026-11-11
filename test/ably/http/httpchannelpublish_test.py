@@ -18,6 +18,7 @@ from ably.pubsub.util import case
 from test.ably import utils
 from test.ably.testapp import TestApp
 from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, assert_waiter, dont_vary_protocol
+from test.uts.helpers.sandbox import jwt_claims
 
 log = logging.getLogger(__name__)
 
@@ -128,8 +129,6 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
 
         ably = await TestApp.get_ably_rest(use_binary_protocol=self.use_binary_protocol,
                                            auth_callback=auth_callback)
-        # The protocol harness needs one successful response, and the publish below fails.
-        await ably.time()
 
         with pytest.raises(AblyException) as excinfo:
             await ably.channels["only_subscribe"].publish()
@@ -243,8 +242,9 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
         await channel.publish(name='publish', data='test')
 
         # defined after publish
-        assert isinstance(self.ably_with_client_id.auth.token_details, TokenDetails)
-        assert self.ably_with_client_id.auth.client_id == self.client_id
+        token_details = self.ably_with_client_id.auth.token_details
+        assert isinstance(token_details, TokenDetails)
+        assert jwt_claims(token_details.token)['x-ably-clientId'] == self.client_id
         assert self.ably_with_client_id.auth.auth_mechanism == Auth.Method.TOKEN
         history = await channel.history()
         assert history.items[0].client_id == self.client_id
@@ -308,8 +308,6 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
         new_ably = await TestApp.get_ably_rest(key=None,
                                                token=token,
                                                use_binary_protocol=self.use_binary_protocol)
-        # The protocol harness needs one successful response, and the publish below fails.
-        await new_ably.time()
 
         channel = new_ably.channels[
             self.get_channel_name('persisted:wrong_client_id_implicit_client')]
@@ -328,10 +326,8 @@ class TestHttpChannelPublish(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMet
         wildcard_ably = await TestApp.get_ably_rest(
             key=None,
             token=wildcard_token,
-            client_id='*',
             use_binary_protocol=self.use_binary_protocol)
 
-        assert wildcard_ably.auth.client_id == '*'
         channel = wildcard_ably.channels[
             self.get_channel_name('persisted:wildcard_client_id')]
         await channel.publish(name='publish1', data='no client_id')

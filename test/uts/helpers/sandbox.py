@@ -226,6 +226,12 @@ def generate_jwt(key_name, key_secret, ttl=3600000, client_id=None, capability=N
     return b'.'.join((signing_input, __base64url(signature))).decode('ascii')
 
 
+def jwt_claims(token):
+    """The claims of an Ably JWT, for a test to check what a token it was handed carries."""
+    payload = token.split('.')[1]
+    return json.loads(base64.urlsafe_b64decode(payload + '=' * (-len(payload) % 4)))
+
+
 def __jwt_segment(part):
     return __base64url(json.dumps(part, separators=(',', ':')).encode('utf-8'))
 

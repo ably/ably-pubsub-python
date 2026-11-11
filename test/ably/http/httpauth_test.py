@@ -20,6 +20,7 @@ from test.ably.utils import (
     VaryByProtocolTestsMetaclass,
     dont_vary_protocol,
 )
+from test.uts.helpers.sandbox import jwt_claims
 
 log = logging.getLogger(__name__)
 
@@ -313,14 +314,15 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
         # The client's clientId is what the library passes to the callback, ahead of the default token params
         async def auth_callback(token_params):
             assert token_params['client_id'] == client_id
-            return await TestApp.get_jwt(**token_params)
+            return await TestApp.get_jwt_for(token_params)
 
         ably = await TestApp.get_ably_rest(
             use_binary_protocol=self.use_binary_protocol,
             client_id=client_id,
             auth_callback=auth_callback,
             default_token_params={'client_id': overridden_client_id})
-        await ably.auth.authorize()
+        token = await ably.auth.authorize()
+        assert jwt_claims(token.token)['x-ably-clientId'] == client_id
         assert ably.auth.client_id == client_id
 
         channel = ably.channels[

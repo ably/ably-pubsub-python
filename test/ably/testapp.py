@@ -83,6 +83,12 @@ class TestApp:
                             client_id=client_id, capability=capability, expires_at=expires_at)
 
     @staticmethod
+    async def get_jwt_for(token_params):
+        """A JWT for an auth_callback, carrying the token params a JWT can express."""
+        return await TestApp.get_jwt(client_id=token_params.get('client_id'),
+                                     capability=token_params.get('capability'))
+
+    @staticmethod
     async def get_ably_rest(**kw):
         test_vars = await TestApp.get_test_vars()
         options = TestApp.get_options(test_vars, **kw)

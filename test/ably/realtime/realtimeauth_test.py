@@ -121,7 +121,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     async def test_auth_with_auth_callback_with_token_string(self):
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
@@ -182,7 +182,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     async def test_reauth_while_connected(self):
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         await asyncio.wait_for(ably.connection.once_async(ConnectionState.CONNECTED), timeout=5)
@@ -219,7 +219,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     async def test_reauth_while_connecting(self):
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         original_transport = await ably.connection.connection_manager.once_async('transport.pending')
@@ -242,7 +242,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     async def test_reauth_immediately(self):
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         await ably.auth.authorize()
@@ -254,7 +254,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         channel_name = random_string(5)
 
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
 
@@ -272,7 +272,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
         channel_name = random_string(5)
 
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
 
@@ -300,7 +300,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     async def test_reauth_inbound_auth_protocol_msg(self):
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         msg = {
@@ -465,7 +465,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
     # RTN15h2
     async def test_renew_token_single_attempt_upon_disconnection(self):
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         msg = {
@@ -507,7 +507,7 @@ class TestRealtimeAuth(BaseAsyncTestCase):
 
     async def test_renew_token_single_attempt_on_resume(self):
         async def callback(params):
-            return await TestApp.get_jwt(**params)
+            return await TestApp.get_jwt_for(params)
 
         ably = await TestApp.get_ably_realtime(auth_callback=callback)
         msg = {
