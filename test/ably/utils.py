@@ -12,6 +12,8 @@ import respx
 from httpx import Response
 
 from ably.pubsub.request.http import Http
+from ably.pubsub.util.exceptions import AblyException
+from test.uts.helpers.sandbox import NATIVE_TOKEN_AUTH_UNSUPPORTED  # noqa: F401 - re-exported for test/ably
 
 
 class BaseTestCase:
@@ -65,6 +67,7 @@ def assert_responses_type(protocol):
     supports json and msgpack
     """
     responses = []
+    error_responses = []
 
     def patch():
         original = Http.make_request
@@ -74,12 +77,24 @@ def assert_responses_type(protocol):
             responses.append(response)
             return response
 
-        patcher = mock.patch.object(Http, 'make_request', fake_make_request)
-        patcher.start()
-        return patcher
+        original_raise = AblyException.raise_for_response
 
-    def unpatch(patcher):
-        patcher.stop()
+        # A request that fails raises before make_request returns. It still counts as a
+        # request made, but its error body isn't held to the protocol.
+        def fake_raise_for_response(response):
+            if not 200 <= response.status_code < 300:
+                error_responses.append(response)
+            original_raise(response)
+
+        patchers = [mock.patch.object(Http, 'make_request', fake_make_request),
+                    mock.patch.object(AblyException, 'raise_for_response', staticmethod(fake_raise_for_response))]
+        for patcher in patchers:
+            patcher.start()
+        return patchers
+
+    def unpatch(patchers):
+        for patcher in patchers:
+            patcher.stop()
 
     def test_decorator(fn):
         @functools.wraps(fn)
@@ -92,7 +107,7 @@ def assert_responses_type(protocol):
                 # left as it was found even when an assertion or a transport error escapes.
                 unpatch(patcher)
 
-            assert len(responses) >= 1, \
+            assert len(responses) + len(error_responses) >= 1, \
                 "If your test doesn't make any requests, use the @dont_vary_protocol decorator"
 
             for response in responses:
@@ -150,6 +165,8 @@ class VaryByProtocolTestsMetaclass(type):
             await old_func(self)
 
         wrapper.__name__ = old_name + '_' + ttype
+        # carry marks such as pytest.mark.skip over to the protocol-specific copy
+        wrapper.pytestmark = getattr(old_func, 'pytestmark', [])
         return wrapper
 
 

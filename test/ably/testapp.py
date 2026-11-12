@@ -11,6 +11,7 @@ from ably.pubsub.transport.defaults import Defaults
 from ably.pubsub.types.capability import Capability
 from ably.pubsub.types.options import Options
 from ably.pubsub.util.exceptions import AblyException
+from test.uts.helpers.sandbox import generate_jwt
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +66,27 @@ class TestApp:
                       for k in app_spec.get("keys", [])])
 
         return TestApp.__test_vars
+
+    @staticmethod
+    async def get_jwt(client_id=None, capability=None, ttl=3600000, expires_at=None):
+        """An Ably JWT signed with the full-access key, in place of a native token.
+
+        `capability` may be a dict, as token params give it. Use this where a test needs a token
+        string or an auth_callback result; the server takes its server declaration only from the
+        signed claim this carries.
+        """
+        test_vars = await TestApp.get_test_vars()
+        key = test_vars["keys"][0]
+        if capability is not None and not isinstance(capability, str):
+            capability = str(Capability(capability))
+        return generate_jwt(key["key_name"], key["key_secret"], ttl=ttl,
+                            client_id=client_id, capability=capability, expires_at=expires_at)
+
+    @staticmethod
+    async def get_jwt_for(token_params):
+        """A JWT for an auth_callback, carrying the token params a JWT can express."""
+        return await TestApp.get_jwt(client_id=token_params.get('client_id'),
+                                     capability=token_params.get('capability'))
 
     @staticmethod
     async def get_ably_rest(**kw):

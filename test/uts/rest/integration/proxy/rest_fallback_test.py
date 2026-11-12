@@ -22,7 +22,13 @@ import pytest
 from ably.pubsub.server import create_http_client
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
-from test.uts.helpers.sandbox import SANDBOX_ENDPOINT, random_id
+from test.uts.helpers.sandbox import (
+    SANDBOX_ENDPOINT,
+    extract_key_name,
+    extract_key_secret,
+    generate_jwt,
+    random_id,
+)
 
 # The specification's `non_listening_port`: a port nothing is bound to, so that
 # connecting to it is refused rather than answered.
@@ -30,6 +36,14 @@ NON_LISTENING_PORT = 19999
 
 # The specification's `httpRequestTimeout: 3000`, in the seconds the client option takes.
 HTTP_REQUEST_TIMEOUT_SECONDS = 3
+
+
+def jwt_auth_callback(api_key):
+    """An authCallback that signs an Ably JWT locally, so it makes no request the proxy could see."""
+    async def auth_callback(params):
+        return generate_jwt(extract_key_name(api_key), extract_key_secret(api_key))
+
+    return auth_callback
 
 
 def token_auth_callback(api_key):
@@ -321,7 +335,7 @@ async def test_rsl1k4_idempotent_retry_dedup(sandbox, proxy_session):
     }])
 
     client = sandbox_rest_client(
-        auth_callback=token_auth_callback(sandbox.key_str),
+        auth_callback=jwt_auth_callback(sandbox.key_str),
         endpoint='localhost',
         fallback_hosts=['localhost'],
         port=session.proxy_port,

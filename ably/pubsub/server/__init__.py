@@ -71,6 +71,7 @@ from ably.pubsub.util.exceptions import (
     IncompatibleClientIdException,
     InvalidArgumentException,
 )
+from ably.pubsub.util.side import SERVER_AGENT_IDENTIFIER, options_with_side_agent
 from ably.pubsub.vcdiff.defaultvcdiffdecoder import AblyVCDiffDecoder
 from ably.pubsub.version import api_version, lib_version
 
@@ -184,6 +185,10 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
             The largest total size of the messages one publish may carry, counting each
             message's name, data, client ID and extras. A larger publish raises an
             AblyException with code 40009 and is not sent. The default is 65536 (64 KiB).
+        agents: dict[str, str | None]
+            Additional entries for the `Ably-Agent` header, mapping a product name to its
+            version, or to None for a versionless entry. For an SDK built on this one to
+            identify itself. The client always adds `ably-pubsub-server` as well.
 
     Returns
     -------
@@ -204,7 +209,7 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         option's 3.x name, which the message names the replacement for.
     """
     with factory_construction():
-        return _DefaultPubSubHttpClient(**kwargs)
+        return _DefaultPubSubHttpClient(**options_with_side_agent(kwargs, SERVER_AGENT_IDENTIFIER))
 
 
 def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
@@ -280,7 +285,7 @@ def create_realtime_client(**kwargs) -> PubSubRealtimeClient:
         ValueError.
     """
     with factory_construction():
-        return _DefaultPubSubRealtimeClient(**kwargs)
+        return _DefaultPubSubRealtimeClient(**options_with_side_agent(kwargs, SERVER_AGENT_IDENTIFIER))
 
 
 __all__ = [

@@ -61,6 +61,15 @@ APP_SETUP_BODY = __app_setup['post_apps']
 CIPHER_FIXTURE = __app_setup['cipher']
 
 
+# Skip reason for specifications whose subject is a native Ably token. A server client cannot
+# authenticate with one: Ably accepts the server declaration under token auth only from a signed
+# x-ably-clientType JWT claim (40167).
+NATIVE_TOKEN_AUTH_UNSUPPORTED = (
+    "A server client cannot authenticate with a native Ably token: Ably accepts the server declaration "
+    "under token auth only from a signed x-ably-clientType JWT claim (40167)"
+)
+
+
 def random_id(length=6):
     """A short unique suffix, for the names the specifications build.
 
@@ -205,6 +214,9 @@ def generate_jwt(key_name, key_secret, ttl=3600000, client_id=None, capability=N
         'iat': issued_at,
         'exp': issued_at + seconds,
         'x-ably-capability': capability if capability is not None else '{"*":["*"]}',
+        # The clients are ably-pubsub-server clients, which declare the server side,
+        # and on token auth Ably accepts that only from this signed claim (40167).
+        'x-ably-clientType': 'server',
     }
     if client_id is not None:
         claims['x-ably-clientId'] = client_id
@@ -212,6 +224,12 @@ def generate_jwt(key_name, key_secret, ttl=3600000, client_id=None, capability=N
     signing_input = b'.'.join(__jwt_segment(part) for part in (header, claims))
     signature = hmac.new(key_secret.encode('utf-8'), signing_input, hashlib.sha256).digest()
     return b'.'.join((signing_input, __base64url(signature))).decode('ascii')
+
+
+def jwt_claims(token):
+    """The claims of an Ably JWT, for a test to check what a token it was handed carries."""
+    payload = token.split('.')[1]
+    return json.loads(base64.urlsafe_b64decode(payload + '=' * (-len(payload) % 4)))
 
 
 def __jwt_segment(part):

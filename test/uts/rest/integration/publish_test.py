@@ -8,7 +8,7 @@ import pytest
 from ably.pubsub.types.message import Message
 from ably.pubsub.util.exceptions import AblyException
 from test.uts.helpers.client import sandbox_rest_client, wall_clock_poll_until
-from test.uts.helpers.sandbox import random_id
+from test.uts.helpers.sandbox import extract_key_name, extract_key_secret, generate_jwt, random_id
 
 
 # UTS: rest/integration/RSL1d/publish-failure-error-0
@@ -107,11 +107,10 @@ async def test_rsl1l1_publish_params_force_nack(sandbox, use_binary_protocol):
 
 # UTS: rest/integration/RSL1m4/clientid-mismatch-rejected-0
 async def test_rsl1m4_clientid_mismatch_rejected(sandbox, use_binary_protocol):
-    key_client = sandbox_rest_client(sandbox.key_str, use_binary_protocol=use_binary_protocol)
-
-    # request_token takes its token params as a positional dict; every keyword on it is an
-    # auth option.
-    token_details = await key_client.auth.request_token({'client_id': 'authenticated-client-id'})
+    # A JWT carrying the clientId stands in for the native token the spec requests with
+    # request_token, which a server client cannot authenticate with.
+    token = generate_jwt(extract_key_name(sandbox.key_str), extract_key_secret(sandbox.key_str),
+                         client_id='authenticated-client-id')
 
     # The spec passes the bare token string, not the TokenDetails, so the client does not
     # know the clientId the token carries and cannot rule the publish out locally. The
@@ -119,7 +118,7 @@ async def test_rsl1m4_clientid_mismatch_rejected(sandbox, use_binary_protocol):
     # `token_details=` instead would have the library reject it in
     # `Channel.__publish_request_body` with the same 400/40012 before any request left.
     token_client = sandbox_rest_client(
-        token=token_details.token, use_binary_protocol=use_binary_protocol)
+        token=token, use_binary_protocol=use_binary_protocol)
 
     channel_name = 'clientid-mismatch-' + random_id()
     channel = token_client.channels.get(channel_name)

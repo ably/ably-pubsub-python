@@ -14,7 +14,13 @@ import ably.pubsub.types.tokenrequest
 from ably.pubsub.server import AblyAuthException, Auth, create_http_client
 from ably.pubsub.types.tokendetails import TokenDetails
 from test.ably.testapp import TestApp
-from test.ably.utils import BaseAsyncTestCase, VaryByProtocolTestsMetaclass, dont_vary_protocol
+from test.ably.utils import (
+    NATIVE_TOKEN_AUTH_UNSUPPORTED,
+    BaseAsyncTestCase,
+    VaryByProtocolTestsMetaclass,
+    dont_vary_protocol,
+)
+from test.uts.helpers.sandbox import jwt_claims
 
 log = logging.getLogger(__name__)
 
@@ -184,6 +190,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
 
     # RSA10a
     @dont_vary_protocol
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_authorize_always_creates_new_token(self):
         await self.ably.auth.authorize({'capability': {'test': ['publish']}})
         await self.ably.channels.get('test').publish('event', 'data')
@@ -218,6 +225,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
         for arg, value in auth_params.items():
             assert auth_called[arg] == value, f"{arg} called with wrong value: {value}"
 
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_with_token_str_https(self):
         token = await self.ably.auth.authorize()
         token = token.token
@@ -226,6 +234,7 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
         await ably.channels.get('test_auth_with_token_str').publish('event', 'foo_bar')
         await ably.close()
 
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_with_token_str_http(self):
         token = await self.ably.auth.authorize()
         token = token.token
@@ -301,12 +310,19 @@ class TestAuthAuthorize(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclas
     async def test_client_id_precedence(self):
         client_id = uuid.uuid4().hex
         overridden_client_id = uuid.uuid4().hex
+
+        # The client's clientId is what the library passes to the callback, ahead of the default token params
+        async def auth_callback(token_params):
+            assert token_params['client_id'] == client_id
+            return await TestApp.get_jwt_for(token_params)
+
         ably = await TestApp.get_ably_rest(
             use_binary_protocol=self.use_binary_protocol,
             client_id=client_id,
+            auth_callback=auth_callback,
             default_token_params={'client_id': overridden_client_id})
         token = await ably.auth.authorize()
-        assert token.client_id == client_id
+        assert jwt_claims(token.token)['x-ably-clientId'] == client_id
         assert ably.auth.client_id == client_id
 
         channel = ably.channels[
@@ -326,6 +342,7 @@ class TestRequestToken(BaseAsyncTestCase, metaclass=VaryByProtocolTestsMetaclass
     def per_protocol_setup(self, use_binary_protocol):
         self.use_binary_protocol = use_binary_protocol
 
+    @pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
     async def test_with_key(self):
         ably = await TestApp.get_ably_rest(use_binary_protocol=self.use_binary_protocol)
 
