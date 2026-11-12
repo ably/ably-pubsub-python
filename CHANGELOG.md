@@ -1,5 +1,14 @@
 # Change Log
 
+## [4.0.1](https://github.com/ably/ably-pubsub-python/tree/v4.0.1)
+
+[Full Changelog](https://github.com/ably/ably-pubsub-python/compare/v4.0.0...v4.0.1)
+
+### What's Changed
+
+- Send `ably-pubsub-server` in the Ably-Agent header, so Ably recognises clients as running on a server. A server authenticating with a native Ably token is now rejected with error 40167: under token auth only a JWT carrying the `x-ably-clientType=server` claim can declare a server [#746](https://github.com/ably/ably-pubsub-python/pull/746)
+- Rewrite the README for the 4.0 SDK [#745](https://github.com/ably/ably-pubsub-python/pull/745)
+
 ## [4.0.0](https://github.com/ably/ably-pubsub-python/tree/v4.0.0)
 
 [Full Changelog](https://github.com/ably/ably-pubsub-python/compare/v3.1.4...v4.0.0)
