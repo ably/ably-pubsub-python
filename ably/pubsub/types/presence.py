@@ -131,6 +131,10 @@ class PresenceMessage(EncodeDataMixin):
         Encrypt the presence message data using the provided cipher.
         Similar to Message.encrypt().
         """
+        # Presence messages may carry no data, so there is nothing to encrypt.
+        if self.data is None:
+            return
+
         if isinstance(self.data, CipherData):
             return
 
