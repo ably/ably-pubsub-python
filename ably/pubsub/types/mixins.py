@@ -83,7 +83,7 @@ class EncodeDataMixin:
                     log.error('Message cannot be decoded as no VCDiff decoder available')
                     raise AblyException('VCDiff decoder not available', 400, 40019)
 
-                if not context.base_payload:
+                if context.base_payload is None:
                     log.error('VCDiff decoding requires base payload')
                     raise AblyException('VCDiff decode failure', 400, 40018)
 
