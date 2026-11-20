@@ -24,24 +24,24 @@ One Test ID can become more than one derived test: five Test IDs in `rest/unit` 
 `error_types_test.py`, `fallback_test.py`, `rest_client_test.py` (two) and
 `paginated_result_test.py` — assert several independent things under a single id, and
 the derivation writes a function for each rather than one function with an unrelated
-second half. That turns 1472 Test IDs into 1481 derived tests. Going the other way, one
+second half. That turns 1503 Test IDs into 1512 derived tests. Going the other way, one
 derived test can become more than one case: five of the twelve `rest/integration`
 specifications, five of the twenty `realtime/integration` ones and the three
 `objects/integration` ones outside `proxy` carry a `## Protocol Variants` section and run
 every one of their tests twice, once per protocol; nine `rest/unit` tests are
 parametrized over a table of fixtures the specification gives inline; and five
 `objects/unit` tests are parametrized, three over a table and two over the scenarios the
-specification loops through. That turns 1481 derived tests into 1608 pytest cases.
+specification loops through. That turns 1512 derived tests into 1639 pytest cases.
 
-Of **1472 Test IDs, derived as 1481 tests and run as 1608 pytest cases**: 1304 Test IDs
-(1313 tests, 1438 cases) pass, 141 (141 tests, 143 cases) are gated behind
+Of **1503 Test IDs, derived as 1512 tests and run as 1639 pytest cases**: 1335 Test IDs
+(1344 tests, 1469 cases) pass, 141 (141 tests, 143 cases) are gated behind
 `RUN_DEVIATIONS`, and 27 (27 tests, 27 cases) cannot be run at all. The three groups are
 disjoint: two Test IDs have a gated part and a passing part — `TI1`, as two functions, and
 `TO/endpoint-affects-host`, as one parametrized test — and are counted with the gated,
 while their passing parts count among the passing tests and cases. Every gated test has
-been confirmed to fail when enabled, so none of them passes under both behaviours. 494 of
-the Test IDs come from `uts/rest/unit` (503 tests, 536 cases), 482 from
-`uts/realtime/unit` (482, 482), 322 from `uts/objects/unit` (322, 344), 84 from
+been confirmed to fail when enabled, so none of them passes under both behaviours. 521 of
+the Test IDs come from `uts/rest/unit` (530 tests, 563 cases), 486 from
+`uts/realtime/unit` (486, 486), 322 from `uts/objects/unit` (322, 344), 84 from
 `uts/rest/integration` (84, 122), 73 from `uts/realtime/integration` (73, 95) and 17 from
 `uts/objects/integration` (17, 29); 8 of the REST integration ids (8, 8), 30 of the
 realtime ones (30, 30) and 5 of the objects ones (5, 5) come from the `proxy` package
@@ -3377,16 +3377,16 @@ The header states how many derived tests there are, how many pass, how many are
 gated and how many cannot run. Those numbers are the check that the file is still
 true: in pytest cases, the gated count must equal the number of failures under
 `RUN_DEVIATIONS=1`, and gated plus unrunnable must equal the number of skips without
-it. As of this writing that is 143 failures, 1586 passes and 27 skips with the variable
-set, and 170 skips and 1586 passes without it, the 1586 being 1438 derived cases and 148
+it. As of this writing that is 143 failures, 1617 passes and 27 skips with the variable
+set, and 170 skips and 1617 passes without it, the 1617 being 1469 derived cases and 148
 harness ones — 130 under `helpers/` and 18 under `objects/helpers/`. Those figures need
 the `submodules` checkout CI makes: without it, three `rest/unit/encoding` tests that read
 the ably-common fixtures skip as well. The tiers are told apart by the junit report's
 `classname`, `test.uts.<area>.<tier>`, with `proxy` the package within an integration tier.
 
 The other two counts are measured from the source rather than from a run. The number of
-**derived tests** is the number of `# UTS:` comments, 1481. The number of **Test IDs** is
-the number of *distinct* ids in them, 1472 — not the same figure, because five ids in
+**derived tests** is the number of `# UTS:` comments, 1512. The number of **Test IDs** is
+the number of *distinct* ids in them, 1503 — not the same figure, because five ids in
 `rest/unit` are carried by more than one test function. Counting the comments and calling
 the result Test IDs is the easy mistake here, and it overstates the specification coverage
 by nine. The other is to gate or un-gate a test, record it in the body, and leave the

@@ -566,6 +566,7 @@ class RealtimeChannel(EventEmitter, Channel):
             version=version,
             extras=message.extras,
             annotations=message.annotations,
+            patches=message.patches,
         )
 
         # Encrypt if needed
@@ -680,6 +681,35 @@ class RealtimeChannel(EventEmitter, Channel):
             If message serial is missing or connection/channel state prevents the append
         """
         return await self._send_update(message, MessageAction.MESSAGE_APPEND, operation, params)
+
+    async def patch_message(
+            self,
+            message: Message,
+            operation: MessageOperation | None = None,
+            params: dict | None = None,
+    ) -> UpdateDeleteResult:
+        """Patches an existing message on this channel (PSRFC-44): changes parts of its data at JSON
+        Pointer paths, and its headers, without sending the whole message.
+
+        Parameters
+        ----------
+        message : Message
+            Message object with a serial field, and the changes in its patches field, a MessagePatches.
+            Its other fields are sent as they are.
+        operation : MessageOperation, optional
+            Optional MessageOperation containing description and metadata for the patch.
+
+        Returns
+        -------
+        UpdateDeleteResult
+            Result containing the version serial of the patched message.
+
+        Raises
+        ------
+        AblyException
+            If message serial is missing or connection/channel state prevents the patch
+        """
+        return await self._send_update(message, MessageAction.MESSAGE_PATCH, operation, params)
 
     async def get_message(self, serial_or_message):
         """Retrieves a single message by its serial using the REST API.

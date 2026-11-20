@@ -57,6 +57,14 @@ from ably.pubsub.types.channelsubscription import PushChannelSubscription
 from ably.pubsub.types.connectionstate import ConnectionEvent, ConnectionState, ConnectionStateChange
 from ably.pubsub.types.device import DeviceDetails, DevicePushDetails
 from ably.pubsub.types.message import Message, MessageAction, MessageVersion
+from ably.pubsub.types.messagepatch import (
+    MessagePatchDataOperation,
+    MessagePatches,
+    MessagePatchExtras,
+    MessagePatchHeaderOperation,
+    MessagePatchPrivilegedOperation,
+    MessagePatchUserClaimOperation,
+)
 from ably.pubsub.types.operations import MessageOperation, PublishResult, UpdateDeleteResult
 from ably.pubsub.types.options import Options, VCDiffDecoder
 from ably.pubsub.types.presence import Presence, PresenceAction, PresenceMessage
@@ -326,6 +334,12 @@ __all__ = [
     'Message',
     'MessageAction',
     'MessageOperation',
+    'MessagePatchDataOperation',
+    'MessagePatchExtras',
+    'MessagePatchHeaderOperation',
+    'MessagePatchPrivilegedOperation',
+    'MessagePatchUserClaimOperation',
+    'MessagePatches',
     'MessageVersion',
     'Options',
     'PaginatedResult',

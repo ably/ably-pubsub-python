@@ -4,6 +4,7 @@ import logging
 import os
 from enum import IntEnum
 
+from ably.pubsub.types.messagepatch import MessagePatches, apply_to_message_fields, check_patch
 from ably.pubsub.types.mixins import DeltaExtras, EncodeDataMixin
 from ably.pubsub.types.typedbuffer import TypedBuffer
 from ably.pubsub.util.crypto import CipherData
@@ -133,6 +134,7 @@ class MessageAction(IntEnum):
     META = 3
     MESSAGE_SUMMARY = 4
     MESSAGE_APPEND = 5
+    MESSAGE_PATCH = 6  # PSRFC-44
 
 
 class Message(EncodeDataMixin):
@@ -151,6 +153,7 @@ class Message(EncodeDataMixin):
                  action=None, # TM2j
                  version=None, # TM2s
                  annotations=None, # TM2t
+                 patches=None,  # TM2v: the MessagePatches of a MESSAGE_PATCH
                  ):
 
         super().__init__(encoding)
@@ -167,6 +170,7 @@ class Message(EncodeDataMixin):
         self.__action = action
         self.__version = version
         self.__annotations = annotations
+        self.__patches = patches
 
     def __eq__(self, other):
         if isinstance(other, Message):
@@ -235,6 +239,40 @@ class Message(EncodeDataMixin):
     def annotations(self):
         return self.__annotations
 
+    @property
+    def patches(self):
+        """The changes a MESSAGE_PATCH makes (TM2v), as MessagePatches: set by the user to send with
+        patch_message, and decoded on receipt per MPD4. None for other actions."""
+        return self.__patches
+
+    def apply_patch(self, patch: 'Message') -> 'Message':
+        """Applies ``patch``, a received MESSAGE_PATCH of this message, to a copy of it (PSRFC-44), with the
+        same result as Ably: the data operations to its data, then the header operations and those set by Ably
+        to its extras. The copy has the patch's version and the action MESSAGE_UPDATE; every other field is this
+        message's. JSON data that arrived as text, in a string or binary, keeps every character an operation
+        does not change; decoded JSON is copied only along each path, so this message is unchanged.
+
+        :raises AblyException: with code 40000 if ``patch`` is not a patch of this message, or any operation
+            cannot be applied, in which case none is. Fetch the latest version with ``get_message(serial)``.
+        """
+        check_patch(self.serial, patch)
+        data, encoding, extras = apply_to_message_fields(self.data, self.encoding, self.extras, patch.patches)
+        return Message(
+            name=self.name,
+            data=data,
+            client_id=self.client_id,
+            id=self.id,
+            connection_id=self.connection_id,
+            connection_key=self.connection_key,
+            encoding=encoding,
+            timestamp=self.timestamp,
+            extras=extras,
+            serial=self.serial,
+            action=MessageAction.MESSAGE_UPDATE,
+            version=patch.version,
+            annotations=self.annotations,
+        )
+
     def encrypt(self, channel_cipher):
         if isinstance(self.data, CipherData):
             return
@@ -280,6 +318,7 @@ class Message(EncodeDataMixin):
             'serial': self.serial,
             'action': int(self.action) if self.action is not None else None,
             'annotations': self.annotations.as_dict() if self.annotations else None,
+            'patches': self.patches.as_dict(binary) if isinstance(self.patches, MessagePatches) else None,
             **encode_data(self.data, self._encoding_array, binary),
         }
 
@@ -365,6 +404,7 @@ class Message(EncodeDataMixin):
             action=action,
             version=version,
             annotations=annotations,
+            patches=MessagePatches.from_dict(obj.get('patches')),
             **decoded_data
         )
 

@@ -197,6 +197,7 @@ class Channel:
             version=version,
             extras=message.extras,
             annotations=message.annotations,
+            patches=message.patches,
         )
 
         # Encrypt if needed
@@ -264,6 +265,21 @@ class Channel:
         - UpdateDeleteResult containing the version serial of the appended message.
         """
         return await self._send_update(message, MessageAction.MESSAGE_APPEND, operation, params)
+
+    async def patch_message(self, message: Message, operation: MessageOperation = None, params: dict = None):
+        """Patches an existing message on this channel (PSRFC-44): changes parts of its data at JSON
+        Pointer paths, and its headers, without sending the whole message.
+
+        Parameters:
+        - message: Message object with a serial field, and the changes in its patches field, a
+          MessagePatches. Its other fields are sent as they are.
+        - operation: Optional MessageOperation containing description and metadata for the patch.
+        - params: Optional dict of query parameters.
+
+        Returns:
+        - UpdateDeleteResult containing the version serial of the patched message.
+        """
+        return await self._send_update(message, MessageAction.MESSAGE_PATCH, operation, params)
 
     async def get_message(self, serial_or_message):
         """Retrieves a single message by its serial.
