@@ -523,18 +523,15 @@ class TestRealtimeConnection(BaseAsyncTestCase):
 
     #  RTN2d
     async def test_connection_null_client_id_query_params(self):
-        rest = await TestApp.get_ably_rest()
+        token = await TestApp.get_jwt()
 
-        token_details = await rest.auth.request_token()
-
-        realtime = await TestApp.get_ably_realtime(token_details=token_details)
+        realtime = await TestApp.get_ably_realtime(token=token)
 
         await realtime.connection.once_async(ConnectionState.CONNECTED)
         assert realtime.connection.connection_manager.transport.params.get("client_id") is None
         assert realtime.auth.client_id is None
 
         await realtime.close()
-        await rest.close()
 
     async def test_connection_client_id_query_params(self):
         client_id = 'test_client_id'

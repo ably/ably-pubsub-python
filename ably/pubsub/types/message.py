@@ -236,6 +236,10 @@ class Message(EncodeDataMixin):
         return self.__annotations
 
     def encrypt(self, channel_cipher):
+        # A message may carry no data (e.g. only a name); there is nothing to encrypt.
+        if self.data is None:
+            return
+
         if isinstance(self.data, CipherData):
             return
 

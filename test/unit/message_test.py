@@ -121,3 +121,28 @@ def test_presence_without_any_id_is_compared_by_timestamp():
     older, newer = build(1000), build(2000)
     assert _is_newer(newer, older) is True
     assert _is_newer(older, newer) is False
+
+
+# RSL5: a message without data on an encrypted channel has nothing to encrypt
+def test_encrypt_message_without_data_is_a_noop():
+    from ably.pubsub.server import generate_random_key, get_default_params
+
+    cipher = get_default_params({'key': generate_random_key()})
+    message = Message(name='ping')
+
+    message.encrypt(cipher)
+
+    assert message.data is None
+    assert message.as_dict() == {'name': 'ping'}
+
+
+def test_encrypt_presence_message_without_data_is_a_noop():
+    from ably.pubsub.server import generate_random_key, get_default_params
+    from ably.pubsub.types.presence import PresenceMessage
+
+    cipher = get_default_params({'key': generate_random_key()})
+    message = PresenceMessage(action=1, client_id='c')
+
+    message.encrypt(cipher)
+
+    assert message.data is None

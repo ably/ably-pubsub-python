@@ -6,4 +6,4 @@ because ``ably.pubsub`` is a PEP 420 namespace package, shared with the other
 """
 
 api_version = '6'
-lib_version = '4.0.0'
+lib_version = '4.0.1'

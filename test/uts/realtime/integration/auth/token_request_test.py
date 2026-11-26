@@ -15,9 +15,11 @@ reads the value off the connection manager. See
 case, so `TokenParams(clientId: x)` is `{'client_id': x}`.
 """
 
+import pytest
+
 from ably.pubsub.realtime.connection import ConnectionState
 from test.uts.helpers.client import await_connection_state, sandbox_realtime_client, sandbox_rest_client
-from test.uts.helpers.sandbox import random_id
+from test.uts.helpers.sandbox import NATIVE_TOKEN_AUTH_UNSUPPORTED, random_id
 
 # The wait the specification gives each connection.
 CONNECT_TIMEOUT = 15.0
@@ -29,6 +31,7 @@ def connection_id(client):
 
 
 # UTS: realtime/integration/RSA9a/token-request-server-accepted-0
+@pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
 async def test_rsa9a_token_request_server_accepted(realtime_sandbox):
     creator = sandbox_rest_client(realtime_sandbox.key_str)
 
@@ -46,6 +49,7 @@ async def test_rsa9a_token_request_server_accepted(realtime_sandbox):
 
 
 # UTS: realtime/integration/RSA9/token-request-with-clientid-0
+@pytest.mark.skip(reason=NATIVE_TOKEN_AUTH_UNSUPPORTED)
 async def test_rsa9_token_request_with_clientid(realtime_sandbox):
     test_client_id = 'token-request-client-' + random_id()
 

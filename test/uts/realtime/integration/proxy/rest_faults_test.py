@@ -76,9 +76,14 @@ def token_auth_callback(api_key, invocations=None):
     return auth_callback
 
 
-def jwt_auth_callback(api_key):
-    """The specification's JWT `authCallback`, which makes no request of its own."""
+def jwt_auth_callback(api_key, invocations=None):
+    """The specification's JWT `authCallback`, which makes no request of its own.
+
+    `invocations` is appended to once per call where a test counts renewals.
+    """
     async def auth_callback(params):
+        if invocations is not None:
+            invocations.append(params)
         return generate_jwt(extract_key_name(api_key), extract_key_secret(api_key))
 
     return auth_callback
@@ -111,7 +116,7 @@ async def test_rsc10_token_renewal_on_401(realtime_sandbox, proxy_session):
     }])
 
     client = sandbox_rest_client(
-        auth_callback=token_auth_callback(realtime_sandbox.key_str, auth_callback_invocations),
+        auth_callback=jwt_auth_callback(realtime_sandbox.key_str, auth_callback_invocations),
         endpoint='localhost',
         port=session.proxy_port,
         tls=False,

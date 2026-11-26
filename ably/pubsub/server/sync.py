@@ -56,6 +56,7 @@ from ably.pubsub.sync.util.exceptions import (
     IncompatibleClientIdException,
     InvalidArgumentException,
 )
+from ably.pubsub.sync.util.side import SERVER_AGENT_IDENTIFIER, options_with_side_agent
 from ably.pubsub.sync.vcdiff.defaultvcdiffdecoder import AblyVCDiffDecoder
 from ably.pubsub.version import api_version, lib_version
 
@@ -82,7 +83,7 @@ def create_http_client(**kwargs) -> PubSubHttpClient:
         ValueError.
     """
     with factory_construction():
-        return _DefaultPubSubHttpClientSync(**kwargs)
+        return _DefaultPubSubHttpClientSync(**options_with_side_agent(kwargs, SERVER_AGENT_IDENTIFIER))
 
 
 __all__ = [
