@@ -221,6 +221,7 @@ class Auth:
         auth_headers = auth_headers or self.auth_options.auth_headers or {}
 
         log.debug(f"Token Params: {token_params}")
+        signed_with_key = False
         if auth_callback:
             log.debug("using token auth with authCallback")
             try:
@@ -239,6 +240,7 @@ class Auth:
             token_request = await self.create_token_request(
                 token_params, key_name=key_name, key_secret=key_secret,
                 query_time=query_time)
+            signed_with_key = True
         else:
             msg = "Need a new token but auth_options does not include a way to request one"
             log.exception(msg)
@@ -263,11 +265,28 @@ class Auth:
 
         token_path = f"/keys/{token_request.key_name}/requestToken"
 
-        response = await self.ably.http.post(
-            token_path,
-            body=token_request.to_dict(),
-            skip_auth=True
-        )
+        try:
+            response = await self.ably.http.post(
+                token_path,
+                body=token_request.to_dict(),
+                skip_auth=True
+            )
+        except AblyException as e:
+            # A fallback host retry sends the same body again. When the server used the
+            # nonce on an attempt whose response was lost, it rejects the retry as a
+            # replay (40105). Sign a new token request with a new nonce and send it once more.
+            if not (signed_with_key and e.code == 40105
+                    and token_params.get('nonce') is None and token_params.get('mac') is None):
+                raise
+            log.debug("Token request nonce was replayed, sending a new token request")
+            token_request = await self.create_token_request(
+                token_params, key_name=key_name, key_secret=key_secret,
+                query_time=query_time)
+            response = await self.ably.http.post(
+                token_path,
+                body=token_request.to_dict(),
+                skip_auth=True
+            )
 
         AblyException.raise_for_response(response)
         response_dict = response.to_native()
