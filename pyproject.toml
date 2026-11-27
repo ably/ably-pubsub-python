@@ -32,7 +32,7 @@ dependencies = [
   "websockets>=10.0,<12.0; python_version=='3.7'",
   "websockets>=12.0,<15.0; python_version=='3.8'",
   "websockets>=15.0,<16.0; python_version>='3.9'",
-  "pyee>=9.0.4,<10.0.0; python_version=='3.7'",
+  "pyee>=9.0.4,<14.0.0; python_version=='3.7'",
   "pyee>=11.1.0,<14.0.0; python_version>='3.8'",
 ]
 
