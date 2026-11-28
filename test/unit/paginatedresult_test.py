@@ -1,13 +1,16 @@
-"""Unit tests for the headers of an HttpPaginatedResponse.
+"""Unit tests for paginated requests and responses.
 
 Tests cover:
 - HP8: headers as a read-only mapping, looked up by name case-insensitively
+- datetime start/end bounds are sent as milliseconds since the epoch
 """
+
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
 
-from ably.pubsub.request.paginatedresult import ResponseHeaders
+from ably.pubsub.request.paginatedresult import ResponseHeaders, format_params
 
 
 def test_headers_look_up_case_insensitively():
@@ -40,3 +43,12 @@ def test_headers_are_read_only():
         headers['X-One'] = '2'
     with pytest.raises(TypeError):
         del headers['X-One']
+
+
+@pytest.mark.parametrize('value', [
+    datetime(2024, 1, 1, 12, 0, 0, 999000, tzinfo=timezone.utc),
+    datetime(2024, 1, 1, 14, 0, 0, 999000, tzinfo=timezone(timedelta(hours=2))),
+    datetime(2024, 1, 1, 12, 0, 0, 999999),
+])
+def test_datetime_bounds_keep_milliseconds(value):
+    assert format_params(start=value, end=value) == '?start=1704110400999&end=1704110400999'

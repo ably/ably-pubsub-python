@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 
 def format_time_param(t):
     try:
-        return f'{calendar.timegm(t.utctimetuple()) * 1000}'
+        return f'{calendar.timegm(t.utctimetuple()) * 1000 + t.microsecond // 1000}'
     except Exception:
         return str(t)
 
