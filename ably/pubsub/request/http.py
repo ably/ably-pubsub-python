@@ -165,10 +165,9 @@ class Http:
             self.__host_expires = None
             return hosts
 
-        hosts = list(hosts)
-        hosts.remove(host)
-        hosts.insert(0, host)
-        return hosts
+        # The realtime connection tries every fallback host, so the saved one may not be among
+        # these. Put it first and keep the number of attempts unchanged.
+        return [host, *(other for other in hosts if other != host)][:len(hosts)]
 
     @reauth_if_expired
     async def make_request(self, method, path, version=None, headers=None, body=None,

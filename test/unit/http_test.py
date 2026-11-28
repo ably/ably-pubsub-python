@@ -28,6 +28,22 @@ def test_http_get_rest_hosts_works_when_fallback_realtime_host_is_not_set():
     assert all(isinstance(host, str) for host in hosts)
 
 
+@pytest.mark.parametrize("fallback_index", range(5))
+def test_http_get_hosts_accepts_any_realtime_fallback_host(fallback_index):
+    ably = create_http_client(token="foo")
+    hosts = ably.options.get_hosts()
+    fallback_host = ably.options.get_fallback_hosts()[fallback_index]
+    # The realtime connection may land on any fallback host, not only those REST would retry
+    ably.options.fallback_host = fallback_host
+
+    rest_hosts = ably.http.get_hosts()
+
+    assert rest_hosts[0] == fallback_host
+    assert rest_hosts[1] == hosts[0]
+    assert len(rest_hosts) == len(hosts)
+    assert len(set(rest_hosts)) == len(rest_hosts)
+
+
 class RecordingTransport(httpx.AsyncBaseTransport):
     def __init__(self, response_factory):
         self.requests = []
